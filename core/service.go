@@ -19,6 +19,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/dhowden/tag"
+	"github.com/guohuiyuan/go-music-dl/internal/spotify"
 	"github.com/guohuiyuan/music-lib/apple"
 	"github.com/guohuiyuan/music-lib/bilibili"
 	"github.com/guohuiyuan/music-lib/fivesing"
@@ -32,7 +33,6 @@ import (
 	"github.com/guohuiyuan/music-lib/qianqian"
 	"github.com/guohuiyuan/music-lib/qq"
 	"github.com/guohuiyuan/music-lib/soda"
-	"github.com/guohuiyuan/music-lib/spotify"
 	"gorm.io/gorm"
 )
 

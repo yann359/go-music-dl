@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/guohuiyuan/music-lib/spotify"
+	"github.com/guohuiyuan/go-music-dl/internal/spotify"
 )
 
 func TestSpotifyFactoriesAndSourceLists(t *testing.T) {

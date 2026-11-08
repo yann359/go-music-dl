@@ -86,7 +86,7 @@ final class AudioEngine: NSObject, ObservableObject {
             if wantsPlayback && !interrupted { player.rate = speed }
             publish()
         case "volume": player.volume = Float(min(1, max(0, request.value ?? 1)))
-        case "state": publish()
+        case "state": publish(includeQueue: true)
         default: break
         }
     }
@@ -197,10 +197,11 @@ final class AudioEngine: NSObject, ObservableObject {
                     do { prepared = try await self.files.prepare(song, fallback: first && forceFallback) }
                     catch {
                         if Task.isCancelled { return }
-                        if forceFallback || song.source == "local" || song.source == "local-file" { throw error }
+                        if (first && forceFallback) || song.source == "local" || song.source == "local-file" { throw error }
                         prepared = try await self.files.prepare(song, fallback: true)
                     }
                     guard self.revision == token && !Task.isCancelled else { return }
+                    if prepared.source != song.source { self.failedFallbacks.insert(song.key) }
                     let item = AVPlayerItem(url: prepared.url)
                     self.itemIndices[ObjectIdentifier(item)] = next
                     self.itemSources[ObjectIdentifier(item)] = prepared.source
@@ -319,7 +320,7 @@ final class AudioEngine: NSObject, ObservableObject {
         commands.append((center.changePlaybackPositionCommand, token))
     }
 
-    func publish() {
+    func publish(includeQueue: Bool = false) {
         let elapsed = player.currentTime().seconds
         let duration = player.currentItem?.duration.seconds ?? 0
         let position = elapsed.isFinite ? max(0, elapsed) : 0
@@ -337,10 +338,13 @@ final class AudioEngine: NSObject, ObservableObject {
                 MPNowPlayingInfoPropertyPlaybackQueueCount: songs.count
             ]
         }
-        stateDidChange?(["index": index, "position": position, "duration": length,
+        var state: [String: Any] = ["index": index, "position": position, "duration": length,
                          "playing": playing, "waiting": wantsPlayback && !playing && !interrupted,
                          "rate": speed, "message": message, "readyCount": player.items().count,
-                         "songs": (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(songs))) ?? [],
-                         "loop": loop, "order": order])
+                         "loop": loop, "order": order]
+        if includeQueue {
+            state["songs"] = (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(songs))) ?? []
+        }
+        stateDidChange?(state)
     }
 }

@@ -114,7 +114,10 @@
         if (state.playing) player.setUIPlaying(); else player.setUIPaused();
         if (changedTrack) event("loadedmetadata");
         event("durationchange"); event("timeupdate"); event("progress");
-        if (state.playing !== wasPlaying) event(state.playing ? "playing" : "pause");
+        if (state.playing !== wasPlaying) {
+          if (state.playing) { event("play"); event("playing"); }
+          else event("pause");
+        }
         if (state.message !== reportedMessage) {
           reportedMessage = state.message;
           if (/失败|不可播放/.test(state.message || "")) player.notice(state.message, 6000);

@@ -16,8 +16,6 @@
   <key>LSSupportsOpeningDocumentsInPlace</key><true/>
   <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
   <key>NSAppTransportSecurity</key><dict>
-    <key>NSAllowsLocalNetworking</key><true/>
-    <key>NSAllowsArbitraryLoadsInWebContent</key><true/>
     <!-- Some original authorized providers return HTTP audio. URLSession
          downloads those bytes; AVPlayer only reads sandbox files. -->
     <key>NSAllowsArbitraryLoads</key><true/>

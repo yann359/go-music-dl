@@ -10,6 +10,7 @@ struct MusicDLApp: App {
             Group {
                 if let url = model.url {
                     LegacyWebView(url: url, engine: model.audio)
+                        .safeAreaInset(edge: .top, spacing: 0) { NativeStatus(engine: model.audio) }
                 } else if let error = model.error {
                     VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.triangle").font(.largeTitle)
@@ -20,6 +21,44 @@ struct MusicDLApp: App {
                 } else { ProgressView("正在启动音乐服务…") }
             }
             .task { await model.start() }
+        }
+    }
+}
+
+struct NativeStatus: View {
+    @ObservedObject var engine: AudioEngine
+    @State private var showingDetails = false
+    private var build: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?" }
+    var body: some View {
+        Button { showingDetails = true } label: {
+            HStack {
+                Image(systemName: "waveform")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("MusicDL 原生播放预览 · Build \(build)").font(.caption.bold())
+                    Text(engine.message).font(.caption2).lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "info.circle")
+            }.padding(.horizontal).padding(.vertical, 8)
+        }
+        .foregroundStyle(.primary)
+        .background(Color(uiColor: .secondarySystemBackground))
+        .sheet(isPresented: $showingDetails) {
+            NavigationView {
+                List {
+                    Section("当前版本") {
+                        Text("后台播放验收版 · Build \(build)")
+                        Text(engine.message)
+                        Text("尚需真机完成至少 30 分钟后台播放及连续三首测试。")
+                    }
+                    Section("源码与许可") {
+                        Link("改造源码与构建记录", destination: URL(string: "https://github.com/yann359/go-music-dl/tree/codex/ios-native-background-audio")!)
+                        Link("功能矩阵与验收步骤", destination: URL(string: "https://github.com/yann359/go-music-dl/blob/codex/ios-native-background-audio/docs/ios-native-audit.md")!)
+                        Text("GNU AGPL v3 · 基于 guohuiyuan/go-music-dl。仅使用已获授权的音源。")
+                    }
+                }.navigationTitle("原生播放预览")
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { showingDetails = false } } }
+            }
         }
     }
 }
@@ -102,7 +141,7 @@ struct LegacyWebView: UIViewRepresentable {
             view.evaluateJavaScript("window.musicDLNative?.receive(\(text));", completionHandler: nil)
         }
 
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { engine.publish() }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { engine.publish(includeQueue: true) }
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             // Recover browsing only. Native audio and queue are deliberately untouched.
             webView.reload()
