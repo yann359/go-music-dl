@@ -78,14 +78,33 @@ Cookie/带签名音源 URL 只在原生层传递，不注入 JS，不写入日�
 | Go 输入解析、授权元数据保留、本地路径穿越 | 本地通过 |
 | 原 web/appshell/core 回归测试 | 本地通过；云端运行 42482135341 通过 |
 | Spotify 适配器授权/元数据/分页主机检查 | 本地 4 项通过 |
-| iOS 编译与 unsigned IPA 打包 | [运行 42482135341](https://github.com/yann359/go-music-dl/actions/runs/42482135341) 通过，基于 01b8c66；补强后的最终构建需另行核对 |
-| iOS 模拟器三曲/中断/耳机断开测试 | 同次运行 3 项通过；新加队列替换及音频服务重置测试待下一次云端运行；不是物理设备测试 |
+| iOS 编译与 unsigned IPA 打包 | 最终 [Build 5 / 运行 42483202980](https://github.com/yann359/go-music-dl/actions/runs/42483202980) 成功；源码 `a7c784c8ffd378418bdde33f65da746e71b58ee2` |
+| iOS 模拟器原生测试 | 最终 Build 5：5 项、0 失败；含队列自动推进到第三首、播放中耳机断开暂停、中断时用户暂停后不恢复、丢弃旧队列准备任务、音频服务重置后保留暂停 |
+| CLI 与命令入口回归 | `go test ./internal/cli ./cmd/music-dl` 本地通过 |
+| Windows / Linux 原有构建 | [运行 42483202985](https://github.com/yann359/go-music-dl/actions/runs/42483202985)：5 个平台/架构组合均通过 |
 | 真机桌面后台 ≥30 分钟 | **未执行** |
 | 真机锁屏/息屏 ≥30 分钟 | **未执行** |
 | 真机连续三首、曲目边界 | **未执行** |
 | 控制中心、锁屏和 AirPods 指令 | **未执行** |
 | 来电、Siri、拔耳机与恢复 | **未执行** |
 | 各音源失败/过期/弱网/断网 | **未执行** |
+
+模拟器使用本地生成的 1.5 秒 WAV 测试样本，三曲测试验证原生队列能自动推进到第三首；不代表三首真实歌曲完整播放，更不代表真机后台 30 分钟通过。中断/耳机事件由测试发送系统通知模拟，实际来电和 AirPods 必须在物理设备上另测。
+
+最终产物：[Build 5 下载包](https://github.com/yann359/go-music-dl/actions/runs/42483202980/artifacts/13618810716)，约 20.4 MB，包含 IPA、完整源码 ZIP、校验值、AGPL 及 37 个实际构建依赖的许可文本；测试报告为同次运行的 `ios-native-test-report` artifact。App 显示 Build 5。
+
+## 修改记录
+
+- `ios/MusicDL/AudioEngine.swift`：唯一原生播放所有者，音频会话、队列预取、系统媒体信息、远程控制、来电/路由/服务重置处理及状态同步。
+- `ios/MusicDL/AudioModel.swift`：后台工作队列调用 Go 解析、授权头下载、文件缓存/保护/回收、失效任务丢弃及单曲大小约束。
+- `ios/bridge/main.go` 与 `internal/web/native_playback.go`：进程内 C ABI，复用原有解析、换源、解密和本地文件安全检查，不以 HTTP 提供原生音频。
+- `ios/MusicDL/native-audio.js` 与原 `app.js` 的 3 行接入：原播放器保留显示和功能入口，音频操作交给原生；浏览器/Android 继续使用原路径。
+- `ios/MusicDL/MusicDLApp.swift`：原生 SwiftUI 生命周期宿主、WebView 功能兼容层、下载分享、原生 JavaScript 对话框和预览版本/许可说明。
+- `ios/MusicDL/Info.plist`、`ios/project.yml`、`ios/scripts/*` 与新工作流：后台声明、Xcode 构建、unsigned IPA、图标、对应源码及许可收集。
+- `internal/spotify/*`：补齐上游缺失依赖；`core/service.go`、`core/spotify_test.go`、`internal/cli/ui.go` 统一指向新适配器。未删除原有功能入口或测试断言。
+- Go、Node、XCTest：输入/路径校验、授权边界、原生桥接命令回环及队列/生命周期测试。
+
+完整差异：[main 对比开发分支](https://github.com/yann359/go-music-dl/compare/main...codex/ios-native-background-audio)。所有代码均在 `codex/ios-native-background-audio` 分支，尚未合并到 main。
 
 ## 真机验收步骤
 
