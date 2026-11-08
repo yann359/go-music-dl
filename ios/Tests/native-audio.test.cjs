@@ -79,3 +79,13 @@ test('new WebView restores native queue without replaying or resetting progress'
   assert.equal(audio.currentTime, 77);
   assert.deepEqual(messages, []);
 });
+
+test('buffering remains pausable in APlayer controls', async () => {
+  const {ap, bridge, audio, messages} = harness();
+  ap.list.add([entry('one')]); await tick(); messages.length = 0;
+  bridge.receive({index: 0, position: 0, duration: 0, playing: false, waiting: true, rate: 1});
+  assert.equal(audio.paused, false);
+  assert.equal(ap.paused, false);
+  audio.pause();
+  assert.equal(messages[0].action, 'pause');
+});

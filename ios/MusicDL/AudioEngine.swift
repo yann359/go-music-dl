@@ -7,7 +7,7 @@ import UIKit
 /// connection is used by the queue, remote controls, or interruption recovery.
 @MainActor
 final class AudioEngine: NSObject, ObservableObject {
-    let player = AVQueuePlayer()
+    private(set) var player = AVQueuePlayer()
     @Published private(set) var message = "原生播放器就绪"
     var stateDidChange: (([String: Any]) -> Void)?
     private let files: AudioFiles
@@ -35,6 +35,16 @@ final class AudioEngine: NSObject, ObservableObject {
     init(files: AudioFiles = AudioFiles()) {
         self.files = files
         super.init()
+        installPlayerObservers()
+        observe(AVAudioSession.interruptionNotification) { [weak self] in self?.interruption($0) }
+        observe(AVAudioSession.routeChangeNotification) { [weak self] in self?.routeChanged($0) }
+        observe(AVAudioSession.mediaServicesWereResetNotification) { [weak self] _ in self?.resetMediaServices() }
+        observe(UIApplication.didBecomeActiveNotification) { [weak self] _ in self?.publish(includeQueue: true) }
+        observe(.AVPlayerItemDidPlayToEndTime) { [weak self] note in self?.didEnd(note) }
+        configureRemoteCommands()
+    }
+
+    private func installPlayerObservers() {
         player.actionAtItemEnd = .advance
         observations.append(player.observe(\.currentItem, options: [.new]) { [weak self] _, _ in
             Task { @MainActor in self?.currentItemChanged() }
@@ -45,12 +55,6 @@ final class AudioEngine: NSObject, ObservableObject {
         ticker = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main) { [weak self] _ in
             Task { @MainActor in self?.publish() }
         }
-        observe(AVAudioSession.interruptionNotification) { [weak self] in self?.interruption($0) }
-        observe(AVAudioSession.routeChangeNotification) { [weak self] in self?.routeChanged($0) }
-        observe(AVAudioSession.mediaServicesWereResetNotification) { [weak self] _ in self?.resetMediaServices() }
-        observe(UIApplication.didBecomeActiveNotification) { [weak self] _ in self?.publish() }
-        observe(.AVPlayerItemDidPlayToEndTime) { [weak self] note in self?.didEnd(note) }
-        configureRemoteCommands()
     }
 
     private func observe(_ name: Notification.Name, handler: @escaping @MainActor (Notification) -> Void) {
@@ -123,6 +127,17 @@ final class AudioEngine: NSObject, ObservableObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         Task { await files.prune(keeping: []) }
         publish()
+    }
+
+    func shutdown() {
+        stop()
+        if let ticker { player.removeTimeObserver(ticker); self.ticker = nil }
+        observations.removeAll(); itemObservation = nil
+        for token in notifications { NotificationCenter.default.removeObserver(token) }
+        notifications.removeAll()
+        for (command, target) in commands { command.removeTarget(target) }
+        commands.removeAll()
+        stateDidChange = nil
     }
 
     func seek(_ seconds: Double) {
@@ -288,6 +303,11 @@ final class AudioEngine: NSObject, ObservableObject {
 
     private func resetMediaServices() {
         let seconds = player.currentTime().seconds
+        if let ticker { player.removeTimeObserver(ticker); self.ticker = nil }
+        observations.removeAll(); itemObservation = nil
+        player.pause()
+        player = AVQueuePlayer()
+        installPlayerObservers()
         rebuild(keepingCurrent: false, position: seconds.isFinite ? seconds : 0)
         if wantsPlayback { play() }
     }

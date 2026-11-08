@@ -31,18 +31,20 @@ jobs:
         run: command -v xcodegen || brew install xcodegen
       - name: Verify Go and JavaScript bridge
         run: |
-          go test ./internal/web ./internal/appshell ./core
+          go test ./internal/spotify ./internal/web ./internal/appshell ./core
           node --test ios/Tests/native-audio.test.cjs
       - name: Build native unsigned IPA
         run: bash ios/scripts/package.sh
       - name: Build Go library for simulator
         run: bash ios/scripts/build-go.sh simulator
       - name: Test native queue in simulator
+        timeout-minutes: 10
         run: |
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for r in d["devices"].values() for x in r if x["name"].startswith("iPhone")))')
           xcodebuild -project ios/MusicDL.xcodeproj -scheme MusicDL -configuration Debug \
             -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath ios/build/NativeTests.xcresult \
-            CODE_SIGNING_ALLOWED=NO test
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -maximum-test-execution-time-allowance 60 CODE_SIGNING_ALLOWED=NO test
       - name: Upload preview and matching source
         uses: actions/upload-artifact@v4
         with:
@@ -52,6 +54,8 @@ jobs:
             music-dl-ios-native-unsigned.ipa.sha256
             music-dl-ios-native-source.txt
             music-dl-ios-native-LICENSE.txt
+            music-dl-ios-native-ThirdPartyNotices.txt
+            music-dl-ios-native-source.zip
             ios/NOTICE.md
             docs/ios-native-audit.md
           retention-days: 30

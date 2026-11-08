@@ -87,6 +87,13 @@ actor AudioFiles {
         self.resolver = resolver
         root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("NativeAudio", isDirectory: true)
+        // Reclaim only our own abandoned preview-cache files after a restart.
+        // Library files and downloaded exports live outside this directory.
+        if let stale = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) {
+            for file in stale where UUID(uuidString: file.deletingPathExtension().lastPathComponent) != nil {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 45
         config.timeoutIntervalForResource = 180
@@ -130,8 +137,7 @@ actor AudioFiles {
             guard size > 0 && size <= 512 * 1024 * 1024 else {
                 throw NativeError.message("音频为空或超过单曲 512 MB 缓存上限")
             }
-            // AVFoundation detects the container from the bytes. Do not assume mp3.
-            destination = root.appendingPathComponent(UUID().uuidString + ".audio")
+            destination = root.appendingPathComponent(UUID().uuidString + "." + Self.audioExtension(staging, original: descriptor.url))
             try FileManager.default.copyItem(at: staging, to: destination)
             try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
                                                  ofItemAtPath: destination.path)
@@ -139,6 +145,19 @@ actor AudioFiles {
         let prepared = Prepared(url: destination, source: descriptor.source)
         files[key] = prepared
         return prepared
+    }
+
+    private static func audioExtension(_ file: URL, original: URL) -> String {
+        let handle = try? FileHandle(forReadingFrom: file)
+        defer { try? handle?.close() }
+        let bytes = (try? handle?.read(upToCount: 32)) ?? Data()
+        if bytes.starts(with: Data("fLaC".utf8)) { return "flac" }
+        if bytes.starts(with: Data("RIFF".utf8)) { return "wav" }
+        if bytes.starts(with: Data("OggS".utf8)) { return "ogg" }
+        if bytes.count >= 8 && bytes[4..<8] == Data("ftyp".utf8) { return "m4a" }
+        if bytes.starts(with: Data("ID3".utf8)) { return "mp3" }
+        let ext = original.pathExtension.lowercased()
+        return ["mp3", "m4a", "flac", "wav", "aac", "ogg", "aiff", "aif", "mp4"].contains(ext) ? ext : "audio"
     }
 
     // Bounded disk use; never remove files still held by an AVPlayerItem.

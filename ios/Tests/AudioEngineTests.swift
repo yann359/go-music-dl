@@ -27,7 +27,7 @@ final class AudioEngineTests: XCTestCase {
             AssetDescriptor(url: url, headers: [:], temporary: "", source: song.source, id: song.id)
         }
         let engine = AudioEngine(files: files)
-        defer { engine.stop() }
+        defer { engine.shutdown() }
         let completed = expectation(description: "all three native tracks played")
         var played = Set<Int>()
         engine.stateDidChange = { state in
@@ -48,7 +48,7 @@ final class AudioEngineTests: XCTestCase {
         let engine = AudioEngine(files: AudioFiles { song, _ in
             AssetDescriptor(url: url, headers: [:], temporary: "", source: song.source, id: song.id)
         })
-        defer { engine.stop() }
+        defer { engine.shutdown() }
         engine.handle(PlaybackRequest(action: "queue", songs: songs(1), index: 0, loop: "one", order: "list"))
         engine.play()
         NotificationCenter.default.post(name: AVAudioSession.interruptionNotification, object: nil,
@@ -68,6 +68,37 @@ final class AudioEngineTests: XCTestCase {
             userInfo: [AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue])
         try await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertEqual(engine.player.rate, 0)
-        engine.stop()
+        engine.shutdown()
+    }
+
+    func testReplacingQueueDiscardsStalePreparation() async throws {
+        let oldURL = try fixture()
+        let newURL = try fixture()
+        defer { try? FileManager.default.removeItem(at: oldURL); try? FileManager.default.removeItem(at: newURL) }
+        let engine = AudioEngine(files: AudioFiles { song, _ in
+            if song.id == "old" { try await Task.sleep(nanoseconds: 250_000_000) }
+            return AssetDescriptor(url: song.id == "old" ? oldURL : newURL, headers: [:], temporary: "", source: song.source, id: song.id)
+        })
+        defer { engine.shutdown() }
+        var old = songs(1)[0]; old.id = "old"
+        var new = songs(1)[0]; new.id = "new"
+        engine.handle(PlaybackRequest(action: "queue", songs: [old], index: 0, loop: "one", order: "list"))
+        engine.play()
+        try await Task.sleep(nanoseconds: 30_000_000)
+        engine.handle(PlaybackRequest(action: "queue", songs: [new], index: 0, loop: "one", order: "list"))
+        try await Task.sleep(nanoseconds: 700_000_000)
+        XCTAssertFalse(engine.player.items().isEmpty)
+        for item in engine.player.items() { XCTAssertEqual((item.asset as? AVURLAsset)?.url, newURL) }
+    }
+
+    func testMediaServiceResetPreservesExplicitPause() async throws {
+        let engine = AudioEngine()
+        defer { engine.shutdown() }
+        let previousPlayer = engine.player
+        engine.pause()
+        NotificationCenter.default.post(name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertFalse(engine.player === previousPlayer)
+        XCTAssertEqual(engine.player.rate, 0)
     }
 }

@@ -3,6 +3,8 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 if [[ "$(uname -s)" != Darwin ]]; then echo 'Requires macOS and Xcode.' >&2; exit 1; fi
 bash ios/scripts/build-go.sh device
+python3 ios/scripts/notices.py
+sips -z 1024 1024 winres/icon_256x256.png --out ios/MusicDL/Assets.xcassets/AppIcon.appiconset/AppIcon.png >/dev/null
 xcodegen generate --spec ios/project.yml
 xcodebuild -project ios/MusicDL.xcodeproj -scheme MusicDL -configuration Release \
   -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath ios/build/DerivedData \
@@ -24,4 +26,6 @@ unzip -tq "$output"
 shasum -a 256 music-dl-ios-native-unsigned.ipa > music-dl-ios-native-unsigned.ipa.sha256
 git rev-parse HEAD > music-dl-ios-native-source.txt
 cp LICENSE music-dl-ios-native-LICENSE.txt
+cp ios/MusicDL/ThirdPartyNotices.txt music-dl-ios-native-ThirdPartyNotices.txt
+git archive --format=zip -o music-dl-ios-native-source.zip HEAD
 echo 'Unsigned IPA prepared for SideStore re-signing. Device acceptance is still required.'

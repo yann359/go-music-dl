@@ -40,3 +40,7 @@ music-dl-ios-native-*.ipa
 music-dl-ios-native-*.sha256
 music-dl-ios-native-source.txt
 music-dl-ios-native-LICENSE.txt
+music-dl-ios-native-ThirdPartyNotices.txt
+music-dl-ios-native-source.zip
+ios/MusicDL/ThirdPartyNotices.txt
+ios/MusicDL/Assets.xcassets/AppIcon.appiconset/AppIcon.png

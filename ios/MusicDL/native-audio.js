@@ -58,7 +58,7 @@
           if (!applying && Number.isFinite(Number(value))) { pendingSeek = Number(value); schedule(); }
         }},
         duration: {configurable: true, get: () => latest.duration},
-        paused: {configurable: true, get: () => !latest.playing},
+        paused: {configurable: true, get: () => !latest.playing && !latest.waiting},
         ended: {configurable: true, get: () => false},
         readyState: {configurable: true, get: () => latest.duration > 0 ? 4 : 0},
         buffered: {configurable: true, get: () => ({length: latest.duration > 0 ? 1 : 0,
@@ -111,7 +111,7 @@
         if (changedTrack && player.list.audios[state.index]) player.list.switch(state.index);
         // A state-driven list.switch must never echo a seek-to-zero or a queue reset.
         lastQueue = JSON.stringify(snapshot());
-        if (state.playing) player.setUIPlaying(); else player.setUIPaused();
+        if (state.playing || state.waiting) player.setUIPlaying(); else player.setUIPaused();
         if (changedTrack) event("loadedmetadata");
         event("durationchange"); event("timeupdate"); event("progress");
         if (state.playing !== wasPlaying) {

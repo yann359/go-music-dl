@@ -8,6 +8,8 @@
 这是第一阶段后台播放预览版，**不是已完成的原生 UI 正式版**。
 必须先通过真机 30 分钟后台及连续三首验收，才能开始第二阶段整体界面替换。
 截至建立本记录时，没有连接到用户的 iPhone，也没有真机测试证据。
+用户提供设备：iPhone 17，iOS 27.3；旧文件名 `music-dl-ios-unsigned.ipa`。
+这些信息来自用户陈述，尚未通过设备连接核验；旧文件名不能识别唯一构建提交。
 
 Fork 的 `main` 与基线一致；当前 GitHub 连接报告 `push/admin=true`。
 Fork 建立时没有 Actions 运行记录，不能据此证明用户现有 IPA 的构建来源。
@@ -71,12 +73,13 @@ Cookie/带签名音源 URL 只在原生层传递，不注入 JS，不写入日�
 
 | 测试 | 状态/证据 |
 |---|---|
-| JS 原生桥接 5 项：队列先于播放、原生同步不回环、切歌/模式、清空/暂停、WebView 恢复 | 本地 Node 测试 5/5 通过 |
+| JS 原生桥接 6 项：队列先于播放、原生同步不回环、切歌/模式、清空/暂停、WebView 恢复、缓存等待可暂停 | 本地 Node 测试 6/6 通过 |
 | 原 app.js JavaScript 语法 | `node --check` 通过 |
-| Go 输入解析、授权元数据保留、本地路径穿越 | 已编写，执行中 |
-| 原 web/appshell/core 回归测试 | 执行中 |
-| iOS 编译与 unsigned IPA 打包 | 等待 GitHub macOS 构建 |
-| iOS 模拟器三曲/中断测试 | 已编写，等待 macOS 运行；不是物理设备测试 |
+| Go 输入解析、授权元数据保留、本地路径穿越 | 本地通过 |
+| 原 web/appshell/core 回归测试 | 本地通过；云端运行 42482135341 通过 |
+| Spotify 适配器授权/元数据/分页主机检查 | 本地 4 项通过 |
+| iOS 编译与 unsigned IPA 打包 | [运行 42482135341](https://github.com/yann359/go-music-dl/actions/runs/42482135341) 通过，基于 01b8c66；补强后的最终构建需另行核对 |
+| iOS 模拟器三曲/中断/耳机断开测试 | 同次运行 3 项通过；新加队列替换及音频服务重置测试待下一次云端运行；不是物理设备测试 |
 | 真机桌面后台 ≥30 分钟 | **未执行** |
 | 真机锁屏/息屏 ≥30 分钟 | **未执行** |
 | 真机连续三首、曲目边界 | **未执行** |
@@ -99,7 +102,7 @@ Cookie/带签名音源 URL 只在原生层传递，不注入 JS，不写入日�
 ## 构建与安装
 
 工作流：`.github/workflows/ios-native.yml`。macOS 上构建 Go iOS C archive，再通过 XcodeGen/Xcode 编译 Swift 原生目标。
-产物：`music-dl-ios-native-unsigned.ipa`、SHA256、源提交及许可证。unsigned 包必须由 SideStore 重签。
+产物：`music-dl-ios-native-unsigned.ipa`、SHA256、源提交、完整源代码 ZIP、AGPL 与第三方许可证。unsigned 包必须由 SideStore 重签。
 默认 `com.guohuiyuan.musicdl.nativepreview`，显示名 MusicDL Preview；不要为覆盖旧版而擅改 ID。
 下载 Actions 的 `music-dl-ios-native-unsigned` artifact，解压后在 SideStore 的 My Apps 中通过 `+` 导入 IPA，使用已有的签名流程安装。
 若无法安装，保留 SideStore 错误原文，不删除旧版或其数据来排障。
@@ -114,6 +117,8 @@ Cookie/带签名音源 URL 只在原生层传递，不注入 JS，不写入日�
 - 背景中所有预加载曲目耗尽、音源解析很慢时仍可能间断，需要实机数据决定进一步预取/流式缓存设计。
 - 旧 Gio 应用的持久化路径及网页存储需独立迁移方案；预览并排安装不改动旧 App 数据。
 - AI 后台 SSE 控制、WebAudio 视频可视化及所有原功能的真机回归仍待完成，不能记为完整兼容。
+- 上游基线引用不存在的 `music-lib/spotify`，导致首轮编译失败；新增 `internal/spotify` 官方 API 适配器修复该缺口，保留各工厂入口。Spotify API 仅返回可授权的 preview，不支持完整音频或歌词；部分目录端点因账号/API 规则不可用会明确报错，尚未做授权账号实测。原 Spotify 测试仅调整导入路径，未删除断言。
+- iOS ATS 对使用 HTTP 的原音源仍有全局兼容例外；不把 HTTP 宣称为安全传输。后续需逐平台收敛为 HTTPS/精确域名例外。
 - 分发需附带 AGPL 对应源码、许可证与第三方声明，使用者需持有平台和音乐的相应授权。
 
 参考：Apple [后台音频类别](https://developer.apple.com/documentation/avfaudio/avaudiosession/category-swift.struct/playback)、[AVQueuePlayer](https://developer.apple.com/documentation/avfoundation/avqueueplayer)、[系统播放控制](https://developer.apple.com/documentation/mediaplayer/mpremotecommandcenter)、[原生 Liquid Glass](https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass)。

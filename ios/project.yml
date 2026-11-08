@@ -28,6 +28,7 @@ targets:
         SWIFT_OBJC_BRIDGING_HEADER: MusicDL/Bridge.h
         OTHER_LDFLAGS: ['$(inherited)', '-lmusicdl', '-lresolv']
         TARGETED_DEVICE_FAMILY: '1,2'
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
       - sdk: AVFoundation.framework
       - sdk: MediaPlayer.framework
