@@ -226,7 +226,9 @@ final class AudioEngine: NSObject, ObservableObject {
                     self.player.insert(item, after: self.player.items().last)
                     if first && position > 0 { self.seek(position) }
                     if self.wantsPlayback && !self.interrupted { self.player.playImmediately(atRate: self.speed) }
-                    self.message = "原生音频已缓存 · 队列就绪 \(self.player.items().count) 首"
+                    self.message = prepared.source == song.source
+                        ? "原生音频已缓存 · 队列就绪 \(self.player.items().count) 首"
+                        : "已自动换源：\(song.source) → \(prepared.source) · 已缓存"
                     self.publish()
                 } catch {
                     guard self.revision == token && !Task.isCancelled else { return }
@@ -365,6 +367,7 @@ final class AudioEngine: NSObject, ObservableObject {
         if includeQueue {
             state["songs"] = (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(songs))) ?? []
         }
+        if let current = player.currentItem { state["activeSource"] = itemSources[ObjectIdentifier(current)] }
         stateDidChange?(state)
     }
 }

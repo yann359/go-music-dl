@@ -63,12 +63,23 @@ final class AudioEngineTests: XCTestCase {
     }
 
     func testRemovingHeadphoneRoutePauses() async throws {
-        let engine = AudioEngine()
+        let url = try fixture()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let engine = AudioEngine(files: AudioFiles { song, _ in
+            AssetDescriptor(url: url, headers: [:], temporary: "", source: song.source, id: song.id)
+        })
+        defer { engine.shutdown() }
+        let started = expectation(description: "audible player started before route removal")
+        engine.stateDidChange = { state in
+            if state["playing"] as? Bool == true { started.fulfill(); engine.stateDidChange = nil }
+        }
+        engine.handle(PlaybackRequest(action: "queue", songs: songs(1), index: 0, loop: "one", order: "list"))
+        engine.play()
+        await fulfillment(of: [started], timeout: 10)
         NotificationCenter.default.post(name: AVAudioSession.routeChangeNotification, object: nil,
             userInfo: [AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue])
         try await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertEqual(engine.player.rate, 0)
-        engine.shutdown()
     }
 
     func testReplacingQueueDiscardsStalePreparation() async throws {
