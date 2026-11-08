@@ -33,3 +33,10 @@ test_import.txt
 sync_and_pr.bat
 docker/
 tmp/
+# Native iOS generated build output
+ios/build/
+ios/MusicDL.xcodeproj/
+music-dl-ios-native-*.ipa
+music-dl-ios-native-*.sha256
+music-dl-ios-native-source.txt
+music-dl-ios-native-LICENSE.txt

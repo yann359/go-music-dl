@@ -6874,6 +6874,9 @@ try {
     lrcType: 3,
     audio: [],
   });
+  // Only the dedicated iOS host injects this bridge. Browser/Android playback
+  // continues to use the original HTML Audio implementation.
+  window.musicDLNative?.attach(ap);
 } catch (error) {
   console.warn("[music-dl] APlayer 初始化失败，播放器功能不可用:", error);
 }
