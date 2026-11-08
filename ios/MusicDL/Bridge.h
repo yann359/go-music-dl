@@ -3,5 +3,6 @@
 // Ownership: every returned UTF-8 string must be released with MusicDLFree.
 char *MusicDLStart(char *root);
 char *MusicDLResolve(char *song, int fallback);
+char *MusicDLRequest(char *request);
 void MusicDLFree(char *value);
 #endif

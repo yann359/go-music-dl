@@ -1,0 +1,140 @@
+{
+  "date": "2026-11-08",
+  "rea": {
+    "version": "6.4.0",
+    "server": "rea",
+    "client": {
+      "name": "codex-mcp-client",
+      "version": "0.167.0-alpha.3.2"
+    },
+    "capabilities": [
+      {
+        "operation": "capture_native_ui_scenario",
+        "available": false,
+        "reason": "Native macOS utilities require macOS."
+      },
+      {
+        "operation": "decode_interface_builder",
+        "available": true,
+        "reason": null
+      },
+      {
+        "operation": "demangle_swift",
+        "available": false,
+        "reason": "Native macOS utilities require macOS."
+      },
+      {
+        "operation": "extract_artifact",
+        "available": true,
+        "reason": null
+      },
+      {
+        "operation": "inspect_artifact",
+        "available": true,
+        "reason": null
+      },
+      {
+        "operation": "inspect_asset_catalog",
+        "available": false,
+        "reason": "Apple asset catalogs require macOS assetutil."
+      },
+      {
+        "operation": "inspect_keyed_archive",
+        "available": true,
+        "reason": null
+      },
+      {
+        "operation": "inspect_macho",
+        "available": false,
+        "reason": "Native macOS utilities require macOS."
+      },
+      {
+        "operation": "inspect_managed_artifact",
+        "available": true,
+        "reason": null
+      },
+      {
+        "operation": "inspect_managed_members",
+        "available": true,
+        "reason": null
+      },
+      {
+        "operation": "inspect_managed_native_boundaries",
+        "available": true,
+        "reason": null
+      },
+      {
+        "operation": "inspect_native_dispatch_metadata",
+        "available": false,
+        "reason": "Native macOS utilities require macOS."
+      },
+      {
+        "operation": "inspect_plist",
+        "available": false,
+        "reason": "Native macOS utilities require macOS."
+      },
+      {
+        "operation": "inspect_signature",
+        "available": false,
+        "reason": "Native macOS utilities require macOS."
+      },
+      {
+        "operation": "list_architectures",
+        "available": false,
+        "reason": "Native macOS utilities require macOS."
+      },
+      {
+        "operation": "observe_native_calls",
+        "available": false,
+        "reason": "Native macOS utilities require macOS."
+      },
+      {
+        "operation": "observe_native_ui",
+        "available": false,
+        "reason": "Native macOS utilities require macOS."
+      },
+      {
+        "operation": "trace_dylib_resolution",
+        "available": true,
+        "reason": null
+      }
+    ],
+    "providers": [
+      {
+        "id": "ghidra",
+        "available": "unavailable",
+        "reason": "Set GHIDRA_INSTALL_DIR to an extracted Ghidra 12.1.x release directory."
+      },
+      {
+        "id": "hopper",
+        "available": "unavailable",
+        "reason": "Hopper integration is not supported on win32."
+      },
+      {
+        "id": "ida",
+        "available": "unavailable",
+        "reason": "Set REA_IDA_MCP_CONFIG to an upstream IDA MCP JSON registration; see docs/ida-provider.md."
+      }
+    ]
+  },
+  "baseline": {
+    "evidence_id": "ev_5978406b4e2871aa3a73ca1bcc0a3641ae8106f3e0eb6d2885ea1b601d85ac22",
+    "confidence": "observed",
+    "authority": "shipped-artifact",
+    "subject": {
+      "manifest_id": "agm_addbb26163f091979827b9b90a29dbc1ef8a05ee70d3d565fe832845dcd2ed5f",
+      "root_artifact_id": "art_b8e09381357510ee6c4a2cbde8605ff6a6e9ff6826fc040f5e68e0bf857ab27a",
+      "root_sha256": "72f1dc69ef597258df90f3a526961c01b6c6e7a1d64ea8046ef6069a8f8781c7",
+      "root_format": "ipa"
+    },
+    "limitations": [
+      "Inspection derives bounded static hypotheses and next probes; it does not execute the artifact or claim format-specific semantics.",
+      "ZIP inventory lists central-directory entries only. Bytes after the central directory, including an APK Signing Block or a ZIP comment, are not occurrences."
+    ]
+  },
+  "apple_music": {
+    "device_runtime_observed": false,
+    "source_code_accessed": false,
+    "user_screenshots_supplied": false
+  }
+}

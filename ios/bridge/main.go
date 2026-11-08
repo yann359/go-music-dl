@@ -64,4 +64,10 @@ func MusicDLResolve(song *C.char, fallback C.int) *C.char {
 //export MusicDLFree
 func MusicDLFree(value *C.char) { C.free(unsafe.Pointer(value)) }
 
+//export MusicDLRequest
+func MusicDLRequest(request *C.char) *C.char {
+	value, err := web.NativeClientRequest(C.GoString(request))
+	return response(value, err)
+}
+
 func main() {}

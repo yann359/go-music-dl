@@ -1,7 +1,7 @@
 name: MusicDL
 options:
   deploymentTarget:
-    iOS: '15.0'
+    iOS: '18.0'
 settings:
   base:
     SWIFT_VERSION: '5.0'
@@ -23,7 +23,7 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.guohuiyuan.musicdl.nativepreview
+        PRODUCT_BUNDLE_IDENTIFIER: com.guohuiyuan.musicdl.nativedesign
         INFOPLIST_FILE: MusicDL/Info.plist
         SWIFT_OBJC_BRIDGING_HEADER: MusicDL/Bridge.h
         OTHER_LDFLAGS: ['$(inherited)', '-lmusicdl', '-lresolv']
@@ -32,7 +32,6 @@ targets:
     dependencies:
       - sdk: AVFoundation.framework
       - sdk: MediaPlayer.framework
-      - sdk: WebKit.framework
       - sdk: Security.framework
   MusicDLTests:
     type: bundle.unit-test
@@ -44,11 +43,29 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.guohuiyuan.musicdl.tests
         GENERATE_INFOPLIST_FILE: YES
+  MusicDLUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: MusicDL
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.guohuiyuan.musicdl.uitests
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   MusicDL:
     build:
       targets:
         MusicDL: all
         MusicDLTests: [test]
+        MusicDLUITests: [test]
     test:
       targets: [MusicDLTests]
+  MusicDLVisual:
+    build:
+      targets:
+        MusicDL: all
+        MusicDLUITests: [test]
+    test:
+      targets: [MusicDLUITests]

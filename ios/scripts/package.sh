@@ -4,18 +4,18 @@ cd "$(dirname "$0")/../.."
 if [[ "$(uname -s)" != Darwin ]]; then echo 'Requires macOS and Xcode.' >&2; exit 1; fi
 bash ios/scripts/build-go.sh device
 python3 ios/scripts/notices.py
-sips -z 1024 1024 winres/icon_256x256.png --out ios/MusicDL/Assets.xcassets/AppIcon.appiconset/AppIcon.png >/dev/null
+swift ios/scripts/icon.swift ios/MusicDL/Assets.xcassets/AppIcon.appiconset/AppIcon.png
 xcodegen generate --spec ios/project.yml
 xcodebuild -project ios/MusicDL.xcodeproj -scheme MusicDL -configuration Release \
   -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath ios/build/DerivedData \
   CODE_SIGNING_ALLOWED=NO CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER:-1}" \
-  PRODUCT_BUNDLE_IDENTIFIER="${IOS_APP_ID:-com.guohuiyuan.musicdl.nativepreview}" build
+  PRODUCT_BUNDLE_IDENTIFIER="${IOS_APP_ID:-com.guohuiyuan.musicdl.nativedesign}" build
 app="$PWD/ios/build/DerivedData/Build/Products/Release-iphoneos/MusicDL.app"
 plist="$app/Info.plist"
 plutil -lint "$plist"
 [[ "$(plutil -extract UIBackgroundModes.0 raw -o - "$plist")" == audio ]]
 [[ " $(lipo -archs "$app/MusicDL") " == *' arm64 '* ]]
-[[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$plist")" == "${IOS_APP_ID:-com.guohuiyuan.musicdl.nativepreview}" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$plist")" == "${IOS_APP_ID:-com.guohuiyuan.musicdl.nativedesign}" ]]
 codesign --remove-signature "$app" 2>/dev/null || true
 mkdir -p ios/build/Package/Payload
 ditto "$app" ios/build/Package/Payload/MusicDL.app

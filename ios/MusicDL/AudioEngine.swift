@@ -2,6 +2,7 @@ import AVFoundation
 import Combine
 import MediaPlayer
 import UIKit
+import SwiftUI
 
 /// The only playback owner. No WebView, JavaScript timer, or HTTP loopback
 /// connection is used by the queue, remote controls, or interruption recovery.
@@ -11,8 +12,16 @@ final class AudioEngine: NSObject, ObservableObject {
     @Published private(set) var message = "原生播放器就绪"
     var stateDidChange: (([String: Any]) -> Void)?
     private let files: AudioFiles
-    private var songs: [Song] = []
-    private var index = 0
+    @Published private(set) var songs: [Song] = []
+    @Published private(set) var index = 0
+    @Published private(set) var position: Double = 0
+    @Published private(set) var duration: Double = 0
+    @Published private(set) var isPlaying = false
+    @Published private(set) var waiting = false
+    var currentSong: Song? { songs.indices.contains(index) ? songs[index] : nil }
+    var playbackRate: Float { speed }
+    var loopMode: String { loop }
+    var orderMode: String { order }
     private var loop = "all"
     private var order = "list"
     private var sequence: [Int] = []
@@ -99,6 +108,37 @@ final class AudioEngine: NSObject, ObservableObject {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .default, policy: .longFormAudio)
         try session.setActive(true)
+    }
+
+    func playSongs(_ items: [Song], at selected: Int = 0) {
+        guard items.indices.contains(selected) else { return }
+        handle(PlaybackRequest(action: "queue", songs: items, index: selected, loop: loop, order: order))
+        play()
+    }
+
+    func append(_ song: Song, playNext: Bool = false) {
+        var updated = songs
+        updated.insert(song, at: playNext && !updated.isEmpty ? min(index + 1, updated.count) : updated.count)
+        handle(PlaybackRequest(action: "queue", songs: updated, index: index, loop: loop, order: order))
+    }
+
+    func remove(at offsets: IndexSet) {
+        let selected = currentSong
+        var updated = songs; updated.remove(atOffsets: offsets)
+        let next = selected.flatMap { song in updated.firstIndex(where: { $0.key == song.key }) } ?? min(index, max(0, updated.count - 1))
+        handle(PlaybackRequest(action: "queue", songs: updated, index: next, loop: loop, order: order))
+    }
+
+    func move(from offsets: IndexSet, to destination: Int) {
+        let selected = currentSong
+        var updated = songs; updated.move(fromOffsets: offsets, toOffset: destination)
+        let next = selected.flatMap { song in updated.firstIndex(where: { $0.key == song.key }) } ?? 0
+        handle(PlaybackRequest(action: "queue", songs: updated, index: next, loop: loop, order: order))
+    }
+
+    func setMode(loop: String, order: String) {
+        handle(PlaybackRequest(action: "queue", songs: songs, index: index, loop: loop, order: order))
+        objectWillChange.send()
     }
 
     func play() {
@@ -348,6 +388,8 @@ final class AudioEngine: NSObject, ObservableObject {
         let position = elapsed.isFinite ? max(0, elapsed) : 0
         let length = duration.isFinite ? max(0, duration) : 0
         let playing = player.timeControlStatus == .playing
+        self.position = position; self.duration = length; self.isPlaying = playing
+        self.waiting = wantsPlayback && !playing && !interrupted
         if songs.indices.contains(index) {
             let song = songs[index]
             MPNowPlayingInfoCenter.default().nowPlayingInfo = [

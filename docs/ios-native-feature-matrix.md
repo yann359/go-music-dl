@@ -1,0 +1,105 @@
+# 澄音原生 iOS 功能保留矩阵
+
+建立日期：2026-11-08。改造基线：上一阶段已构建的 `a7c784c` / Build 5，后续文档提交 `9b18983`。原生重设计分支：`codex/ios-native-redesign`。
+
+**本文件是源码审计与原生迁移验收清单，不是全功能已实现或真机测试已通过的声明。** “有”表示当前 Go 源码声明/工厂存在；服务端可达性、账号授权、源失效、设备解码和原生客户端完成度必须另测。
+
+## 1. 音源完整清单
+
+直接依据 `core/service.go` 的 `GetAllSourceNames`、各能力列表及工厂函数。单曲的 `local` 由本地音乐路由处理，不能因为它不走在线搜索工厂而丢掉。
+
+| ID | 显示名 | 默认搜索 | 单曲搜索 | 歌单 | 专辑 | 分类 | 排行榜 | 推荐 | 用户歌单 |
+|---|---|---|---|---|---|---|---|---|---|
+| `netease` | 网易云音乐 | 是 | 有 | 有 | 有 | 有 | 有 | 有 | 有 |
+| `qq` | QQ 音乐 | 是 | 有 | 有 | 有 | 有 | 有 | 有 | 有 |
+| `kugou` | 酷狗音乐 | 是 | 有 | 有 | 有 | 有 | 有 | 有 | 有 |
+| `kuwo` | 酷我音乐 | 是 | 有 | 有 | 有 | 有 | 有 | 有 | — |
+| `migu` | 咪咕音乐 | 是 | 有 | 有 | 有 | 有 | 有 | — | — |
+| `fivesing` | 5sing | 否 | 有 | 有 | — | — | — | — | — |
+| `jamendo` | Jamendo (CC) | 否 | 有 | 有 | 有 | — | — | — | — |
+| `joox` | JOOX | 否 | 有 | 有 | 有 | 有 | — | — | — |
+| `qianqian` | 千千音乐 | 是 | 有 | 有 | 有 | 有 | — | — | — |
+| `soda` | 汽水音乐 | 是 | 有 | 有 | 有 | 有 | 有 | — | 有 |
+| `bilibili` | Bilibili | 否 | 有 | 有 | — | — | — | — | — |
+| `apple` | Apple Music | 是 | 有 | 有 | 有 | 有 | 有 | — | — |
+| `spotify` | Spotify | 否 | 有 | 有 | 有 | 有 | 有 | 有 | 有 |
+| `local` | 本地音乐 | 否 | 本地检索 | 本地集合 | 本地元数据 | — | — | — | 本地集合 |
+
+“—”指基线公开能力列表没有声明该能力，不意味着客户端删掉功能。`local-file` 是播放时识别的本地来源变体，不能当作第十五个在线平台。
+
+默认搜索有 8 个来源，完整列表有 14 个。原生来源选择必须保留所有项，不能为了界面整洁只留下前几个；不支持某内容类型的来源以明确文字解释，不发送无意义请求。
+
+### 授权边界
+
+- Cookie/令牌配置保留原机制；凭证默认遮蔽，不作为曲目元数据、图片 URL 参数或日志输出。
+- Spotify 在上阶段新增的 `internal/spotify` 中通过官方 API 提供 metadata/有授权的 preview，不能称为完整歌曲或歌词下载。目录端点可能受账号/API 规则限制。
+- Apple Music 来源声明不等于绕过 DRM 或取得订阅曲目授权。对不可播放的资源返回解释，不模拟“播放成功”。
+- 汽水/咪咕沿用原代码内合法可用音源解析与解密能力，失败必须暴露，不通过删除来源避开测试。
+
+## 2. 账号与扫码登录
+
+| 能力 | 基线事实 | 原生入口与验收 |
+|---|---|---|
+| 各来源 Cookie/凭证 | `core.CM`，`GET/POST /cookies` | 我的 → 音源账号；读取、遮蔽、编辑、保存、清除；清除需明确对象 |
+| 官方列出的二维码来源 | `GetQRLoginSourceNames()` 为 `netease`, `qq`, `qq_wx`, `kugou`, `bilibili` | 对应来源显示扫码动作，原生 Sheet 显示 QR、轮询状态、过期/取消/重试 |
+| 汽水 QR 工厂 | `GetQRLoginCreateFunc/CheckFunc` 中另有 `soda`，但公开 QR 来源列表未列出 | 这是源码存在的不一致，需核查原页面暴露与实际可用性；不得把它默默删掉或未测就标为可用 |
+| 用户平台歌单 | `netease`, `qq`, `kugou`, `soda`, `spotify` | 我的 → 对应账号 → 用户歌单；无授权时给出需登录状态 |
+| 本机管理权限 | 旧桌面模式使用本机信任模式；网页服务本身有账号鉴权实现 | 新客户端不把 loopback 服务暴露公网；原网页鉴权功能代码保留。是否增加应用锁是另一个产品决策 |
+
+## 3. 端到端迁移矩阵
+
+| 功能 | 基线拥有者/接口族 | 原生页面/交互目标 | 必要验收 | 当前证据边界 |
+|---|---|---|---|---|
+| 多源单曲搜索 | `core.GetSearchFunc`、`/search` | 搜索页：所有来源、多选、查询、分页、部分失败 | 14 来源逐项验证；去重；新查询丢弃旧响应；未登录/超时可解释 | 工厂/原服务存在，原生实现与外部源实测待记录 |
+| 专辑/歌单搜索 | 对应搜索工厂、`/search?type=...` | 搜索内容类型切换与原生卡片 | 每个声明来源返回列表，空/失败分开 | 同上 |
+| 歌曲/专辑/歌单详情 | `core` 解析、`/album`、`/playlist` 等 | 原生详情：封面、元数据、歌曲、播放全部/随机 | 内容真实、播放全部包含实际队列、导入不重复 | 不使用网页详情做全面原生化替代 |
+| 链接解析/导入 | `core` Parse/ParseAlbum/ParsePlaylist、集合导入 | 搜索页/音乐库导入 Sheet | 单曲/专辑/歌单链接，非法链接和源授权失败 | 原数据逻辑保留 |
+| 分类与排行榜 | 分类/榜单工厂及 routes | 发现 → 分类/榜单 → 原生详情 | 来源切换、不支持说明、列表可播放 | 外部数据依赖待实测 |
+| 推荐/用户歌单 | 推荐及用户歌单工厂 | 发现/我的对应账号 | 不伪造推荐；授权过期提示 | 没有算法时不宣称个性化 |
+| 手动换源 | `/switch_source`、原匹配算法 | 歌曲菜单 → 换源，返回真实候选/结果 | 标题/艺人/版本匹配、时长、取消、无结果 | 不把不同版本静默当成原曲 |
+| 播放失败换源 | `NativePlaybackAsset(..., fallback)` | 播放器错误状态 → 自动一次/手动重试 | 不无限循环；保留用户暂停意图；显示实际源结果 | Build 5 有代码与测试基础；真实音源待测 |
+| 原生后台播放 | `AudioEngine` / AVQueuePlayer / AVAudioSession | 迷你/全屏/系统控制共用唯一状态 | 桌面、锁屏息屏≥30分钟；三首真实歌曲完整连续播放 | Build 5 模拟器短 WAV 测试不代表真机通过 |
+| 系统/耳机控制 | MPRemoteCommandCenter / Now Playing | 锁屏/控制中心/AirPods、系统输出选择器 | play/pause/previous/next/seek、断开输出暂停 | 实际 AirPods、来电仍待真机 |
+| 播放队列与模式 | 原生队列 + 原网页模式逻辑 | 播放页队列：排序/移除/清空/下一首/末尾；顺序/随机/单曲循环 | 当前曲不误重播、连续、删除行为一致 | 新原生交互需新增测试 |
+| 收藏与歌单 CRUD | `internal/web/collection.go`、`/api/collections` | 音乐库：创建/改名/删除/加入/批量操作/导入 | SQLite 不变；重复与失败不丢数据；取消无副作用 | 不得另建无迁移的平行收藏库 |
+| 下载与下载记录 | `core/download*`、`/download`、`/api/downloads/records` | 下载动作、我的/音乐库下载列表、文件分享 | 真实文件、名称、失败、记录、去重；大文件与磁盘不足 | iOS 上外部工具可用性单独标注 |
+| 下载队列 | `core/download_queue`、`/api/downloads/queue` | 等待/进行/暂停/失败/完成、重试/取消 | 使用真实状态，不伪造百分比 | 保留旧调度数据结构 |
+| 无损与音质 | 原解析/元数据/解密 | 实际音质信息、无损优先设置 | FLAC/ALAC/采样率；不可解码时解释；下载字节校验 | 保存原字节不等于设备解码通过 |
+| 同步/逐字歌词 | `/lyric`、格式解析 | 原生歌词：逐行/支持的逐字/纯文本/空/错误 | 音频状态同步、手动滚动不抢焦点、点击时间戳 seek | 不足时间数据不能制造逐字效果 |
+| 歌词/封面导出 | `download_lrc`、`download_cover` | 歌曲更多菜单 → 导出与系统分享 | 输出实际文件、失败提示 | 无需重新下载已存在文件 |
+| 本地音乐 | `local_music*`、原索引与 ID 校验 | 音乐库 → 本地：导入/检索/扫描/去重/元数据/播放/删除 | 文件路径与符号链接安全；锁屏文件读取；误删保护 | `local`、`local-file` 都要保留 |
+| WebDAV | `core/webdav.go`、原设置 | 我的 → WebDAV 原生 Form | 配置保存、授权失败、上传真实结果、密码不泄漏 | 无测试端点就不做假“连接成功” |
+| AI 能力索引 | `internal/web/ai_api.go`、`/api/ai/index`、llms | 我的 → AI API：能力、连接/使用说明 | 旧非播放操作接口仍能发现、调用 | UI 不得只展示静态“支持AI”文案 |
+| AI 播放控制/状态 | `internal/web/ai_player.go` SSE/命令 | 原生播放器接收命令，原生状态上报 | 搜索/点歌/切歌/暂停/进度/音量/速度；多客户端不串台 | Build 5 后台 SSE 原生化尚未完成，必须明确测试新实现 |
+| 原项目完整设置 | `core.WebSettings` | 我的 → 分组原生 Form | 字段与默认值不丢；只改一项不清空其他配置或凭证 | 字段清单见下一节 |
+| 定时播放 | 原 `app.js` 调度 | 原生设置/调度或明确暂不可后台执行 | 到点行为、取消、前后台差异 | 不得把被暂停的 JS 定时器称为后台调度 |
+| 视频生成/可视化等附加能力 | `videogen.go/js` 与配置 | 原生工具入口或明确迁移状态 | iOS 原生音频输入、导出、FFmpeg 可用性 | 不能因主要音乐UI完成而隐藏此差距 |
+| 外部键盘快捷键 | 原 Shortcut 字段/JS | iOS 可用的原生命令/设置 | 播放/切歌/进度；冲突可恢复默认 | 不支持时说明平台差异 |
+| 许可/来源/版本 | LICENSE、第三方 notices、构建 SHA | 我的 → 关于 | 完整许可可访问、对应源码可下载 | 使用独立品牌但保留上游署名 |
+| 旧 App 数据 | Gio DataDir/网页存储/SQLite | 明确的数据迁移方案 | 备份、格式兼容、失败回退；预览并排安装 | 旧 IPA 保留不等于已经迁移数据 |
+
+## 4. 全部 WebSettings 字段保留清单
+
+依据 `core/config_store.go` 的 `WebSettings`。原生实现可以重新分组，但不得在保存时因为页面只编辑一部分字段而把其他字段归零。敏感值读取时可以遮蔽，但服务端必须能区分“未修改”与“清空”。
+
+| 原生分组 | 原始 JSON 字段 |
+|---|---|
+| 下载与文件 | `embedDownload`, `downloadToLocal`, `downloadLyricsToLocal`, `downloadDir`, `downloadFilenameTemplate`, `downloadTipDuration`, `downloadConcurrency` |
+| WebDAV | `webdavEnabled`, `webdavUrl`, `webdavUsername`, `webdavPassword`, `webdavDir` |
+| 播放与自动处理 | `autoSwitchInvalidSources`, `autoCacheOnPlay`, `filterVersionKeywords`, `versionFilterKeywords`, `filterShortTracks`, `normalizeChineseVariants` |
+| 歌词显示 | `disableFloatingLyrics`, `lyricFontFamily`, `lyricFontSize` |
+| 分页/列表 | `webPageSize`, `cliPageSize` |
+| 更新与代理 | `autoCheckUpdate`, `updateRepoUrl`, `githubProxyEnabled`, `githubProxyUrl` |
+| 汽水高级配置 | `sodaSignerUrl`, `sodaSignerToken`, `sodaClientDir` |
+| 视频工具配置 | `vgChangeCover`, `vgChangeAudio`, `vgChangeLyric`, `vgExportVideo` |
+| 键盘控制 | `shortcutPlayPause`, `shortcutPrevious`, `shortcutNext`, `shortcutSeekBack`, `shortcutSeekForward` |
+
+部分旧字段在 iOS 的语义可能不同，例如桌面悬浮歌词、命令行分页、外部工具路径。保留字段、解释适用范围，不以一个无作用的开关假装已有原生能力。
+
+## 5. 完成定义与测试记录原则
+
+每项迁移状态应分别填写：**原生界面已实现 / 原生数据动作已接入 / 自动测试通过 / 模拟器人工操作通过 / 真机通过 / 外部平台账号通过**。这些状态不能合并成一个“完成”。
+
+真正的“整款 App 原生化”至少要求：四个主 Tab、详情、播放器、歌词、队列、账号、下载、设置和所有用户可见的主要流程均不依赖 WKWebView 渲染。保留 Web 服务/API 作为核心能力不等于保留网页作为产品界面。
+
+本轮基线记录：Build 5 已构建并保存在本地 `outputs/ios-build5`，SHA256 为 `72f1dc69ef597258df90f3a526961c01b6c6e7a1d64ea8046ef6069a8f8781c7`；该文件是前阶段原生播放预览版，不是本轮完整重设计的测试结果。没有 iPhone 真机后台 30 分钟证据。
