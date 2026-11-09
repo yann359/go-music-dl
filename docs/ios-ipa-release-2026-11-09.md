@@ -6,7 +6,7 @@
 
 使用现有 `.github/workflows/ios-native.yml`，GitHub Actions macOS Runner 执行真实 Xcode Release iPhoneOS 编译。Go 以 `c-archive` 静态链接进 SwiftUI App；XcodeGen 生成工程，原有图标生成与第三方许可证脚本保留。没有 Windows 版 Xcode，也没有把任意 ZIP 改后缀充作 IPA。
 
-当前首轮：[Build 13](https://github.com/yann359/go-music-dl/actions/runs/42629940184)，源码 `1f80c29`。Release 编译与包内验证已成功，模拟器测试尚在执行。另补充真实启动 UI 检查：不启用界面样例数据，走内嵌 Go / SQLite / 原生页面路径；需以包含该测试的最终成功构建为交付依据。
+当前首轮：[Build 13](https://github.com/yann359/go-music-dl/actions/runs/42629940184)，源码 `1f80c29`。Release 编译与包内验证已成功，48 项原生单元测试通过；首轮 UI 的歌词用例误以 StaticText 查询可跳转的歌词 Button，导致 4 个断言失败，其余 4 个 UI 用例通过。已从截图与界面层级确认歌词内容及重复副歌正确，仅修正测试定位；该失败构建未上传 IPA。另补充真实启动 UI 检查：不启用界面样例数据，走内嵌 Go / SQLite / 原生页面路径；需以包含该测试的最终成功构建为交付依据。
 
 ## 签名与兼容
 

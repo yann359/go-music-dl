@@ -91,10 +91,10 @@ final class NativeVisualTests: XCTestCase {
         app.buttons["展开播放器"].tap()
         XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
         app.buttons["歌词"].tap()
-        XCTAssertTrue(app.staticTexts["作曲：周杰伦"].waitForExistence(timeout: 8))
-        XCTAssertEqual(app.staticTexts.matching(identifier: "作曲：周杰伦").count, 1)
-        XCTAssertEqual(app.staticTexts.matching(identifier: "编曲：林迈可").count, 1)
-        XCTAssertEqual(app.staticTexts.matching(identifier: "重复副歌").count, 2)
+        XCTAssertTrue(app.buttons["作曲：周杰伦"].waitForExistence(timeout: 8))
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "作曲：周杰伦")).count, 1)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "编曲：林迈可")).count, 1)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "重复副歌")).count, 2)
         capture("deduplicated-credits-preserved-chorus")
     }
 
