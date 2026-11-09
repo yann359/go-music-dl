@@ -43,6 +43,8 @@ final class AudioEngine: NSObject, ObservableObject {
     private var artwork: MPMediaItemArtwork?
     private var artworkKey = ""
     private var artworkTask: Task<Void, Never>?
+    private var pendingSeek: (item: AVPlayerItem, seconds: Double)?
+    private var seekRevision = 0
 
     init(files: AudioFiles = AudioFiles()) {
         self.files = files
@@ -127,7 +129,8 @@ final class AudioEngine: NSObject, ObservableObject {
 
     func replaceCurrentSource(_ song: Song, expectedKey: String) {
         guard currentSong?.key == expectedKey, songs.indices.contains(index) else { playSongs([song]); return }
-        let seconds = position
+        let elapsed = player.currentTime().seconds
+        let seconds = pendingSeek?.seconds ?? (elapsed.isFinite ? elapsed : position)
         songs[index] = song
         failedFallbacks.removeAll()
         rebuild(keepingCurrent: false, position: seconds)
@@ -194,10 +197,22 @@ final class AudioEngine: NSObject, ObservableObject {
 
     func seek(_ seconds: Double) {
         guard seconds.isFinite, let item = player.currentItem else { return }
+        pendingSeek = (item, max(0, seconds))
+        applyPendingSeek(for: item)
+    }
+
+    private func applyPendingSeek(for item: AVPlayerItem) {
+        guard item === player.currentItem, item.status == .readyToPlay,
+              let pending = pendingSeek, pending.item === item else { return }
         let duration = item.duration.seconds
-        let target = max(0, duration.isFinite ? min(seconds, duration) : seconds)
-        player.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            Task { @MainActor in self?.publish() }
+        let target = max(0, duration.isFinite && duration > 0 ? min(pending.seconds, duration) : pending.seconds)
+        seekRevision += 1; let token = seekRevision
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+            Task { @MainActor in
+                guard let self, token == self.seekRevision, item === self.player.currentItem else { return }
+                if finished { self.pendingSeek = nil }
+                self.publish()
+            }
         }
     }
 
@@ -224,6 +239,7 @@ final class AudioEngine: NSObject, ObservableObject {
     private func rebuild(keepingCurrent: Bool, position: Double = 0, forceFallback: Bool = false) {
         revision += 1; pipeline?.cancel(); preparing = false
         let current = keepingCurrent ? player.currentItem : nil
+        if current == nil { pendingSeek = nil; seekRevision += 1 }
         let currentSource = current.flatMap { itemSources[ObjectIdentifier($0)] }
         for item in player.items() where item !== current { player.remove(item) }
         itemIndices = [:]; itemSources = [:]
@@ -305,8 +321,11 @@ final class AudioEngine: NSObject, ObservableObject {
         itemIndices = itemIndices.filter { activeIDs.contains($0.key) }
         itemSources = itemSources.filter { activeIDs.contains($0.key) }
         itemObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
-            guard item.status == .failed else { return }
-            Task { @MainActor in self?.itemFailed(item) }
+            Task { @MainActor in
+                guard let self, item === self.player.currentItem else { return }
+                if item.status == .failed { self.itemFailed(item) }
+                else if item.status == .readyToPlay { self.applyPendingSeek(for: item) }
+            }
         }
         // A native preloaded queue bridges track boundaries even while WKWebView sleeps.
         if !preparing && player.items().count < 3, let last = player.items().last,

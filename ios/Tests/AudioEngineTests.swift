@@ -122,12 +122,24 @@ final class AudioEngineTests: XCTestCase {
         defer { engine.shutdown() }
         let original = songs()
         engine.handle(PlaybackRequest(action: "queue", songs: original, index: 0, loop: "all", order: "list"))
-        try await Task.sleep(nanoseconds: 250_000_000)
+        for _ in 0..<100 {
+            if engine.player.currentItem?.status == .readyToPlay { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        XCTAssertEqual(engine.player.currentItem?.status, .readyToPlay)
         engine.seek(0.5)
-        try await Task.sleep(nanoseconds: 100_000_000)
+        for _ in 0..<100 {
+            if abs(engine.player.currentTime().seconds - 0.5) < 0.1 { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        XCTAssertEqual(engine.player.currentTime().seconds, 0.5, accuracy: 0.1)
         var replacement = original[0]; replacement.source = "alternate"; replacement.id = "replacement"
         engine.replaceCurrentSource(replacement, expectedKey: original[0].key)
-        try await Task.sleep(nanoseconds: 300_000_000)
+        for _ in 0..<100 {
+            if engine.player.currentItem?.status == .readyToPlay,
+               abs(engine.player.currentTime().seconds - 0.5) < 0.1 { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
         XCTAssertEqual(engine.songs.count, 3)
         XCTAssertEqual(engine.songs[1], original[1])
         XCTAssertEqual(engine.songs[2], original[2])

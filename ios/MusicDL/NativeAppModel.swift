@@ -84,7 +84,8 @@ final class NativeAIConnection {
     private let audio: AudioEngine
     private let clientID = "ios-native-" + UUID().uuidString
     private var task: Task<Void, Never>?
-    private var lastPublish = Date.distantPast
+    private var pendingState: Data?
+    private var stateUpload: Task<Void, Never>?
     init(baseURL: URL, audio: AudioEngine) { self.baseURL = baseURL; self.audio = audio }
 
     func start() {
@@ -113,6 +114,12 @@ final class NativeAIConnection {
         }
     }
 
+    func stop() {
+        task?.cancel(); task = nil
+        stateUpload?.cancel(); stateUpload = nil; pendingState = nil
+        audio.stateDidChange = nil
+    }
+
     private func command(_ object: [String: Any]) {
         guard (object["client_id"] as? String ?? clientID) == clientID, let action = object["action"] as? String else { return }
         if action == "play_song", let item = object["song"] as? [String: Any] {
@@ -128,8 +135,6 @@ final class NativeAIConnection {
     }
 
     private func publish(_ state: [String: Any]) {
-        guard Date().timeIntervalSince(lastPublish) > 0.8 else { return }
-        lastPublish = Date()
         var payload: [String: Any] = ["client_id": clientID, "ready": true, "playing": audio.isPlaying,
             "position": audio.position, "duration": audio.duration, "volume": audio.player.volume,
             "playback_rate": audio.playbackRate, "queue_length": audio.songs.count, "queue_index": audio.index,
@@ -140,10 +145,21 @@ final class NativeAIConnection {
                 "extra": (try? JSONSerialization.jsonObject(with: Data(song.extra.utf8))) ?? [:]]
         }
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
-        var request = URLRequest(url: baseURL.appendingPathComponent("api/ai/player/state"))
-        request.httpMethod = "POST"; request.httpBody = data
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
-        Task { _ = try? await URLSession.shared.data(for: request) }
+        // Serialize updates and coalesce intermediate progress. A quick pause
+        // must still be published, even immediately after a progress update.
+        pendingState = data
+        guard stateUpload == nil else { return }
+        stateUpload = Task { [weak self] in
+            guard let self else { return }
+            defer { self.stateUpload = nil }
+            while let next = self.pendingState, !Task.isCancelled {
+                self.pendingState = nil
+                var request = URLRequest(url: self.baseURL.appendingPathComponent("api/ai/player/state"))
+                request.httpMethod = "POST"; request.httpBody = next
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
+                _ = try? await URLSession.shared.data(for: request)
+            }
+        }
     }
 }
