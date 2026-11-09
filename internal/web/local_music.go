@@ -261,7 +261,7 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 
 		// 扫描完成后同步到 SQLite 索引（异步），空扫描也要清除旧行。
 		if !refreshing {
-			go func() { _ = syncTracksToIndex(tracks) }()
+			runLocalMusicIndexTask(func() { _ = syncTracksToIndex(tracks) })
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -818,7 +818,7 @@ func refreshLocalMusicScanAsync(dir string) bool {
 	localMusicScanRefreshInFlight = true
 	localMusicScanRefreshMu.Unlock()
 
-	go func() {
+	runLocalMusicIndexTask(func() {
 		defer func() {
 			localMusicScanRefreshMu.Lock()
 			localMusicScanRefreshInFlight = false
@@ -843,7 +843,7 @@ func refreshLocalMusicScanAsync(dir string) bool {
 			}
 		}
 		storeLocalMusicScanSnapshot(nextSnapshot)
-	}()
+	})
 	return true
 }
 

@@ -193,6 +193,8 @@ struct SearchScreen: View {
 
 struct SongRows: View {
     let songs: [Song]
+    var collectionID: String? = nil
+    var onChange: () -> Void = {}
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var audio: AudioEngine
     var body: some View {
@@ -210,7 +212,7 @@ struct SongRows: View {
                             Spacer(minLength: 0)
                         }.contentShape(Rectangle())
                     }.buttonStyle(.plain)
-                    SongActions(song: song)
+                    SongActions(song: song, collectionID: collectionID, onChange: onChange)
                 }.padding(.vertical, 11)
                 Divider().padding(.leading, 65).opacity(0.4)
             }
@@ -220,9 +222,12 @@ struct SongRows: View {
 
 struct SongActions: View {
     let song: Song
+    var collectionID: String? = nil
+    var onChange: () -> Void = {}
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var audio: AudioEngine
     @EnvironmentObject private var client: NativeClient
+    @State private var deleteFile = false
     var body: some View {
         Menu {
             Button("接下来播放", systemImage: "text.line.first.and.arrowtriangle.forward") { audio.append(song, playNext: true); model.notify("已加入下一首") }
@@ -240,9 +245,20 @@ struct SongActions: View {
                 model.perform { let replacement = try await client.switchSource(song); model.play([replacement]); model.notify("已切换至 \(replacement.source)") }
             }
             if !song.album.isEmpty { Text("专辑：\(song.album)") }
+            if let collectionID {
+                Button("从歌单移除", systemImage: "minus.circle", role: .destructive) {
+                    model.perform { try await client.removeFromCollection(id: collectionID, song: song); onChange(); model.notify("已从歌单移除") }
+                }
+            }
+            if ["local", "local-file"].contains(song.source) {
+                Button("删除本地文件", systemImage: "trash", role: .destructive) { deleteFile = true }
+            }
         } label: {
             Image(systemName: "ellipsis").font(.headline).frame(width: 44, height: 44).contentShape(Rectangle())
         }.accessibilityLabel("\(song.name)的更多操作").foregroundStyle(.secondary)
+            .confirmationDialog("删除本地文件“\(song.name)”？此操作无法撤销。", isPresented: $deleteFile, titleVisibility: .visible) {
+                Button("删除音频文件", role: .destructive) { model.perform { if audio.currentSong?.key == song.key { audio.stop() }; try await client.deleteLocalSong(id: song.id); onChange(); model.notify("本地文件已删除") } }
+            }
     }
 }
 
@@ -275,7 +291,7 @@ struct SongDetailScreen: View {
                 if loading { ProgressView("正在读取曲目…").padding(30) }
                 if let problem { NativeEmptyState(symbol: "wifi.exclamationmark", title: "暂时无法读取", detail: problem); Button("重试") { Task { await load() } } }
                 if !loading && songs.isEmpty && problem == nil { NativeEmptyState(symbol: "music.note.list", title: "这里还没有歌曲", detail: "添加一些喜欢的声音，让它成为你的收藏。") }
-                SongRows(songs: songs)
+                SongRows(songs: songs, collectionID: kind == "collection" ? id : nil, onChange: { Task { await load() } })
             }.padding(.horizontal, 22).padding(.bottom, 28)
         }.background(MusicDesign.canvas(scheme)).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { model.perform { try await client.enqueueDownload(songs); model.notify("已加入下载任务") } } label: { Image(systemName: "arrow.down.circle") }.disabled(songs.isEmpty).accessibilityLabel("下载全部") } }
@@ -304,6 +320,8 @@ struct LibraryScreen: View {
     @State private var newCollection = false
     @State private var name = ""
     @State private var importing = false
+    @State private var deleting: NativeCollection?
+    @State private var renaming: NativeCollection?
     var body: some View {
         List {
             Section {
@@ -326,7 +344,10 @@ struct LibraryScreen: View {
                                 Text("\(collection.trackCount) 首 · 我的歌单").font(.caption).foregroundStyle(.secondary)
                             }
                         }.padding(.vertical, 5)
-                    }.swipeActions { Button("删除", role: .destructive) { model.perform { try await client.deleteCollection(id: collection.id) } } }
+                    }.swipeActions {
+                        Button("删除", role: .destructive) { deleting = collection }
+                        Button("改名") { name = collection.name; renaming = collection }.tint(MusicDesign.coral)
+                    }
                 }
             } header: { HStack { Text("我的歌单"); Spacer(); Text("\(client.collections.count)") } }
         }.scrollContentBackground(.hidden).background(MusicDesign.canvas(scheme)).navigationTitle("音乐库")
@@ -339,6 +360,14 @@ struct LibraryScreen: View {
             .fileImporter(isPresented: $importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { model.perform { for url in urls { try await client.importLocalFile(url: url) }; model.notify("已导入本地音乐") } }
                 else if case .failure(let error) = result { model.notify(error.localizedDescription) }
+            }
+            .confirmationDialog("删除歌单？歌曲文件会保留。", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+                if let deleting { Button("删除“\(deleting.name)”", role: .destructive) { model.perform { try await client.deleteCollection(id: deleting.id); self.deleting = nil } } }
+            }
+            .alert("重命名歌单", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+                TextField("歌单名称", text: $name)
+                Button("保存") { if let renaming { model.perform { _ = try await client.request("collections.update", params: ["id": .string(renaming.id), "name": .string(name)]); try await client.loadLibrary(); self.renaming = nil } } }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                Button("取消", role: .cancel) { renaming = nil }
             }
             .task { model.perform { try await client.loadLibrary() } }.refreshable { try? await client.loadLibrary() }
     }

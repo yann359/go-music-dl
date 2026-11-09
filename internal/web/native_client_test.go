@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -46,7 +45,7 @@ func TestNativeSourceCatalogPreservesEveryCoreSource(t *testing.T) {
 }
 
 func TestNativeSearchKeepsAuthorizationMetadataAndPartialErrors(t *testing.T) {
-	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(t.TempDir(), "settings.db"))
+	initCollectionDBForTest(t)
 	original := nativeSearchProvider
 	t.Cleanup(func() { nativeSearchProvider = original })
 	nativeSearchProvider = func(source string) core.SearchFunc {
@@ -118,7 +117,7 @@ func TestNativeRequestRejectsArbitraryNetworkAndPathInputs(t *testing.T) {
 }
 
 func TestNativePartialSettingsUpdatePreservesUnmentionedFields(t *testing.T) {
-	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(t.TempDir(), "settings.db"))
+	initCollectionDBForTest(t)
 	settings := core.GetWebSettings()
 	settings.WebDAVURL = "https://dav.example.com/music"
 	settings.WebDAVUsername = "account"

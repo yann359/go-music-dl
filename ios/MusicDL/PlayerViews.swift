@@ -22,6 +22,7 @@ struct MiniPlayer: View {
                         }
                     })
                     .accessibilityElement(children: .combine).accessibilityLabel("正在播放，\(song.name)，\(song.artist)")
+                    .accessibilityIdentifier("open-player")
                     .accessibilityAddTraits(.isButton).accessibilityAction { model.showPlayer = true }
                 Button { audio.isPlaying || audio.waiting ? audio.pause() : audio.play() } label: {
                     Image(systemName: audio.isPlaying || audio.waiting ? "pause.fill" : "play.fill").font(.title3).frame(width: 44, height: 44)
@@ -113,7 +114,8 @@ struct FullPlayer: View {
                     }.padding(.horizontal, 26).padding(.top, 20).padding(.bottom, 28)
                 }.scrollIndicators(.hidden)
             }.ignoresSafeArea(edges: .bottom)
-        }.onChange(of: audio.position) { _, value in if !seeking { draftPosition = value } }
+        }.onAppear { draftPosition = audio.position; rate = Double(audio.playbackRate) }
+            .onChange(of: audio.position) { _, value in if !seeking { draftPosition = value } }
             .task(id: song?.key) { await loadLyrics() }
             .accessibilityIdentifier("full-player")
     }
@@ -152,7 +154,7 @@ struct FullPlayer: View {
         lyrics = []; lyricError = nil
         guard let song else { return }
         lyricLoading = true
-        defer { lyricLoading = false }
+        defer { if !Task.isCancelled { lyricLoading = false } }
         do { let text = try await client.lyrics(for: song); if !Task.isCancelled { lyrics = LyricLine.parse(text) } }
         catch { if !Task.isCancelled { lyricError = error.localizedDescription } }
     }

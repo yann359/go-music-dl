@@ -6,12 +6,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/guohuiyuan/go-music-dl/core"
 	"github.com/guohuiyuan/music-lib/model"
 	"gorm.io/gorm/clause"
 )
+
+// Queued index writes must finish before SQLite and its directory are closed.
+// Add occurs in the request goroutine, before the HTTP response can return.
+var localMusicIndexTasks sync.WaitGroup
+
+func runLocalMusicIndexTask(work func()) {
+	localMusicIndexTasks.Add(1)
+	go func() {
+		defer localMusicIndexTasks.Done()
+		work()
+	}()
+}
 
 func formatSizeForIndex(size int64) string {
 	if size == 0 {
@@ -195,9 +208,9 @@ func syncLocalMusicIndex() error {
 // syncLocalMusicIndexAsync runs an explicit background rebuild. Normal startup
 // uses the persisted index and defers scanning until local music is opened.
 func syncLocalMusicIndexAsync() {
-	go func() {
+	runLocalMusicIndexTask(func() {
 		_ = syncLocalMusicIndex()
-	}()
+	})
 }
 
 // reconcileDownloadDedupWithScan 用一次全量扫盘结果对账下载去重索引。keep 之外的

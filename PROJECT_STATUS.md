@@ -39,6 +39,7 @@
 - 新 UI 的截图、深浅色/可访问性检查与新 IPA 尚未完成。
 
 ## 测试与已知限制
+- 重设计首轮 macOS 运行 `42537618882` 在原本地音乐测试清理阶段失败：索引异步写与 SQLite 关闭竞争。已增加索引任务收尾等待、隔离新原生测试数据库；原断言保留。定向测试连续 5 轮通过，等待全量与 macOS 重验。
 - Build 5：Go 回归、6 项桥接测试、5 项原生模拟器测试通过；Windows/Linux 5 组构建通过。
 - 本轮 Windows 实际运行：`go test ./internal/web ./internal/appshell ./core ./internal/spotify ./internal/cli ./cmd/music-dl` 全通过；原 Node 桥接 6 项通过。
 - 新增 Swift 客户端 5 项测试、歌词解析 3 项测试与原生 UI 截图测试，等待 macOS 执行。

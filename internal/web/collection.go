@@ -202,6 +202,7 @@ func InitDB() {
 }
 
 func CloseDB() {
+	localMusicIndexTasks.Wait()
 	if db != nil {
 		sqlDB, err := db.DB()
 		if err == nil {
