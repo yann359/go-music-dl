@@ -45,7 +45,12 @@ final class AppModel: ObservableObject {
             isReady = true
             return
         }
-        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        #if DEBUG
+        let nativeStartupTest = ProcessInfo.processInfo.arguments.contains("--ui-native-startup")
+        #else
+        let nativeStartupTest = false
+        #endif
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil || nativeStartupTest else { return }
         do {
             let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -1,6 +1,23 @@
 import XCTest
 
 final class NativeVisualTests: XCTestCase {
+    func testRealNativeStartupAndRestoredSourcesWithoutPreview() {
+        let app = XCUIApplication()
+        // Runs the real C ABI startup/SQLite/bootstrap path; no UI fixtures.
+        app.launchArguments = ["--ui-native-startup", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 35))
+        XCTAssertEqual(app.webViews.count, 0)
+        XCTAssertFalse(app.buttons["展开播放器"].exists)
+        app.tabBars.buttons["我的"].tap()
+        app.buttons["全部音乐来源"].tap()
+        XCTAssertTrue(app.buttons["music-source-netease"].waitForExistence(timeout: 5))
+        for _ in 0..<5 { if app.buttons["music-source-bilibili"].exists { break }; app.swipeUp() }
+        XCTAssertTrue(app.buttons["music-source-bilibili"].exists)
+        capture("real-native-startup-all-sources")
+        app.terminate()
+    }
+
     private func open(_ style: String, emptyPlayer: Bool = false, extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-music.appearance", style]

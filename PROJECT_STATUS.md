@@ -4,8 +4,9 @@
 - 基线 `52acc6e`，工作树干净；新分支 `codex/ios-ipa-release` 保留上轮全部修复与原分支。
 - 复用现有 GitHub Actions `macos-26` / Xcode / XcodeGen / Go c-archive 流程；不在 Windows 安装 Xcode。GitHub 仓库现有授权可用，无需提供 Apple 密码、证书或 Token。
 - 目标为真正 iPhoneOS arm64 Release 未签名 IPA，交给 SideStore / AltStore 本地重签；Bundle ID 保持 `com.guohuiyuan.musicdl.nativedesign`，最低 iOS 18，后台 audio 和 MusicKit 权限说明保留。
-- 新增打包后 Mach-O/平台/架构/最低版本/签名/动态依赖/资源核验，并归档核验 JSON。Go 静态编入 App；Node 只参与测试，不需部署 Windows/Node 服务。
-- 构建、XCTest、UI、最终产物下载与哈希核验尚在执行；不得提前宣称安装或真机通过。
+- 新增打包后 Mach-O/平台/架构/最低版本/签名/动态依赖/资源核验，并归档核验 JSON。Go 静态编入 App；核心启动、搜索、原生音频和本地数据不需部署 Windows/Node 服务。汽水旧版会员整曲的桌面 bdms.node 签名能力不适用于 iOS，只能按实际公开音频/已有合法来源能力使用，不能承诺全部整曲可播。
+- 首轮 Build 13（运行 42629940184、源码 `1f80c29`）已通过 Release、包内核验、Go 模拟器库及单元测试阶段；UI 测试和产物上传仍在执行。新增真实启动 UI 回归（不启用样例数据），最终交付须来自包含此回归的成功构建。
+- 最终产物下载、哈希核验和真机安装尚未完成；不提前宣称真机通过。
 
 ## 2026-11-09：全部来源恢复与稳定性专项（代码与 Windows 验证完成，iOS 验收待执行）
 - 分支 `codex/source-recovery-stability`，干净基线 `3bf0333`；原授权分支与旧 IPA 保留。未推送、未发布、未清除用户数据；SQLite 结构不变。
