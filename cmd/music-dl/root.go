@@ -33,6 +33,7 @@ var rootCmd = &cobra.Command{
   - apple     (Apple Music)
   - spotify   (Spotify，需官方 API 授权)
   - soda      (汽水音乐)
+  - kuwo, migu, fivesing, jamendo, joox, qianqian, bilibili
 
 特性:
   - TUI 交互式界面，支持空格多选

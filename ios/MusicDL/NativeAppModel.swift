@@ -6,6 +6,7 @@ final class AppModel: ObservableObject {
     let audio: AudioEngine
     let client = NativeClient()
     let accounts = MusicAccounts.shared
+    let service = LocalService()
     @Published var isReady = false
     @Published var error: String?
     @Published var toast: String?
@@ -52,7 +53,7 @@ final class AppModel: ObservableObject {
             _ = try await client.request("diagnostics.enable")
             let serviceStart = Date()
             #endif
-            let url = try await GoBridge.start(root: root.path)
+            let url = try await service.connect(root: root.path)
             #if DEBUG
             print("[native-timing] local-service-start elapsed=\(Date().timeIntervalSince(serviceStart))s")
             #endif
@@ -81,6 +82,7 @@ final class AppModel: ObservableObject {
     }
 
     func notify(_ message: String) {
+        guard toast != message else { return }
         toast = message
         Task { try? await Task.sleep(nanoseconds: 4_000_000_000); if toast == message { toast = nil } }
     }
@@ -90,6 +92,15 @@ final class AppModel: ObservableObject {
         var favorite = client.collections.first { $0.name == "我喜欢的音乐" }
         if favorite == nil { favorite = try await client.createCollection(name: "我喜欢的音乐") }
         if let favorite { try await client.addToCollection(id: favorite.id, song: song); notify("已加入我喜欢的音乐") }
+    }
+
+    func resumeConnections() async {
+        guard isReady, !isUITesting else { return }
+        let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        do {
+            _ = try await service.connect(root: root.path)
+            ai?.stop(); ai?.start()
+        } catch { notify("本地功能暂时不可用，请稍后重新打开 App 重试；已缓存音频仍可播放。") }
     }
 }
 
@@ -101,13 +112,20 @@ final class NativeAIConnection {
     private var task: Task<Void, Never>?
     private var pendingState: Data?
     private var stateUpload: Task<Void, Never>?
+    private var generation = 0
     init(baseURL: URL, audio: AudioEngine) { self.baseURL = baseURL; self.audio = audio }
 
     func start() {
+        guard task == nil else { return }
+        generation += 1; let token = generation
         audio.stateDidChange = { [weak self] state in self?.publish(state) }
         task = Task { [weak self] in
             guard let self else { return }
-            while !Task.isCancelled {
+            defer { if self.generation == token { self.task = nil } }
+            var attempts = 0
+            while !Task.isCancelled && attempts < 3 {
+                attempts += 1
+                let connected = Date()
                 do {
                     var components = URLComponents(url: self.baseURL.appendingPathComponent("api/ai/player/events"), resolvingAgainstBaseURL: false)!
                     components.queryItems = [URLQueryItem(name: "client_id", value: self.clientID)]
@@ -124,12 +142,14 @@ final class NativeAIConnection {
                         }
                     }
                 } catch { /* reconnect control channel; native audio keeps playing */ }
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                if Date().timeIntervalSince(connected) > 30 { attempts = 0 }
+                do { try await Task.sleep(nanoseconds: UInt64(max(1, attempts)) * 500_000_000) } catch { break }
             }
         }
     }
 
     func stop() {
+        generation += 1
         task?.cancel(); task = nil
         stateUpload?.cancel(); stateUpload = nil; pendingState = nil
         audio.stateDidChange = nil
@@ -164,9 +184,10 @@ final class NativeAIConnection {
         // must still be published, even immediately after a progress update.
         pendingState = data
         guard stateUpload == nil else { return }
+        let token = generation
         stateUpload = Task { [weak self] in
-            guard let self else { return }
-            defer { self.stateUpload = nil }
+            guard let self, self.generation == token, !Task.isCancelled else { return }
+            defer { if self.generation == token { self.stateUpload = nil } }
             while let next = self.pendingState, !Task.isCancelled {
                 self.pendingState = nil
                 var request = URLRequest(url: self.baseURL.appendingPathComponent("api/ai/player/state"))

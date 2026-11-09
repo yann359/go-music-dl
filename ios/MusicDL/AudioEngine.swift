@@ -8,6 +8,12 @@ import SwiftUI
 /// connection is used by the queue, remote controls, or interruption recovery.
 @MainActor
 final class AudioEngine: NSObject, ObservableObject {
+    enum PlaybackState: String { case idle, preparing, ready, playing, paused, buffering, interrupted, recovering, error }
+    @Published private(set) var playbackState: PlaybackState = .idle
+    private var playbackError: String?
+    private var recoveryAttempts = 0
+    private var recoveryWatchdog: Task<Void, Never>?
+    private var savedPosition: Double = 0
     private(set) var player = AVQueuePlayer()
     @Published private(set) var message = "原生播放器就绪"
     var stateDidChange: (([String: Any]) -> Void)?
@@ -53,7 +59,7 @@ final class AudioEngine: NSObject, ObservableObject {
         observe(AVAudioSession.interruptionNotification) { [weak self] in self?.interruption($0) }
         observe(AVAudioSession.routeChangeNotification) { [weak self] in self?.routeChanged($0) }
         observe(AVAudioSession.mediaServicesWereResetNotification) { [weak self] _ in self?.resetMediaServices() }
-        observe(UIApplication.didBecomeActiveNotification) { [weak self] _ in self?.publish(includeQueue: true) }
+        observe(UIApplication.didBecomeActiveNotification) { [weak self] _ in self?.foregrounded() }
         observe(.AVPlayerItemDidPlayToEndTime) { [weak self] note in self?.didEnd(note) }
         configureRemoteCommands()
     }
@@ -89,6 +95,7 @@ final class AudioEngine: NSObject, ObservableObject {
             let changed = incoming != songs || selected != index || request.loop != loop || request.order != order
             guard changed else { return }
             songs = incoming; index = selected
+            if !sameCurrent { savedPosition = 0; recoveryAttempts = 0 }
             loop = ["all", "one", "none"].contains(request.loop ?? "") ? request.loop! : "all"
             order = request.order == "random" ? "random" : "list"
             failedFallbacks.removeAll()
@@ -128,7 +135,7 @@ final class AudioEngine: NSObject, ObservableObject {
     }
 
     func replaceCurrentSource(_ song: Song, expectedKey: String) {
-        guard currentSong?.key == expectedKey, songs.indices.contains(index) else { playSongs([song]); return }
+        guard currentSong?.key == expectedKey, songs.indices.contains(index) else { return }
         let elapsed = player.currentTime().seconds
         let seconds = pendingSeek?.seconds ?? (elapsed.isFinite ? elapsed : position)
         songs[index] = song
@@ -159,14 +166,26 @@ final class AudioEngine: NSObject, ObservableObject {
         guard !songs.isEmpty else { return }
         do {
             try activate()
+            // A suspended app may receive began without a matching ended. A
+            // successful explicit activation is the authority to clear it.
+            interrupted = false; resumeAfterInterruption = false
+            playbackError = nil
             wantsPlayback = true
-            if !interrupted { player.playImmediately(atRate: speed) }
-            if player.currentItem == nil && !preparing { rebuild(keepingCurrent: false) }
+            let missingFile = (player.currentItem?.asset as? AVURLAsset).map { $0.url.isFileURL && !FileManager.default.fileExists(atPath: $0.url.path) } ?? false
+            if player.status == .failed || player.currentItem?.status == .failed || missingFile {
+                recreatePlayer()
+            } else if player.currentItem == nil && !preparing {
+                rebuild(keepingCurrent: false, position: savedPosition)
+            }
+            player.playImmediately(atRate: speed)
+            watchRecovery()
             publish()
-        } catch { fail("音频会话启动失败：\(error.localizedDescription)") }
+        } catch { fail("暂时无法恢复音频，请稍后点击播放重试。") }
     }
 
     func pause() {
+        rememberPosition()
+        recoveryWatchdog?.cancel(); recoveryWatchdog = nil; recoveryAttempts = 0
         wantsPlayback = false
         resumeAfterInterruption = false
         player.pause()
@@ -176,11 +195,12 @@ final class AudioEngine: NSObject, ObservableObject {
     func stop() {
         pause(); revision += 1; pipeline?.cancel(); preparing = false
         player.removeAllItems(); itemIndices.removeAll(); itemSources.removeAll()
-        songs = []; sequence = []; index = 0
+        songs = []; sequence = []; index = 0; savedPosition = 0; playbackError = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         artworkTask?.cancel(); artwork = nil; artworkKey = ""
-        Task { await files.prune(keeping: []) }
+        let token = revision
+        Task { await files.prune(keeping: [], generation: token) }
         publish()
     }
 
@@ -237,9 +257,11 @@ final class AudioEngine: NSObject, ObservableObject {
     }
 
     private func rebuild(keepingCurrent: Bool, position: Double = 0, forceFallback: Bool = false) {
+        recoveryWatchdog?.cancel(); recoveryWatchdog = nil
+        playbackError = nil
         revision += 1; pipeline?.cancel(); preparing = false
         let current = keepingCurrent ? player.currentItem : nil
-        if current == nil { pendingSeek = nil; seekRevision += 1 }
+        if current == nil { pendingSeek = nil; seekRevision += 1; savedPosition = max(0, position) }
         let currentSource = current.flatMap { itemSources[ObjectIdentifier($0)] }
         for item in player.items() where item !== current { player.remove(item) }
         itemIndices = [:]; itemSources = [:]
@@ -262,12 +284,14 @@ final class AudioEngine: NSObject, ObservableObject {
         let token = revision
         pipeline = Task { [weak self] in
             guard let self else { return }
+            await self.files.beginGeneration(token)
+            guard self.revision == token && !Task.isCancelled else { return }
             defer {
                 if self.revision == token {
                     self.preparing = false
                     let keep = Set(self.player.items().compactMap { self.itemIndices[ObjectIdentifier($0)] }
                         .map { self.songs[$0].key })
-                    Task { await self.files.prune(keeping: keep) }
+                    Task { await self.files.prune(keeping: keep, generation: token) }
                 }
             }
             var first = true
@@ -293,7 +317,10 @@ final class AudioEngine: NSObject, ObservableObject {
                     }
                     self.player.insert(item, after: self.player.items().last)
                     if first && position > 0 { self.seek(position) }
-                    if self.wantsPlayback && !self.interrupted { self.player.playImmediately(atRate: self.speed) }
+                    if self.wantsPlayback && !self.interrupted {
+                        self.player.playImmediately(atRate: self.speed)
+                        self.watchRecovery()
+                    }
                     self.message = prepared.source == song.source
                         ? "原生音频已缓存 · 队列就绪 \(self.player.items().count) 首"
                         : "已自动换源：\(song.source) → \(prepared.source) · 已缓存"
@@ -303,7 +330,7 @@ final class AudioEngine: NSObject, ObservableObject {
                     self.message = "\(song.name) 准备失败：\(error.localizedDescription)"
                     // Stop at a failed item; do not silently play a different song.
                     self.sequence.removeAll()
-                    if self.player.currentItem == nil { self.pause() }
+                    if self.player.currentItem == nil { self.fail(self.message + "；点击播放重试。") }
                     self.publish()
                     break
                 }
@@ -316,6 +343,7 @@ final class AudioEngine: NSObject, ObservableObject {
         itemObservation = nil
         guard let item = player.currentItem, let selected = itemIndices[ObjectIdentifier(item)] else { publish(); return }
         index = selected
+        if pendingSeek == nil { savedPosition = 0 }
         loadArtwork()
         let activeIDs = Set(player.items().map(ObjectIdentifier.init))
         itemIndices = itemIndices.filter { activeIDs.contains($0.key) }
@@ -358,6 +386,8 @@ final class AudioEngine: NSObject, ObservableObject {
         guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
         if type == .began {
+            rememberPosition()
+            recoveryWatchdog?.cancel(); recoveryWatchdog = nil
             resumeAfterInterruption = wantsPlayback
             interrupted = true; player.pause(); publish()
         } else {
@@ -376,17 +406,60 @@ final class AudioEngine: NSObject, ObservableObject {
     }
 
     private func resetMediaServices() {
+        rememberPosition()
+        interrupted = false; resumeAfterInterruption = false
+        recreatePlayer()
+        if wantsPlayback { play() }
+    }
+
+    private func rememberPosition() {
+        if let pendingSeek { savedPosition = pendingSeek.seconds; return }
+        guard player.currentItem != nil else { return }
         let seconds = player.currentTime().seconds
+        if seconds.isFinite { savedPosition = max(0, seconds) }
+    }
+
+    private func foregrounded() {
+        // Never start paused music just because the user opened the app.
+        rememberPosition()
+        if wantsPlayback && !interrupted { watchRecovery() }
+        publish(includeQueue: true)
+    }
+
+    private func recreatePlayer() {
+        recoveryWatchdog?.cancel(); recoveryWatchdog = nil
+        rememberPosition()
         if let ticker { player.removeTimeObserver(ticker); self.ticker = nil }
         observations.removeAll(); itemObservation = nil
         player.pause()
         player = AVQueuePlayer()
         installPlayerObservers()
-        rebuild(keepingCurrent: false, position: seconds.isFinite ? seconds : 0)
-        if wantsPlayback { play() }
+        rebuild(keepingCurrent: false, position: savedPosition)
     }
 
-    private func fail(_ text: String) { message = text; pause() }
+    private func watchRecovery() {
+        guard recoveryWatchdog == nil, wantsPlayback, !interrupted, player.currentItem != nil else { return }
+        let token = revision
+        let initialItem = player.currentItem
+        let initialPosition = player.currentTime().seconds
+        recoveryWatchdog = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: 8_000_000_000) } catch { return }
+            guard let self, token == self.revision, self.wantsPlayback, !self.interrupted else { return }
+            self.recoveryWatchdog = nil
+            let advanced = self.player.currentItem !== initialItem || self.player.currentTime().seconds > initialPosition + 0.05
+            if self.player.timeControlStatus == .playing && advanced { self.recoveryAttempts = 0; return }
+            guard self.recoveryAttempts < 1 else { self.fail("播放恢复失败，请点击播放重试，或手动更换音源。"); return }
+            self.recoveryAttempts += 1
+            do {
+                try self.activate()
+                self.message = "正在恢复原生播放与进度…"
+                self.recreatePlayer()
+                self.publish()
+            } catch { self.fail("音频暂不可用，请点击播放重试。") }
+        }
+    }
+
+    private func fail(_ text: String) { pause(); playbackError = text; message = text; publish() }
 
     private func loadArtwork() {
         guard let song = currentSong, artworkKey != song.key else { return }
@@ -435,11 +508,19 @@ final class AudioEngine: NSObject, ObservableObject {
     func publish(includeQueue: Bool = false) {
         let elapsed = player.currentTime().seconds
         let duration = player.currentItem?.duration.seconds ?? 0
-        let position = elapsed.isFinite ? max(0, elapsed) : 0
+        let position = elapsed.isFinite ? max(0, elapsed) : savedPosition
         let length = duration.isFinite ? max(0, duration) : 0
         let playing = player.timeControlStatus == .playing
         self.position = position; self.duration = length; self.isPlaying = playing
         self.waiting = wantsPlayback && !playing && !interrupted
+        if songs.isEmpty { playbackState = .idle }
+        else if playbackError != nil { playbackState = .error }
+        else if interrupted { playbackState = .interrupted }
+        else if playing { playbackState = .playing; recoveryAttempts = 0 }
+        else if recoveryAttempts > 0 { playbackState = .recovering }
+        else if player.currentItem == nil && preparing { playbackState = .preparing }
+        else if wantsPlayback { playbackState = .buffering }
+        else { playbackState = player.currentItem?.status == .readyToPlay ? .paused : .ready }
         if songs.indices.contains(index) {
             let song = songs[index]
             var information: [String: Any] = [
@@ -457,7 +538,7 @@ final class AudioEngine: NSObject, ObservableObject {
         var state: [String: Any] = ["index": index, "position": position, "duration": length,
                          "playing": playing, "waiting": wantsPlayback && !playing && !interrupted,
                          "rate": speed, "message": message, "readyCount": player.items().count,
-                         "loop": loop, "order": order]
+                         "loop": loop, "order": order, "state": playbackState.rawValue]
         if includeQueue {
             state["songs"] = (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(songs))) ?? []
         }

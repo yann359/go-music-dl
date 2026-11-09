@@ -1,10 +1,10 @@
 # CHENGYIN / MusicDL
 
-当前原生 iOS 音乐平台仅保留 **网易云音乐、Apple Music、QQ 音乐、汽水音乐、酷狗音乐、Spotify**，本地文件能力独立保留。
+当前原生 iOS 已恢复原有 **13 个在线来源**：网易云、Apple Music、QQ、汽水、酷狗、Spotify、酷我、咪咕、5sing、Jamendo (CC)、JOOX、千千、Bilibili；本地文件独立保留。来源注册不代表网络、账号或地区限制下始终可用。
 
 Apple Music 账号使用原生 MusicKit；Spotify 账号使用系统浏览器 OAuth PKCE，当前按用户选择保留“待配置”（Free 套餐、不升级 Premium）。不需要输入 Apple ID 密码、Spotify Client Secret 或手动提取这两个平台的 Cookie。音乐授权不等同于整曲播放或下载权限。
 
-开发者配置、回滚/旧数据兼容、测试边界见 [六来源与账号授权维护说明](docs/ios-six-source-auth.md)。现有原生项目结构与构建方式未重建。
+本轮稳定性与来源恢复见 [专项报告](docs/ios-source-recovery-stability.md)。开发者配置、回滚/旧数据兼容、历史测试边界见 [六来源与账号授权维护说明](docs/ios-six-source-auth.md)。现有原生项目结构与构建方式未重建。
 
 
 > ⭐ 如果这个项目对你有帮助，欢迎点一个 Star。

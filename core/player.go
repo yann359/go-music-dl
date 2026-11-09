@@ -3,11 +3,13 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/guohuiyuan/music-lib/model"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/guohuiyuan/music-lib/migu"
+	"github.com/guohuiyuan/music-lib/model"
 )
 
 // ResolveFFplayPath 解析 ffplay 可执行文件路径。
@@ -31,11 +33,23 @@ func ResolveFFplayPath() (string, error) {
 	return exec.LookPath("ffplay")
 }
 
+// playbackUserAgent 返回与 BuildSourceRequest 一致的 UA。
+func playbackUserAgent(source string) string {
+	if source == "migu" {
+		return UA_Mobile
+	}
+	return UA_Common
+}
+
 // playbackReferer 返回与 BuildSourceRequest 一致的 Referer，无则返回空串。
 func playbackReferer(source string) string {
 	switch source {
+	case "bilibili":
+		return Ref_Bilibili
 	case "netease":
 		return Ref_Netease
+	case "migu":
+		return Ref_Migu
 	case "qq":
 		return "http://y.qq.com"
 	}
@@ -51,7 +65,7 @@ func PlaybackArgs(song *model.Song, urlStr string) []string {
 		source = song.Source
 	}
 
-	args = append(args, "-user_agent", UA_Common)
+	args = append(args, "-user_agent", playbackUserAgent(source))
 
 	var headers strings.Builder
 	if referer := playbackReferer(source); referer != "" {
@@ -79,6 +93,37 @@ func PreparePlaybackSource(song *model.Song) (playURL string, tempFile string, e
 		return "", "", errors.New("missing song id or source")
 	}
 
+	if song.Source == "migu" {
+		info, infoErr := migu.New(CM.Get("migu")).GetDownloadInfo(song)
+		if infoErr != nil {
+			return "", "", infoErr
+		}
+		if !info.Encrypted {
+			return info.URL, "", nil
+		}
+
+		data, decErr := fetchMiguAudio(info)
+		if decErr != nil {
+			return "", "", decErr
+		}
+		ext := DetectAudioExt(data)
+		f, createErr := os.CreateTemp("", "gomusicdl-play-*."+ext)
+		if createErr != nil {
+			return "", "", createErr
+		}
+		path := f.Name()
+		if _, writeErr := f.Write(data); writeErr != nil {
+			_ = f.Close()
+			_ = os.Remove(path)
+			return "", "", writeErr
+		}
+		if closeErr := f.Close(); closeErr != nil {
+			_ = os.Remove(path)
+			return "", "", closeErr
+		}
+		return path, path, nil
+	}
+
 	if song.Source == "soda" {
 		data, decErr := FetchDecryptedSodaAudio(song)
 		if decErr != nil {
@@ -91,11 +136,14 @@ func PreparePlaybackSource(song *model.Song) (playURL string, tempFile string, e
 		}
 		path := f.Name()
 		if _, writeErr := f.Write(data); writeErr != nil {
-			f.Close()
-			os.Remove(path)
+			_ = f.Close()
+			_ = os.Remove(path)
 			return "", "", writeErr
 		}
-		f.Close()
+		if closeErr := f.Close(); closeErr != nil {
+			_ = os.Remove(path)
+			return "", "", closeErr
+		}
 		return path, path, nil
 	}
 

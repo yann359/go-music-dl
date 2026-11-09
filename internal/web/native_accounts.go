@@ -11,7 +11,7 @@ import (
 
 func legacyAccountSource(source string) bool {
 	switch source {
-	case "netease", "qq", "soda", "kugou":
+	case "netease", "qq", "soda", "kugou", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "bilibili":
 		return true
 	}
 	return false
@@ -45,7 +45,7 @@ func nativeValidateLegacyAccount(params map[string]json.RawMessage) interface{} 
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
-	_, err := nativeDiscoveryCalls.run(ctx, nativeProviderKey("account", source), func() (interface{}, error) { return fn(1, 1) })
+	_, err := nativeSourcePool(source).run(ctx, nativeProviderKey("account", source), func() (interface{}, error) { return fn(1, 1) })
 	status := "connected"
 	if err != nil {
 		status = "unavailable"

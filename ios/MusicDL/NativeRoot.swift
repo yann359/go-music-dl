@@ -14,6 +14,7 @@ struct MusicDLApp: App {
 }
 
 struct NativeRoot: View {
+    @Environment(\.scenePhase) private var phase
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var audio: AudioEngine
     @Environment(\.colorScheme) private var scheme
@@ -45,6 +46,9 @@ struct NativeRoot: View {
             }
         }
         .background(MusicDesign.canvas(scheme))
+        .onChange(of: phase) { _, value in
+            if value == .active { Task { await model.resumeConnections() } }
+        }
         .preferredColorScheme(appearance == "system" ? nil : appearance == "dark" ? .dark : .light)
         .sheet(isPresented: $model.showPlayer) {
             if #available(iOS 18.0, *) {

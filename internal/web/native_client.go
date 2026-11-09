@@ -160,6 +160,8 @@ func NativeClientRequest(raw string) (output string, err error) {
 	}
 	var data interface{}
 	switch request.Action {
+	case "service.status":
+		data = map[string]bool{"ready": nativeRoutes.Load() != nil}
 	case "accounts.legacy.validate":
 		data = nativeValidateLegacyAccount(request.Params)
 	case "auth.spotify.session":
@@ -253,6 +255,13 @@ func nativeSearch(params map[string]json.RawMessage) (nativeClientResults, error
 		group.Add(1)
 		go func(index int, source string) {
 			defer group.Done()
+			defer func() {
+				if recover() != nil {
+					part := newNativeResults()
+					part.Errors = append(part.Errors, core.GetSourceDescription(source)+"：来源暂时不可用，请重试")
+					parts[index] = part
+				}
+			}()
 			part := newNativeResults()
 			var songs []model.Song
 			var playlists []model.Playlist
@@ -267,7 +276,7 @@ func nativeSearch(params map[string]json.RawMessage) (nativeClientResults, error
 				}
 			} else if kind == "song" {
 				if fn := nativeSearchProvider(source); fn != nil {
-					songs, err = fn(query)
+					songs, err = nativeSourceCall(source, "search-song", query, func() ([]model.Song, error) { return fn(query) })
 				} else {
 					err = errors.New("song search is unsupported")
 				}
@@ -277,7 +286,7 @@ func nativeSearch(params map[string]json.RawMessage) (nativeClientResults, error
 					fn = nativeAlbumSearchProvider(source)
 				}
 				if fn != nil {
-					playlists, err = fn(query)
+					playlists, err = nativeSourceCall(source, "search-"+kind, query, func() ([]model.Playlist, error) { return fn(query) })
 				} else {
 					err = errors.New("collection search is unsupported")
 				}
@@ -285,6 +294,8 @@ func nativeSearch(params map[string]json.RawMessage) (nativeClientResults, error
 			if err != nil {
 				part.Errors = append(part.Errors, core.GetSourceDescription(source)+"："+err.Error())
 			}
+			songs = append([]model.Song(nil), songs...)
+			playlists = append([]model.Playlist(nil), playlists...)
 			for i := range songs {
 				songs[i].Source = source
 			}
@@ -310,6 +321,11 @@ func nativeSearch(params map[string]json.RawMessage) (nativeClientResults, error
 }
 
 func nativeParseLink(link, kind string) (nativeClientResults, error) {
+	source := core.DetectSource(link)
+	return nativeSourceCall(source, "parse-"+kind, link, func() (nativeClientResults, error) { return nativeParseLinkDirect(link, kind) })
+}
+
+func nativeParseLinkDirect(link, kind string) (nativeClientResults, error) {
 	result := newNativeResults()
 	source := core.DetectSource(link)
 	if source == "" {
@@ -366,6 +382,13 @@ func nativePlaylists(action string, params map[string]json.RawMessage) (nativeCl
 		group.Add(1)
 		go func(i int, source string) {
 			defer group.Done()
+			defer func() {
+				if recover() != nil {
+					part := newNativeResults()
+					part.Errors = append(part.Errors, core.GetSourceDescription(source)+"：来源暂时不可用，请重试")
+					parts[i] = part
+				}
+			}()
 			part := newNativeResults()
 			var playlists []model.Playlist
 			var err error
@@ -375,7 +398,7 @@ func nativePlaylists(action string, params map[string]json.RawMessage) (nativeCl
 					ctx, cancel := context.WithTimeout(context.Background(), nativeDiscoveryTimeout)
 					defer cancel()
 					var value interface{}
-					value, err = nativeDiscoveryCalls.run(ctx, nativeProviderKey("recommend", source), func() (interface{}, error) { return fn() })
+					value, err = nativeSourcePool(source).run(ctx, nativeProviderKey("recommend", source), func() (interface{}, error) { return fn() })
 					if err == nil {
 						playlists = append([]model.Playlist(nil), value.([]model.Playlist)...)
 					}
@@ -384,17 +407,22 @@ func nativePlaylists(action string, params map[string]json.RawMessage) (nativeCl
 				}
 			case "user_playlists":
 				if fn := core.GetUserPlaylistsFunc(source); fn != nil {
-					playlists, err = fn(max(1, nativeInt(params, "page", 1)), min(120, max(1, nativeInt(params, "limit", 50))))
+					playlists, err = nativeSourceCall(source, action, string(mustNativeParams(params)), func() ([]model.Playlist, error) {
+						return fn(max(1, nativeInt(params, "page", 1)), min(120, max(1, nativeInt(params, "limit", 50))))
+					})
 				} else {
 					err = errors.New("personal playlists are unsupported")
 				}
 			case "category_playlists":
 				if fn := core.GetCategoryPlaylistsFunc(source); fn != nil {
-					playlists, err = fn(nativeString(params, "category_id"), max(1, nativeInt(params, "page", 1)), min(120, max(1, nativeInt(params, "limit", 50))))
+					playlists, err = nativeSourceCall(source, action, string(mustNativeParams(params)), func() ([]model.Playlist, error) {
+						return fn(nativeString(params, "category_id"), max(1, nativeInt(params, "page", 1)), min(120, max(1, nativeInt(params, "limit", 50))))
+					})
 				} else {
 					err = errors.New("category playlists are unsupported")
 				}
 			}
+			playlists = append([]model.Playlist(nil), playlists...)
 			for i := range playlists {
 				playlists[i].Source = source
 			}
@@ -430,6 +458,11 @@ func nativeTopLists(params map[string]json.RawMessage) (interface{}, error) {
 		group.Add(1)
 		go func(i int, source string) {
 			defer group.Done()
+			defer func() {
+				if recover() != nil {
+					errs[i] = errors.New("source initialization failed")
+				}
+			}()
 			fn := nativeTopListsProvider(source)
 			if fn == nil {
 				errs[i] = errors.New("unsupported")
@@ -437,7 +470,7 @@ func nativeTopLists(params map[string]json.RawMessage) (interface{}, error) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), nativeDiscoveryTimeout)
 			defer cancel()
-			value, err := nativeDiscoveryCalls.run(ctx, nativeProviderKey("toplists", source), func() (interface{}, error) { return fn() })
+			value, err := nativeSourcePool(source).run(ctx, nativeProviderKey("toplists", source), func() (interface{}, error) { return fn() })
 			errs[i] = err
 			if err == nil {
 				parts[i] = append([]model.TopList(nil), value.([]model.TopList)...)
@@ -468,7 +501,7 @@ func nativeCategories(params map[string]json.RawMessage) (interface{}, error) {
 			failures = append(failures, source+"：歌单分类不可用")
 			continue
 		}
-		values, err := fn()
+		values, err := nativeSourceCall(source, "categories", "", fn)
 		if err != nil {
 			failures = append(failures, source+"："+err.Error())
 			continue
@@ -501,30 +534,31 @@ func nativeDetail(action string, params map[string]json.RawMessage) (nativeClien
 		var collection *Collection
 		collection, err = loadCollection(id)
 		if err == nil {
-			songs, err = loadCollectionSongs(collection)
+			if collection.isImported() && core.IsMusicPlatform(collection.Source) {
+				songs, err = nativeSourceCall(collection.Source, "imported-detail", id, func() ([]model.Song, error) { return loadCollectionSongs(collection) })
+			} else {
+				songs, err = loadCollectionSongs(collection)
+			}
 		}
 	} else {
-		var fn func(string) ([]model.Song, error)
-		switch kind {
-		case "album":
-			fn = core.GetAlbumDetailFunc(source)
-		case "playlist":
-			fn = core.GetPlaylistDetailFunc(source)
-		case "toplist":
-			fn = core.GetTopListSongsFunc(source)
-		default:
+		if kind != "album" && kind != "playlist" && kind != "toplist" {
 			return result, errors.New("invalid detail kind")
 		}
+		fn := nativeDetailProvider(kind, source)
 		if fn == nil {
 			return result, fmt.Errorf("%s does not support %s", source, kind)
 		}
-		songs, err = fn(id)
+		songs, err = nativeSourceCall(source, "detail-"+kind, id, func() ([]model.Song, error) { return fn(id) })
+		songs = append([]model.Song(nil), songs...)
 		for i := range songs {
 			songs[i].Source = source
 		}
 	}
 	if err != nil {
-		return result, err
+		if len(songs) == 0 {
+			return result, err
+		}
+		result.Errors = append(result.Errors, "部分曲目未读取成功，请重试。")
 	}
 	result.Songs = nativeSongs(filterSongsForDisplay(songs, core.GetWebSettings()))
 	return result, nil
@@ -567,4 +601,9 @@ func nativeSaveSettings(params map[string]json.RawMessage) (interface{}, error) 
 		return nil, err
 	}
 	return publicWebSettingsPayload(), nil
+}
+
+func mustNativeParams(params map[string]json.RawMessage) []byte {
+	value, _ := json.Marshal(params)
+	return value
 }

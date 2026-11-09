@@ -17,7 +17,7 @@ struct Song: Codable, Equatable {
         case albumID = "album_id", isVIP = "is_vip"
     }
     var key: String { source + ":" + id + ":" + extra }
-    var sourceAvailable: Bool { ["netease", "apple", "qq", "soda", "kugou", "spotify", "local", "local-file"].contains(source) }
+    var sourceAvailable: Bool { ["netease", "apple", "qq", "soda", "kugou", "spotify", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "bilibili", "local", "local-file"].contains(source) }
 }
 
 struct PlaybackRequest: Decodable {
@@ -111,6 +111,8 @@ actor AudioFiles {
     private let root: URL
     private let session: URLSession
     private let resolver: (Song, Bool) async throws -> AssetDescriptor
+    private var generation = -1
+    func beginGeneration(_ value: Int) { generation = max(generation, value) }
 
     init(resolver: @escaping (Song, Bool) async throws -> AssetDescriptor = { song, fallback in
         try await GoBridge.resolve(song, fallback: fallback)
@@ -134,7 +136,7 @@ actor AudioFiles {
         session = URLSession(configuration: config)
     }
 
-    func prepare(_ song: Song, fallback: Bool = false) async throws -> Prepared {
+    func prepare(_ song: Song, fallback: Bool = false, refreshed: Bool = false) async throws -> Prepared {
         let key = song.key + (fallback ? ":fallback" : "")
         if let file = files[key], FileManager.default.fileExists(atPath: file.url.path) { return file }
         let descriptor = try await resolver(song, fallback)
@@ -158,6 +160,12 @@ actor AudioFiles {
                 let (url, response) = try await session.download(for: request)
                 guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                     try? FileManager.default.removeItem(at: url)
+                    if !refreshed, let http = response as? HTTPURLResponse,
+                       [401, 403, 404, 410].contains(http.statusCode) {
+                        // Signed URL may have expired. Resolve once with the
+                        // current authorized source; never reuse that URL.
+                        return try await prepare(song, fallback: fallback, refreshed: true)
+                    }
                     throw NativeError.message("音源下载失败")
                 }
                 staging = url
@@ -192,8 +200,10 @@ actor AudioFiles {
     }
 
     // Bounded disk use; never remove files still held by an AVPlayerItem.
-    func prune(keeping keys: Set<String>) {
-        for key in Array(files.keys) where !keys.contains(key.replacingOccurrences(of: ":fallback", with: "")) {
+    func prune(keeping keys: Set<String>, generation expected: Int) {
+        guard expected >= generation else { return }
+        generation = expected
+        for key in Array(files.keys) where !keys.contains(key) && !(key.hasSuffix(":fallback") && keys.contains(String(key.dropLast(":fallback".count)))) {
             if let file = files.removeValue(forKey: key), file.url.deletingLastPathComponent() == root {
                 try? FileManager.default.removeItem(at: file.url)
             }

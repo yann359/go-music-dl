@@ -218,7 +218,7 @@ final class MusicAccounts: ObservableObject {
 
     private var legacyCredentials: [String: String] = [:]
     func updateLegacyCredentials(_ values: [String: String]) {
-        for source in ["netease", "qq", "soda", "kugou"] {
+        for source in ["netease", "qq", "soda", "kugou", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "bilibili"] {
             let value = values[source] ?? ""
             if legacyCredentials[source] != value {
                 legacyCredentials[source] = value
@@ -228,7 +228,7 @@ final class MusicAccounts: ObservableObject {
         }
     }
     func validateLegacy(source: String, client: NativeClient) async {
-        guard ["netease", "qq", "soda", "kugou"].contains(source), summary(source).connection != .authorizing else { return }
+        guard ["netease", "qq", "soda", "kugou", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "bilibili"].contains(source), summary(source).connection != .authorizing else { return }
         let credential = legacyCredentials[source] ?? ""
         guard !credential.isEmpty else { summaries[source] = MusicAccountSummary(detail: "请先使用兼容入口连接账号。"); return }
         summaries[source] = MusicAccountSummary(connection: .authorizing, detail: "正在验证已有凭证的账号歌单读取能力…")

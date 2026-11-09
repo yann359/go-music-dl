@@ -81,17 +81,18 @@ final class NativeVisualTests: XCTestCase {
         capture("deduplicated-credits-preserved-chorus")
     }
 
-    func testSixAccountsAndOfficialAuthorizationEntrypoints() {
+    func testAllAccountsAndOfficialAuthorizationEntrypoints() {
         let app = open("light")
         app.tabBars.buttons["我的"].tap()
         let ids = ["netease", "apple", "qq", "soda", "kugou", "spotify"]
         app.buttons["全部音乐来源"].tap()
         for id in ids { XCTAssertTrue(app.buttons["music-source-" + id].exists) }
-        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "music-source-")).count, 6)
+        for _ in 0..<5 { if app.buttons["music-source-bilibili"].exists { break }; app.swipeUp() }
+        XCTAssertTrue(app.buttons["music-source-bilibili"].waitForExistence(timeout: 3))
         app.navigationBars.buttons["我的"].tap()
         app.buttons["音源账号"].tap()
         for id in ids { XCTAssertTrue(app.buttons["account-source-" + id].exists) }
-        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "account-source-")).count, 6)
+
         app.buttons["account-source-apple"].tap()
         XCTAssertTrue(app.buttons["连接 Apple Music"].exists)
         XCTAssertEqual(app.secureTextFields.count, 0)

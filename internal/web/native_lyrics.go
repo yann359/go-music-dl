@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,6 +19,7 @@ import (
 	"github.com/guohuiyuan/music-lib/model"
 )
 
+var nativeLyricHTTP = &http.Client{Timeout: 4 * time.Second}
 var nativeLyricProvider = core.GetLyricFunc
 var nativeLyricSearch = core.GetSearchFunc
 
@@ -65,6 +67,15 @@ func writeNativeLyricCache(dir, key, text string) {
 }
 
 func requestNativeLyrics(ctx context.Context, song *model.Song) (string, error) {
+	if song.Source == "migu" {
+		value, err := nativeLyricCalls.run(ctx, nativeProviderKey("lyric", song.Source)+":"+nativeLyricIdentity(song), func() (interface{}, error) {
+			return core.ReadMiguLyrics(ctx, nativeLyricHTTP, song)
+		})
+		if err != nil {
+			return "", err
+		}
+		return value.(string), nil
+	}
 	fn := nativeLyricProvider(song.Source)
 	if fn == nil {
 		return "", &core.LyricFailure{Kind: "missing", Err: errors.New("lyrics unsupported")}

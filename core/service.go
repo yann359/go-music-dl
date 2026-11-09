@@ -22,9 +22,16 @@ import (
 	"github.com/dhowden/tag"
 	"github.com/guohuiyuan/go-music-dl/internal/spotify"
 	"github.com/guohuiyuan/music-lib/apple"
+	"github.com/guohuiyuan/music-lib/bilibili"
+	"github.com/guohuiyuan/music-lib/fivesing"
+	"github.com/guohuiyuan/music-lib/jamendo"
+	"github.com/guohuiyuan/music-lib/joox"
 	"github.com/guohuiyuan/music-lib/kugou"
+	"github.com/guohuiyuan/music-lib/kuwo"
+	"github.com/guohuiyuan/music-lib/migu"
 	"github.com/guohuiyuan/music-lib/model"
 	"github.com/guohuiyuan/music-lib/netease"
+	"github.com/guohuiyuan/music-lib/qianqian"
 	"github.com/guohuiyuan/music-lib/qq"
 	"github.com/guohuiyuan/music-lib/soda"
 	"gorm.io/gorm"
@@ -33,9 +40,12 @@ import (
 var ErrFFmpegNotFound = errors.New("ffmpeg not found")
 
 const (
-	UA_Common   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
-	Ref_Netease = "http://music.163.com/"
-	CookieFile  = "data/cookies.json"
+	UA_Common    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+	UA_Mobile    = "Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13B143 Safari/601.1"
+	Ref_Netease  = "http://music.163.com/"
+	Ref_Bilibili = "https://www.bilibili.com/"
+	Ref_Migu     = "http://music.migu.cn/"
+	CookieFile   = "data/cookies.json"
 )
 
 // ==========================================
@@ -148,6 +158,20 @@ func GetSearchFunc(source string) SearchFunc {
 		return qq.New(c).Search
 	case "kugou":
 		return kugou.New(c).Search
+	case "kuwo":
+		return kuwo.New(c).Search
+	case "migu":
+		return migu.New(c).Search
+	case "bilibili":
+		return bilibili.New(c).Search
+	case "fivesing":
+		return fivesing.New(c).Search
+	case "jamendo":
+		return jamendo.New(c).Search
+	case "joox":
+		return joox.New(c).Search
+	case "qianqian":
+		return qianqian.New(c).Search
 	case "soda":
 		return NewSodaClient(c).Search
 	case "apple":
@@ -168,6 +192,16 @@ func GetAlbumSearchFunc(source string) SearchPlaylistFunc {
 		return qq.New(c).SearchAlbum
 	case "kugou":
 		return kugou.New(c).SearchAlbum
+	case "kuwo":
+		return kuwo.New(c).SearchAlbum
+	case "migu":
+		return migu.New(c).SearchAlbum
+	case "jamendo":
+		return jamendo.New(c).SearchAlbum
+	case "joox":
+		return joox.New(c).SearchAlbum
+	case "qianqian":
+		return qianqian.New(c).SearchAlbum
 	case "soda":
 		return NewSodaClient(c).SearchAlbum
 	case "apple":
@@ -188,8 +222,22 @@ func GetPlaylistSearchFunc(source string) SearchPlaylistFunc {
 		return qq.New(c).SearchPlaylist
 	case "kugou":
 		return kugou.New(c).SearchPlaylist
+	case "kuwo":
+		return kuwo.New(c).SearchPlaylist
+	case "migu":
+		return migu.New(c).SearchPlaylist
+	case "jamendo":
+		return jamendo.New(c).SearchPlaylist
+	case "joox":
+		return joox.New(c).SearchPlaylist
+	case "qianqian":
+		return qianqian.New(c).SearchPlaylist
+	case "bilibili":
+		return bilibili.New(c).SearchPlaylist
 	case "soda":
 		return NewSodaClient(c).SearchPlaylist
+	case "fivesing":
+		return fivesing.New(c).SearchPlaylist
 	case "apple":
 		return apple.New(appleCredential(c)).SearchPlaylist
 	case "spotify":
@@ -208,6 +256,16 @@ func GetAlbumDetailFunc(source string) func(string) ([]model.Song, error) {
 		return qq.New(c).GetAlbumSongs
 	case "kugou":
 		return kugou.New(c).GetAlbumSongs
+	case "kuwo":
+		return kuwo.New(c).GetAlbumSongs
+	case "migu":
+		return migu.New(c).GetAlbumSongs
+	case "jamendo":
+		return jamendo.New(c).GetAlbumSongs
+	case "joox":
+		return joox.New(c).GetAlbumSongs
+	case "qianqian":
+		return qianqian.New(c).GetAlbumSongs
 	case "soda":
 		return NewSodaClient(c).GetAlbumSongs
 	case "apple":
@@ -228,8 +286,22 @@ func GetPlaylistDetailFunc(source string) func(string) ([]model.Song, error) {
 		return qq.New(c).GetPlaylistSongs
 	case "kugou":
 		return kugou.New(c).GetPlaylistSongs
+	case "kuwo":
+		return kuwo.New(c).GetPlaylistSongs
+	case "migu":
+		return migu.New(c).GetPlaylistSongs
+	case "jamendo":
+		return jamendo.New(c).GetPlaylistSongs
+	case "joox":
+		return joox.New(c).GetPlaylistSongs
+	case "qianqian":
+		return qianqian.New(c).GetPlaylistSongs
+	case "bilibili":
+		return bilibili.New(c).GetPlaylistSongs
 	case "soda":
 		return NewSodaClient(c).GetPlaylistSongs
+	case "fivesing":
+		return fivesing.New(c).GetPlaylistSongs
 	case "apple":
 		return apple.New(appleCredential(c)).GetPlaylistSongs
 	case "spotify":
@@ -248,6 +320,8 @@ func GetRecommendFunc(source string) func() ([]model.Playlist, error) {
 		return qq.New(c).GetRecommendedPlaylists
 	case "kugou":
 		return kugou.New(c).GetRecommendedPlaylists
+	case "kuwo":
+		return kuwo.New(c).GetRecommendedPlaylists
 	case "spotify":
 		return spotify.New(c).GetRecommendedPlaylists
 	default:
@@ -264,6 +338,14 @@ func GetPlaylistCategoriesFunc(source string) PlaylistCategoriesFunc {
 		return qq.New(c).GetPlaylistCategories
 	case "kugou":
 		return kugou.New(c).GetPlaylistCategories
+	case "kuwo":
+		return kuwo.New(c).GetPlaylistCategories
+	case "migu":
+		return migu.New(c).GetPlaylistCategories
+	case "joox":
+		return joox.New(c).GetPlaylistCategories
+	case "qianqian":
+		return qianqian.New(c).GetPlaylistCategories
 	case "soda":
 		return NewSodaClient(c).GetPlaylistCategories
 	case "apple":
@@ -284,6 +366,14 @@ func GetCategoryPlaylistsFunc(source string) CategoryPlaylistsFunc {
 		return qq.New(c).GetCategoryPlaylists
 	case "kugou":
 		return kugou.New(c).GetCategoryPlaylists
+	case "kuwo":
+		return kuwo.New(c).GetCategoryPlaylists
+	case "migu":
+		return migu.New(c).GetCategoryPlaylists
+	case "joox":
+		return joox.New(c).GetCategoryPlaylists
+	case "qianqian":
+		return qianqian.New(c).GetCategoryPlaylists
 	case "soda":
 		return NewSodaClient(c).GetCategoryPlaylists
 	case "apple":
@@ -304,8 +394,12 @@ func GetTopListsFunc(source string) TopListsFunc {
 		return qq.New(CM.Get(source)).GetTopLists
 	case "kugou":
 		return kugou.New(CM.Get(source)).GetTopLists
+	case "kuwo":
+		return kuwo.New(CM.Get(source)).GetTopLists
 	case "soda":
 		return NewSodaClient(CM.Get(source)).GetTopLists
+	case "migu":
+		return migu.New(CM.Get(source)).GetTopLists
 	case "apple":
 		return apple.New(appleCredential(CM.Get(source))).GetTopLists
 	case "spotify":
@@ -324,8 +418,12 @@ func GetTopListSongsFunc(source string) TopListSongsFunc {
 		return qq.New(CM.Get(source)).GetTopListSongs
 	case "kugou":
 		return kugou.New(CM.Get(source)).GetTopListSongs
+	case "kuwo":
+		return kuwo.New(CM.Get(source)).GetTopListSongs
 	case "soda":
 		return NewSodaClient(CM.Get(source)).GetTopListSongs
+	case "migu":
+		return migu.New(CM.Get(source)).GetTopListSongs
 	case "apple":
 		return apple.New(appleCredential(CM.Get(source))).GetTopListSongs
 	case "spotify":
@@ -345,6 +443,8 @@ func GetQRLoginCreateFunc(source string) QRLoginCreateFunc {
 		return qq.CreateWXQRLogin
 	case "kugou":
 		return kugou.CreateQRLogin
+	case "bilibili":
+		return bilibili.CreateQRLogin
 	case "soda":
 		return soda.CreateQRLogin
 	default:
@@ -362,6 +462,8 @@ func GetQRLoginCheckFunc(source string) QRLoginCheckFunc {
 		return qq.CheckWXQRLogin
 	case "kugou":
 		return kugou.CheckQRLogin
+	case "bilibili":
+		return bilibili.CheckQRLogin
 	case "soda":
 		return soda.CheckQRLogin
 	default:
@@ -370,7 +472,7 @@ func GetQRLoginCheckFunc(source string) QRLoginCheckFunc {
 }
 
 func GetQRLoginSourceNames() []string {
-	return []string{"netease", "qq", "qq_wx", "kugou"}
+	return []string{"netease", "qq", "qq_wx", "kugou", "bilibili"}
 }
 
 func GetUserPlaylistsFunc(source string) UserPlaylistsFunc {
@@ -396,7 +498,7 @@ func GetUserPlaylistSourceNames() []string {
 }
 
 func GetRecommendSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "spotify"}
+	return []string{"netease", "qq", "kugou", "kuwo", "spotify"}
 }
 
 func GetDownloadFunc(source string) func(*model.Song) (string, error) {
@@ -408,8 +510,22 @@ func GetDownloadFunc(source string) func(*model.Song) (string, error) {
 		return qq.New(c).GetDownloadURL
 	case "kugou":
 		return kugou.New(c).GetDownloadURL
+	case "kuwo":
+		return kuwo.New(c).GetDownloadURL
+	case "migu":
+		return migu.New(c).GetDownloadURL
 	case "soda":
 		return NewSodaClient(c).GetDownloadURL
+	case "bilibili":
+		return bilibili.New(c).GetDownloadURL
+	case "fivesing":
+		return fivesing.New(c).GetDownloadURL
+	case "jamendo":
+		return jamendo.New(c).GetDownloadURL
+	case "joox":
+		return joox.New(c).GetDownloadURL
+	case "qianqian":
+		return qianqian.New(c).GetDownloadURL
 	case "apple":
 		return apple.New(appleCredential(c)).GetDownloadURL
 	case "spotify":
@@ -428,8 +544,22 @@ func GetLyricFunc(source string) func(*model.Song) (string, error) {
 		return qq.New(c).GetLyrics
 	case "kugou":
 		return kugou.New(c).GetLyrics
+	case "kuwo":
+		return kuwo.New(c).GetLyrics
+	case "migu":
+		return migu.New(c).GetLyrics
 	case "soda":
 		return NewSodaClient(c).GetLyrics
+	case "bilibili":
+		return bilibili.New(c).GetLyrics
+	case "fivesing":
+		return fivesing.New(c).GetLyrics
+	case "jamendo":
+		return jamendo.New(c).GetLyrics
+	case "joox":
+		return joox.New(c).GetLyrics
+	case "qianqian":
+		return qianqian.New(c).GetLyrics
 	case "apple":
 		return apple.New(appleCredential(c)).GetLyrics
 	case "spotify":
@@ -448,8 +578,22 @@ func GetParseFunc(source string) func(string) (*model.Song, error) {
 		return qq.New(c).Parse
 	case "kugou":
 		return kugou.New(c).Parse
+	case "kuwo":
+		return kuwo.New(c).Parse
+	case "migu":
+		return migu.New(c).Parse
 	case "soda":
 		return NewSodaClient(c).Parse
+	case "bilibili":
+		return bilibili.New(c).Parse
+	case "fivesing":
+		return fivesing.New(c).Parse
+	case "jamendo":
+		return jamendo.New(c).Parse
+	case "joox":
+		return joox.New(c).Parse
+	case "qianqian":
+		return qianqian.New(c).Parse
 	case "apple":
 		return apple.New(appleCredential(c)).Parse
 	case "spotify":
@@ -468,8 +612,22 @@ func GetParsePlaylistFunc(source string) func(string) (*model.Playlist, []model.
 		return qq.New(c).ParsePlaylist
 	case "kugou":
 		return kugou.New(c).ParsePlaylist
+	case "kuwo":
+		return kuwo.New(c).ParsePlaylist
+	case "migu":
+		return migu.New(c).ParsePlaylist
+	case "jamendo":
+		return jamendo.New(c).ParsePlaylist
+	case "joox":
+		return joox.New(c).ParsePlaylist
+	case "qianqian":
+		return qianqian.New(c).ParsePlaylist
+	case "bilibili":
+		return bilibili.New(c).ParsePlaylist
 	case "soda":
 		return NewSodaClient(c).ParsePlaylist
+	case "fivesing":
+		return fivesing.New(c).ParsePlaylist
 	case "apple":
 		return apple.New(appleCredential(c)).ParsePlaylist
 	case "spotify":
@@ -488,6 +646,16 @@ func GetParseAlbumFunc(source string) func(string) (*model.Playlist, []model.Son
 		return qq.New(c).ParseAlbum
 	case "kugou":
 		return kugou.New(c).ParseAlbum
+	case "kuwo":
+		return kuwo.New(c).ParseAlbum
+	case "migu":
+		return migu.New(c).ParseAlbum
+	case "jamendo":
+		return jamendo.New(c).ParseAlbum
+	case "joox":
+		return joox.New(c).ParseAlbum
+	case "qianqian":
+		return qianqian.New(c).ParseAlbum
 	case "soda":
 		return NewSodaClient(c).ParseAlbum
 	case "apple":
@@ -518,6 +686,20 @@ func DetectSource(link string) string {
 		return "netease"
 	case "qq.com", "y.qq.com", "c.y.qq.com", "i.y.qq.com", "c6.y.qq.com":
 		return "qq"
+	case "5sing.kugou.com", "5sing.com", "www.5sing.com":
+		return "fivesing"
+	case "kuwo.cn", "www.kuwo.cn", "m.kuwo.cn":
+		return "kuwo"
+	case "music.migu.cn", "m.music.migu.cn", "migu.cn":
+		return "migu"
+	case "jamendo.com", "www.jamendo.com", "music.jamendo.com":
+		return "jamendo"
+	case "joox.com", "www.joox.com":
+		return "joox"
+	case "91q.com", "www.91q.com", "music.91q.com", "music.taihe.com":
+		return "qianqian"
+	case "bilibili.com", "www.bilibili.com", "m.bilibili.com", "b23.tv":
+		return "bilibili"
 	case "kugou.com", "www.kugou.com", "m.kugou.com", "t.kugou.com", "t1.kugou.com", "sharechain.kugou.com":
 		return "kugou"
 	case "music.apple.com", "itunes.apple.com":
@@ -574,6 +756,54 @@ func GetOriginalLink(source, id, typeStr string) string {
 			return "https://www.kugou.com/yy/special/single/" + id + ".html"
 		}
 		return "https://www.kugou.com/song/#hash=" + id
+	case "kuwo":
+		if typeStr == "album" {
+			return "http://www.kuwo.cn/album_detail/" + id
+		}
+		if typeStr == "playlist" {
+			return "http://www.kuwo.cn/playlist_detail/" + id
+		}
+		return "http://www.kuwo.cn/play_detail/" + id
+	case "migu":
+		if typeStr == "album" {
+			return "https://music.migu.cn/v3/music/album/" + id
+		}
+		if typeStr == "playlist" {
+			return "https://music.migu.cn/v5/#/playlist?playlistId=" + id + "&playlistType=ordinary"
+		}
+		if typeStr == "song" {
+			return "https://music.migu.cn/v3/music/song/" + id
+		}
+	case "jamendo":
+		if typeStr == "album" {
+			return "https://www.jamendo.com/album/" + id
+		}
+		if typeStr == "playlist" {
+			return "https://www.jamendo.com/playlist/" + id
+		}
+		if typeStr == "song" {
+			return "https://www.jamendo.com/track/" + id
+		}
+	case "joox":
+		if typeStr == "album" {
+			return "https://www.joox.com/hk/album/" + id
+		}
+		if typeStr == "playlist" {
+			return "https://www.joox.com/hk/playlist/" + id
+		}
+		if typeStr == "song" {
+			return "https://www.joox.com/hk/single/" + id
+		}
+	case "qianqian":
+		if typeStr == "album" {
+			return "https://music.91q.com/album/" + id
+		}
+		if typeStr == "playlist" {
+			return "https://music.91q.com/songlist/" + id
+		}
+		if typeStr == "song" {
+			return "https://music.91q.com/song/" + id
+		}
 	case "soda":
 		if typeStr == "album" {
 			return "https://www.qishui.com/share/album?album_id=" + id
@@ -581,6 +811,8 @@ func GetOriginalLink(source, id, typeStr string) string {
 		if typeStr == "playlist" {
 			return "https://www.qishui.com/playlist/" + id
 		}
+	case "bilibili":
+		return "https://www.bilibili.com/video/" + id
 	case "apple":
 		// Apple 榜单 ID 形如 most-played:songs:cn，没有独立页面，回退到官方排行榜页。
 		if parts := strings.Split(id, ":"); len(parts) == 3 && parts[0] == "most-played" {
@@ -604,6 +836,13 @@ func GetOriginalLink(source, id, typeStr string) string {
 			return "https://open.spotify.com/playlist/" + id
 		}
 		return "https://open.spotify.com/track/" + id
+	case "fivesing":
+		if typeStr == "playlist" {
+			return "http://5sing.kugou.com/dj/" + id + ".html"
+		}
+		if strings.Contains(id, "/") {
+			return "http://5sing.kugou.com/" + id + ".html"
+		}
 	}
 	return ""
 }
@@ -617,8 +856,15 @@ func BuildSourceRequest(method, urlStr, source, rangeHeader string) (*http.Reque
 		req.Header.Set("Range", rangeHeader)
 	}
 	req.Header.Set("User-Agent", UA_Common)
+	if source == "bilibili" {
+		req.Header.Set("Referer", Ref_Bilibili)
+	}
 	if source == "netease" {
 		req.Header.Set("Referer", Ref_Netease)
+	}
+	if source == "migu" {
+		req.Header.Set("User-Agent", UA_Mobile)
+		req.Header.Set("Referer", Ref_Migu)
 	}
 	if source == "qq" {
 		req.Header.Set("Referer", "http://y.qq.com")
@@ -637,7 +883,7 @@ func ValidatePlayable(song *model.Song) bool {
 	if song == nil || song.ID == "" || song.Source == "" {
 		return false
 	}
-	if song.Source == "soda" || song.Source == "local" || song.Source == "local-file" {
+	if song.Source == "soda" || song.Source == "fivesing" || song.Source == "local" || song.Source == "local-file" {
 		return false
 	}
 	fn := GetDownloadFunc(song.Source)
@@ -872,42 +1118,28 @@ func OpenBrowser(url string) {
 	_ = exec.Command(cmd, args...).Start()
 }
 
-func GetAllSourceNames() []string {
-	return append(GetMusicPlatformNames(), "local")
-}
-
-func GetMusicPlatformNames() []string {
-	return []string{"netease", "apple", "qq", "soda", "kugou", "spotify"}
-}
-
-func IsMusicPlatform(source string) bool {
-	switch source {
-	case "netease", "apple", "qq", "soda", "kugou", "spotify":
-		return true
-	}
-	return false
-}
+func GetAllSourceNames() []string { return append(GetMusicPlatformNames(), "local") }
 
 func GetPlaylistSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "soda", "apple", "spotify"}
+	return []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "bilibili", "soda", "fivesing", "apple", "spotify"}
 }
 
 func GetAlbumSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "soda", "apple", "spotify"}
+	return []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "soda", "apple", "spotify"}
 }
 
 func GetPlaylistCategorySourceNames() []string {
-	return []string{"netease", "qq", "kugou", "soda", "apple", "spotify"}
+	return []string{"netease", "qq", "kugou", "kuwo", "migu", "qianqian", "joox", "soda", "apple", "spotify"}
 }
 
 func GetTopListSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "soda", "apple", "spotify"}
+	return []string{"netease", "qq", "kugou", "kuwo", "soda", "migu", "apple", "spotify"}
 }
 
 func GetDefaultSourceNames() []string {
 	allSources := GetAllSourceNames()
 	var defaultSources []string
-	excluded := map[string]bool{"spotify": true, "local": true}
+	excluded := map[string]bool{"bilibili": true, "joox": true, "jamendo": true, "fivesing": true, "spotify": true, "local": true}
 	for _, source := range allSources {
 		if !excluded[source] {
 			defaultSources = append(defaultSources, source)
@@ -918,13 +1150,20 @@ func GetDefaultSourceNames() []string {
 
 func GetSourceDescription(source string) string {
 	descriptions := map[string]string{
-		"netease": "网易云音乐",
-		"qq":      "QQ音乐",
-		"kugou":   "酷狗音乐",
-		"soda":    "汽水音乐",
-		"apple":   "Apple Music",
-		"spotify": "Spotify",
-		"local":   "本地音乐",
+		"netease":  "网易云音乐",
+		"qq":       "QQ音乐",
+		"kugou":    "酷狗音乐",
+		"kuwo":     "酷我音乐",
+		"migu":     "咪咕音乐",
+		"fivesing": "5sing",
+		"jamendo":  "Jamendo (CC)",
+		"joox":     "JOOX",
+		"qianqian": "千千音乐",
+		"soda":     "汽水音乐",
+		"bilibili": "Bilibili",
+		"apple":    "Apple Music",
+		"spotify":  "Spotify",
+		"local":    "本地音乐",
 	}
 	if desc, exists := descriptions[source]; exists {
 		return desc
@@ -1626,4 +1865,16 @@ func embedAudioMetadataByFFmpeg(audioData []byte, ext, title, artist, album, lyr
 	}
 
 	return finalData, nil
+}
+
+func GetMusicPlatformNames() []string {
+	return []string{"netease", "apple", "qq", "soda", "kugou", "spotify", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "bilibili"}
+}
+func IsMusicPlatform(source string) bool {
+	for _, item := range GetMusicPlatformNames() {
+		if source == item {
+			return true
+		}
+	}
+	return false
 }

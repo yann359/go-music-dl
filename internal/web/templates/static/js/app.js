@@ -2960,7 +2960,7 @@ function toggleSearchType(type) {
 }
 
 function goToRecommend() {
-  const supported = ["netease", "qq", "kugou"];
+  const supported = ["netease", "qq", "kugou", "kuwo"];
   const selected = [];
   document.querySelectorAll(".source-checkbox:checked").forEach((cb) => {
     if (supported.includes(cb.value)) {
@@ -4252,6 +4252,7 @@ const QR_LOGIN_SOURCE_LABELS = {
   qq: "QQ音乐",
   qq_wx: "QQ音乐微信",
   kugou: "酷狗音乐",
+  bilibili: "Bilibili",
   soda: "汽水音乐",
 };
 const QR_LOGIN_COOKIE_SOURCES = {

@@ -1,8 +1,21 @@
 # 项目持续状态
 
+## 2026-11-09：全部来源恢复与稳定性专项（代码与 Windows 验证完成，iOS 验收待执行）
+- 分支 `codex/source-recovery-stability`，干净基线 `3bf0333`；原授权分支与旧 IPA 保留。未推送、未发布、未清除用户数据；SQLite 结构不变。
+- 全部原有 **13 个在线来源 + 本地音乐**恢复，按 `ee4746a` 差异合并 Provider/播放/下载/歌词/CLI/账号入口。保留 MusicKit、Spotify PKCE/Keychain、Liquid Glass、歌词优化及原播放器。
+- P0 播放：显式激活成功后清除残留中断；校验失败实例/丢失缓存文件；有限 watchdog 重建并保留队列/进度；状态由 AVPlayer 真值派生；旧队列清理不能删除新队列音频；过期 URL 最多重取一次。
+- P0 服务：iPhone 内嵌 Go 核心，不依赖 Windows。原生收藏/本地/下载操作改走进程内路由，保留写入守卫；可选 AI 连接只绑定 127.0.0.1。修复桥接及配置数据库 sync.Once 首次失败后无法重试的问题；前端启动合并/3 次退避/前台重检，AI 重连有界。
+- P1 数据：同来源 2 个底层调用槽、8 秒调用方截止、重复请求合并、跨来源搜索最多 3 并发且逐项显示；详情缓存 15 分钟复用/24 小时失效/最多 40 条及 8 MB，失败/部分结果不提升为完整缓存。详情 UUID 隔离旧请求，空/部分/成功/失败分开呈现，分页成功后才前进。缓存与存储结构独立。
+- Windows 回归：Go 六包 **353 通过 / 13 跳过 / 0 失败**；Node **6/6**、JS 语法、go vet、后端构建通过；增量 golangci-lint **0 issues**。新增失败启动重试、端口被占用仍可读写 SQLite、来源隔离、详情部分/空/超时及请求合并验证。
+- 真实公开接口：七个恢复来源均返回歌曲搜索结果；网易云/QQ/酷狗/酷我/咪咕/汽水/JOOX/Bilibili 抽样歌单可读；5sing 的抽样歌单详情失败，Apple 旧目录 index.js 解析失败，Spotify 缺授权配置，均不宣称可用。未验证整曲播放/所有歌单/地区与账号权限。
+- 真实热歌榜两轮交叉顺序：旧路径 526.0901 / 456.6591 ms，新路径 478.7836 / 481.3941 ms，均 200 首；没有稳定网络耗时改善证据，不宣称 iPhone 性能提升比例。缓存首屏与后台恢复必须用新包实测。
+- REA 6.4.0 当前可连，但无打开目标、留存证据为 0；本轮未借用第三方播放器代码。恢复来源沿用现有 AGPLv3 music-lib，保留 LICENSE/NOTICE。
+- Windows 没有 Xcode、Swift/iOS SDK 或连接的 iPhone；当前 Swift 单元/UI 测试仅为源码待验收，没有新 IPA。不能把旧 Build 12 当作本轮修复包。
+- 逐文件清单、原始证据、真实限制与真机步骤见 [专项报告](docs/ios-source-recovery-stability.md)。下一步：在现有 macOS 工作流构建并执行 XCTest/UI，再签名安装完成真机矩阵。
+
 更新：2026-11-09（北京时间）。每次开发结束或可控中断前更新本文件；以下状态只描述已验证事实。
 
-## 当前开发阶段：六来源清理与官方账号授权（代码已实现，iOS 验收待执行）
+## 上阶段：六来源清理与官方账号授权（历史记录，六来源限制已被本轮撤销）
 - 独立分支 `codex/six-sources-official-auth`，原始基线 `69e94bb`。原有 10 个已修改文件与 8 个未跟踪文件完整备份到外层 `outputs/six-sources-auth-baseline/`，并保存为本地检查点 `ee4746adfe82de631b2bded57da4c20c000e1013`。本轮改动另存本地提交，不推送、不强推、不重置用户数据。
 - 唯一在线来源：网易云、Apple Music、QQ、汽水、酷狗、Spotify；本地文件作为独立能力保留。删除咪咕、酷我、5sing、Jamendo、JOOX、千千、Bilibili 的工厂、专属播放/下载/歌词分支、登录入口及独占测试；Go 编译依赖图已验证不含这七个适配器。公共 music-lib 保留给五个目标适配器使用。
 - 根因与架构决策：旧来源由多个工厂、CLI 和 Web/原生目录共同注册，必须同步清理；旧 Apple/Spotify 只有手填凭证、没有原生授权生命周期。新增官方授权所有者，保留原播放器，原生模式隔离旧 Apple Cookie 和 Spotify Secret/Token 回退；绝不以保存凭证或获得系统权限代替实际服务验证。
@@ -42,7 +55,7 @@
 ## 目标与核心需求
 - 将 Go Music DL 改为高品质原生 iOS 音乐客户端“澄音 / MusicDL”，面向 iPhone 17 Pro Max / iOS 27。
 - 原生 SwiftUI TabView、NavigationStack、Sheet 与 iOS 26+ Liquid Glass；主要界面不使用 WebView。
-- 当前在线音源范围为网易云、Apple Music、QQ、汽水、酷狗和 Spotify；保留对应搜索、歌单/专辑、收藏、下载、歌词、本地文件、WebDAV、AI API 和设置。本轮六来源指令替代早期全量音源迁移目标。
+- 当前恢复全部 13 个原有在线来源，另保留本地文件、WebDAV、AI API、设置；能力和可用性以专项报告的实际测试与限制为准。最新全来源指令替代历史六来源限制。
 - 原生后台音频、锁屏/控制中心/耳机控制；真机测试与模拟器测试分开报告，禁止虚报。
 
 ## 当前架构
@@ -52,7 +65,7 @@
 - 原生设计使用独立品牌、系统字体、深浅色与安全区域。REA Windows 仅用于可用的静态包检查；没有观察 iPhone Apple Music 内部源码/动态界面。
 
 ## 分支与已保留版本
-- 当前开发分支：`codex/six-sources-official-auth`；原 `codex/ios-native-redesign` 保持原提交，前阶段版本基于 `9b18983`。
+- 当前开发分支：`codex/source-recovery-stability`；原授权分支 `codex/six-sources-official-auth` 保留；原 `codex/ios-native-redesign` 保持原提交，前阶段版本基于 `9b18983`。
 - 上阶段通过的 Build 5：源提交 `a7c784c8ffd378418bdde33f65da746e71b58ee2`。
 - IPA：`../outputs/ios-build5/music-dl-ios-native-unsigned.ipa`。
 - SHA256：`72f1dc69ef597258df90f3a526961c01b6c6e7a1d64ea8046ef6069a8f8781c7`。
@@ -62,7 +75,7 @@
 - 上阶段原生缓存播放、音频会话、系统远程控制、中断/路由处理与后台声明。
 - REA doctor/capabilities 已运行，结果摘要 `docs/rea-ios-readiness.json`；原 Build 5 IPA 已通过 REA 静态包检查。
 - `docs/ios-native-design.md`：公开参考、证据边界、字体间距/交互/动效/状态规范。
-- `docs/ios-native-feature-matrix.md`：历史迁移清单；当前六来源范围以 `docs/ios-six-source-auth.md` 为准。
+- `docs/ios-native-feature-matrix.md`：历史迁移清单；当前全部来源范围以 `docs/ios-source-recovery-stability.md` 为准。
 - 后端代理：`internal/web/native_client*.go`、`ios/bridge/main.go`、`Bridge.h`。
 - 客户端代理：`NativeClient.swift`、`NativeClientTests.swift`，包含显式 UI 测试样例模式。
 - 主代理：`DesignSystem.swift`、`NativeAppModel.swift`、`NativeRoot.swift`、`NativeScreens.swift`，以及 AudioEngine 可观察状态/队列操作。

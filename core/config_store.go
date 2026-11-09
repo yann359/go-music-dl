@@ -117,6 +117,10 @@ func ConfigDBPath() string {
 // graceful shutdown use this to release the SQLite file handle.
 func CloseConfigDB() error {
 	if configDB == nil {
+		// A failed initial open also consumed sync.Once. Native startup can
+		// legitimately retry after device protection / filesystem recovery.
+		configInitErr = nil
+		configInit = sync.Once{}
 		return nil
 	}
 	sqlDB, err := configDB.DB()

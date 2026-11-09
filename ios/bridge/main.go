@@ -23,9 +23,8 @@ import (
 	"github.com/guohuiyuan/go-music-dl/internal/web"
 )
 
-var startOnce sync.Once
-var startURL string
-var startError error
+var startMu sync.Mutex
+var pathsReady bool
 
 func response(value string, err error) *C.char {
 	if err != nil {
@@ -37,27 +36,29 @@ func response(value string, err error) *C.char {
 
 //export MusicDLStart
 func MusicDLStart(root *C.char) *C.char {
-	startOnce.Do(func() {
-		core.EnableNativeAppleAuthorization()
-		spotify.EnableNativeAuthorization()
+	startMu.Lock()
+	if !pathsReady {
 		dir := C.GoString(root)
-		startError = os.MkdirAll(dir, 0700)
-		if startError != nil {
-			return
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			startMu.Unlock()
+			return response("", err)
 		}
-		// Relative data/download paths now stay inside the app's sandbox.
-		startError = os.Chdir(dir)
-		if startError != nil {
-			return
+		if err := os.Chdir(dir); err != nil {
+			startMu.Unlock()
+			return response("", err)
 		}
 		os.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(dir, "settings.db"))
 		os.Setenv("MUSIC_DL_COOKIE_FILE", filepath.Join(dir, "cookies.json"))
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		startURL, startError = appshell.StartDesktopServerAndWait(ctx, appshell.DefaultPort)
-	})
-	data, _ := json.Marshal(map[string]string{"url": startURL})
-	return response(string(data), startError)
+		core.EnableNativeAppleAuthorization()
+		spotify.EnableNativeAuthorization()
+		pathsReady = true
+	}
+	startMu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	err := web.EnsureNativeService(ctx, appshell.DefaultPort)
+	data, _ := json.Marshal(map[string]string{"url": appshell.AppURL(appshell.DefaultPort)})
+	return response(string(data), err)
 }
 
 //export MusicDLResolve

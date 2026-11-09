@@ -180,11 +180,14 @@ struct SearchScreen: View {
     }
     private func search() async {
         let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !term.isEmpty else { result = nil; return }
-        revision += 1; let token = revision; loading = true; problem = nil
+        revision += 1; let token = revision
+        guard !term.isEmpty else { result = nil; loading = false; return }
+        loading = true; problem = nil; result = nil
         do {
-            let value = try await client.search(query: term, type: kind, sources: selected.sorted())
-            guard revision == token else { return }; result = value
+            try await client.searchProgressively(query: term, type: kind, sources: selected.sorted()) { value in
+                guard revision == token else { return }; result = value
+            }
+            guard revision == token else { return }
             recentJSON = String(decoding: (try? JSONEncoder().encode(Array(([term] + recent.filter { $0 != term }).prefix(8)))) ?? Data("[]".utf8), as: UTF8.self)
         } catch { if revision == token { problem = error.localizedDescription } }
         if revision == token { loading = false }
@@ -195,6 +198,7 @@ struct SongRows: View {
     let songs: [Song]
     var collectionID: String? = nil
     var onChange: () -> Void = {}
+    var onFirstVisible: () -> Void = {}
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var audio: AudioEngine
     var body: some View {
@@ -213,7 +217,7 @@ struct SongRows: View {
                         }.contentShape(Rectangle())
                     }.buttonStyle(.plain).disabled(!song.sourceAvailable)
                     SongActions(song: song, collectionID: collectionID, onChange: onChange)
-                }.padding(.vertical, 11)
+                }.padding(.vertical, 11).onAppear { if index == 0 { onFirstVisible() } }
                 Divider().padding(.leading, 65).opacity(0.4)
             }
         }
@@ -243,7 +247,14 @@ struct SongActions: View {
             }
             Button("下载原音质", systemImage: "arrow.down.circle") { model.perform { try await client.enqueueDownload([song]); model.notify("已加入下载任务") } }.disabled(!song.sourceAvailable)
             Button("尝试其他音源", systemImage: "arrow.triangle.2.circlepath") {
-                model.perform { let replacement = try await client.switchSource(song); audio.replaceCurrentSource(replacement, expectedKey: song.key); model.notify("已切换至 \(replacement.source)") }
+                let expected = audio.currentSong?.key
+                model.perform {
+                    let replacement = try await client.switchSource(song)
+                    guard audio.currentSong?.key == expected else { return }
+                    if expected == song.key { audio.replaceCurrentSource(replacement, expectedKey: song.key) }
+                    else { model.play([replacement]) }
+                    model.notify("已切换至 \(replacement.source)")
+                }
             }
             if let albumID = song.albumID, !albumID.isEmpty { Button("查看专辑", systemImage: "square.stack") { showAlbum = true } }
             if !song.album.isEmpty { Text("专辑：\(song.album)") }
@@ -277,6 +288,11 @@ struct SongDetailScreen: View {
     @State private var songs: [Song] = []
     @State private var loading = true
     @State private var problem: String?
+    @State private var attempt = 0
+    @State private var loadGeneration = UUID()
+    @State private var enteredAt = Date()
+    @State private var firstRowReported = false
+    private var requestKey: String { source + "\n" + kind + "\n" + id }
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -291,16 +307,54 @@ struct SongDetailScreen: View {
                         Button { model.play(songs.shuffled()) } label: { Label("随机播放", systemImage: "shuffle").frame(maxWidth: .infinity).padding(.vertical, 8) }.buttonStyle(.bordered)
                     }.buttonBorderShape(.roundedRectangle(radius: 16))
                 }
-                if loading { ProgressView("正在读取曲目…").padding(30) }
-                if let problem { NativeEmptyState(symbol: "wifi.exclamationmark", title: "暂时无法读取", detail: problem); Button("重试") { Task { await load() } } }
+                if loading && songs.isEmpty { ProgressView("正在读取曲目…").padding(30) }
+                if let problem {
+                    if songs.isEmpty { NativeEmptyState(symbol: "wifi.exclamationmark", title: "暂时无法读取", detail: problem) }
+                    else { Text(problem).font(.caption).foregroundStyle(.secondary) }
+                    Button("重试") { attempt += 1 }
+                }
                 if !loading && songs.isEmpty && problem == nil { NativeEmptyState(symbol: "music.note.list", title: "这里还没有歌曲", detail: "添加一些喜欢的声音，让它成为你的收藏。") }
-                SongRows(songs: songs, collectionID: kind == "collection" ? id : nil, onChange: { Task { await load() } })
+                SongRows(songs: songs, collectionID: kind == "collection" ? id : nil, onChange: { attempt += 1 }, onFirstVisible: {
+                    guard !firstRowReported else { return }; firstRowReported = true
+                    #if DEBUG
+                    print("[native-detail] first-row-rendered=\(Date().timeIntervalSince(enteredAt))s")
+                    #endif
+                })
             }.padding(.horizontal, 22).padding(.bottom, 28)
         }.background(MusicDesign.canvas(scheme)).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { model.perform { try await client.enqueueDownload(songs); model.notify("已加入下载任务") } } label: { Image(systemName: "arrow.down.circle") }.disabled(songs.isEmpty).accessibilityLabel("下载全部") } }
-            .task { await load() }
+            .task(id: requestKey + "\n\(attempt)") { await load() }
+            .refreshable { await load(force: true) }
     }
-    private func load() async { loading = true; problem = nil; defer { loading = false }; do { songs = try await client.detail(kind: kind, id: id, source: source) } catch { problem = error.localizedDescription } }
+    private func load(force: Bool = false) async {
+        let token = UUID(); loadGeneration = token
+        enteredAt = Date(); firstRowReported = false
+        loading = true; problem = nil
+        let entered = Date()
+        if let cached = client.cachedDetail(kind: kind, id: id, source: source) {
+            songs = cached.songs
+            #if DEBUG
+            print("[native-detail] cache=hit first-visible=\(Date().timeIntervalSince(entered))s count=\(songs.count)")
+            #endif
+        } else { songs = [] }
+        defer { if token == loadGeneration { loading = false } }
+        do {
+            let page = try await client.detailPage(kind: kind, id: id, source: source, force: force || attempt > 0)
+            guard !Task.isCancelled, token == loadGeneration else { return }
+            songs = page.songs
+            problem = page.partial ? page.warnings.joined(separator: "\n") : nil
+            #if DEBUG
+            print("[native-detail] first-visible-and-complete=\(Date().timeIntervalSince(entered))s count=\(songs.count) partial=\(page.partial)")
+            #endif
+        } catch is CancellationError { }
+        catch {
+            guard !Task.isCancelled, token == loadGeneration else { return }
+            problem = songs.isEmpty ? "曲目暂时无法读取，请重试。" : "刷新失败，正在显示已缓存的曲目。"
+            #if DEBUG
+            print("[native-detail] failed elapsed=\(Date().timeIntervalSince(entered))s error=\(error)")
+            #endif
+        }
+    }
 }
 
 struct CollectionDetailScreen: View {

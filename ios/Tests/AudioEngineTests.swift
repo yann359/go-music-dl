@@ -1,9 +1,73 @@
 import XCTest
 import AVFoundation
+import UIKit
 @testable import MusicDL
 
 @MainActor
 final class AudioEngineTests: XCTestCase {
+    func testLateSourceReplacementCannotReplaceNewCurrentSongOrQueue() {
+        let engine = AudioEngine()
+        defer { engine.shutdown() }
+        let queue = songs(2)
+        engine.handle(PlaybackRequest(action: "queue", songs: queue, index: 1, loop: "none", order: "list"))
+        var late = queue[0]; late.source = "alternate"
+        engine.replaceCurrentSource(late, expectedKey: queue[0].key)
+        XCTAssertEqual(engine.songs, queue); XCTAssertEqual(engine.currentSong, queue[1])
+        XCTAssertFalse(engine.isPlaying)
+    }
+
+    func testOldQueueCleanupCannotEvictNewQueueAudioCache() async throws {
+        let url = try fixture()
+        defer { try? FileManager.default.removeItem(at: url) }
+        var resolves = 0
+        let files = AudioFiles { song, _ in
+            resolves += 1
+            return AssetDescriptor(url: url, headers: [:], temporary: "", source: song.source, id: song.id)
+        }
+        let song = songs(1)[0]
+        await files.beginGeneration(10)
+        _ = try await files.prepare(song)
+        await files.prune(keeping: [], generation: 9)
+        _ = try await files.prepare(song)
+        XCTAssertEqual(resolves, 1)
+        await files.prune(keeping: [], generation: 10)
+        _ = try await files.prepare(song)
+        XCTAssertEqual(resolves, 2)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    func testExplicitPlayRecoversFromBeganWithoutEndedAfterSuspension() async throws {
+        let url = try fixture()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let engine = AudioEngine(files: AudioFiles { song, _ in
+            AssetDescriptor(url: url, headers: [:], temporary: "", source: song.source, id: song.id)
+        })
+        defer { engine.shutdown() }
+        engine.handle(PlaybackRequest(action: "queue", songs: songs(1), index: 0, loop: "one", order: "list"))
+        for _ in 0..<100 {
+            if engine.player.currentItem?.status == .readyToPlay { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        engine.pause()
+        NotificationCenter.default.post(name: AVAudioSession.interruptionNotification, object: nil,
+            userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue,
+                       AVAudioSessionInterruptionWasSuspendedKey: true])
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(engine.playbackState, .interrupted)
+        // A foreground event alone must not autoplay a paused song.
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertFalse(engine.isPlaying)
+        engine.play()
+        for _ in 0..<100 {
+            if engine.isPlaying { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        XCTAssertTrue(engine.isPlaying); XCTAssertEqual(engine.playbackState, .playing)
+        engine.pause(); engine.play(); engine.pause()
+        XCTAssertFalse(engine.isPlaying); XCTAssertEqual(engine.player.rate, 0)
+    }
+
     private func fixture() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".wav")
         let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!

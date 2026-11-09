@@ -15,6 +15,10 @@ struct SourceBrowserScreen: View {
     }
 }
 
+private enum PlatformPart {
+    case recommendations(NativeSearchResult), charts([NativeTopList]), categories([NativeCategory]), failure(String)
+}
+
 struct PlatformScreen: View {
     let source: NativeSource
     @EnvironmentObject private var client: NativeClient
@@ -36,12 +40,33 @@ struct PlatformScreen: View {
         }.navigationTitle(source.name).task { await load() }
     }
     private func load() async {
+        guard !loading else { return }
         loading = true; problem = nil; defer { loading = false }
         var errors: [String] = []
-        if source.recommend { do { let value = try await client.recommendations(sources: [source.id]); playlists = value.playlists; errors += value.errors } catch { errors.append(error.localizedDescription) } }
-        if source.toplist { do { charts = try await client.topLists(sources: [source.id]) } catch { errors.append(error.localizedDescription) } }
-        if source.category { do { categories = try await client.categories(source: source.id) } catch { errors.append(error.localizedDescription) } }
-        problem = errors.isEmpty ? nil : errors.joined(separator: "\n")
+        await withTaskGroup(of: PlatformPart.self) { group in
+            if source.recommend { group.addTask {
+                do { return .recommendations(try await client.recommendations(sources: [source.id])) }
+                catch { return .failure(error.localizedDescription) }
+            } }
+            if source.toplist { group.addTask {
+                do { return .charts(try await client.topLists(sources: [source.id])) }
+                catch { return .failure(error.localizedDescription) }
+            } }
+            if source.category { group.addTask {
+                do { return .categories(try await client.categories(source: source.id)) }
+                catch { return .failure(error.localizedDescription) }
+            } }
+            for await part in group {
+                guard !Task.isCancelled else { group.cancelAll(); break }
+                switch part {
+                case .recommendations(let value): playlists = value.playlists; errors += value.errors
+                case .charts(let value): charts = value
+                case .categories(let value): categories = value
+                case .failure(let message): errors.append(message)
+                }
+                problem = errors.isEmpty ? nil : errors.joined(separator: "\n")
+            }
+        }
     }
 }
 
@@ -53,22 +78,35 @@ struct UserPlaylistsScreen: View {
     @State private var page = 1
     @State private var loading = false
     @State private var problem: String?
+    @State private var loadGeneration = UUID()
     var body: some View {
         List {
             Picker("音乐来源", selection: $source) { ForEach(client.sources.filter { $0.userPlaylists }, id: \.id) { Text($0.name).tag($0.id) } }
-                .onChange(of: source) { _, _ in page = 1; Task { await load() } }
+
             if loading { ProgressView("正在读取账号歌单…") }
             if let problem { Text(problem).foregroundStyle(.secondary); NavigationLink("配置平台账号") { AccountsScreen() }; Button("重试") { Task { await load() } } }
             ForEach(values, id: \.key) { value in NavigationLink(value.name) { CollectionDetailScreen(collection: value, kind: "playlist") } }
-            if !values.isEmpty { Button("加载更多") { page += 1; Task { await load() } }.disabled(loading) }
+            if !values.isEmpty { Button("加载更多") { Task { await load(more: true) } }.disabled(loading) }
             if values.isEmpty && !loading && problem == nil { NativeEmptyState(symbol: "person.crop.circle", title: "还没有读取到歌单", detail: "先配置对应平台的账号，或选择其他音乐来源。") }
-        }.navigationTitle("平台歌单").task { source = initialSource.isEmpty ? (client.sources.first { $0.userPlaylists }?.id ?? "") : initialSource; if !source.isEmpty { await load() } }
+        }.navigationTitle("平台歌单")
+            .task { if source.isEmpty { source = initialSource.isEmpty ? (client.sources.first { $0.userPlaylists }?.id ?? "") : initialSource } }
+            .task(id: source) { await load() }
     }
-    private func load() async {
-        guard !source.isEmpty && !loading else { return }; loading = true; problem = nil
-        defer { loading = false }
-        do { let next = try await client.userPlaylists(source: source, page: page); if page == 1 { values = next } else { let existing = Set(values.map(\.key)); values += next.filter { !existing.contains($0.key) } } }
-        catch { problem = error.localizedDescription }
+    private func load(more: Bool = false) async {
+        guard !source.isEmpty else { return }
+        if more && loading { return }
+        let token = UUID(); loadGeneration = token
+        let expected = source; let requested = more ? page + 1 : 1
+        loading = true; problem = nil
+        if !more { values = []; page = 1 }
+        defer { if loadGeneration == token { loading = false } }
+        do {
+            let next = try await client.userPlaylists(source: expected, page: requested)
+            guard source == expected, loadGeneration == token, !Task.isCancelled else { return }
+            if !more { values = next } else { let existing = Set(values.map(\.key)); values += next.filter { !existing.contains($0.key) } }
+            page = requested // a failed page remains retryable
+        } catch is CancellationError { }
+        catch { if source == expected, loadGeneration == token, !Task.isCancelled { problem = error.localizedDescription } }
     }
 }
 
@@ -85,12 +123,13 @@ struct CategoryPlaylistsScreen: View {
             if loading { ProgressView("正在读取分类…") }
             if let problem { Text(problem).foregroundStyle(.secondary); Button("重试") { Task { await load() } } }
             ForEach(values, id: \.key) { value in NavigationLink(value.name) { CollectionDetailScreen(collection: value, kind: "playlist") } }
-            if !values.isEmpty { Button("加载更多") { page += 1; Task { await load() } }.disabled(loading) }
+            if !values.isEmpty { Button("加载更多") { Task { await load(more: true) } }.disabled(loading) }
         }.navigationTitle(category.name).task { await load() }
     }
-    private func load() async {
+    private func load(more: Bool = false) async {
         guard !loading else { return }; loading = true; defer { loading = false }
-        do { let next = try await client.categoryPlaylists(source: source, id: category.id, page: page); if page == 1 { values = next } else { let keys = Set(values.map(\.key)); values += next.filter { !keys.contains($0.key) } }; problem = nil }
+        let requested = more ? page + 1 : 1
+        do { let next = try await client.categoryPlaylists(source: source, id: category.id, page: requested); guard !Task.isCancelled else { return }; if !more { values = next } else { let keys = Set(values.map(\.key)); values += next.filter { !keys.contains($0.key) } }; page = requested; problem = nil }
         catch { problem = error.localizedDescription }
     }
 }

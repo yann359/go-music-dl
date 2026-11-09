@@ -199,8 +199,15 @@ func nativeQuerySuffix(query url.Values) string {
 }
 
 func nativePerformJSON(request *http.Request) (interface{}, error) {
-	response, err := nativeClientHTTP.Do(request)
+	var response *http.Response
+	var err error
+	if handler := nativeRoutes.Load(); handler != nil {
+		response, err = performNativeRoute(handler, request)
+	} else {
+		response, err = nativeClientHTTP.Do(request)
+	}
 	if err != nil {
+		nativeTiming("local-route-transport", time.Now(), err)
 		return nil, errors.New("本地功能服务暂不可用，请重试")
 	}
 	defer response.Body.Close()

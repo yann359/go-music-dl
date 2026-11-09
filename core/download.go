@@ -3,12 +3,14 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/guohuiyuan/music-lib/model"
-	"github.com/guohuiyuan/music-lib/soda"
-	"github.com/guohuiyuan/music-lib/utils"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/guohuiyuan/music-lib/migu"
+	"github.com/guohuiyuan/music-lib/model"
+	"github.com/guohuiyuan/music-lib/soda"
+	"github.com/guohuiyuan/music-lib/utils"
 )
 
 type DownloadedSong struct {
@@ -303,9 +305,40 @@ func FetchDecryptedSodaAudio(song *model.Song) ([]byte, error) {
 	return soda.DecryptAudio(encryptedData, info.PlayAuth)
 }
 
+// FetchDecryptedMiguAudio downloads a Migu stream and decrypts Z3D output.
+func FetchDecryptedMiguAudio(song *model.Song) ([]byte, error) {
+	miguInst := migu.New(CM.Get("migu"))
+	info, err := miguInst.GetDownloadInfo(song)
+	if err != nil {
+		return nil, err
+	}
+	return fetchMiguAudio(info)
+}
+
+func fetchMiguAudio(info *migu.DownloadInfo) ([]byte, error) {
+	if info == nil {
+		return nil, errors.New("migu download info is nil")
+	}
+	fileData, _, err := FetchBytesWithMime(info.URL, "migu")
+	if err != nil {
+		return nil, err
+	}
+	if !info.Encrypted {
+		return fileData, nil
+	}
+	return migu.DecryptAudio(fileData, info.FileKey)
+}
+
 func fetchSongAudio(song *model.Song) ([]byte, string, error) {
 	if song.Source == "soda" {
 		finalData, err := FetchDecryptedSodaAudio(song)
+		if err != nil {
+			return nil, "", err
+		}
+		return finalData, "", nil
+	}
+	if song.Source == "migu" {
+		finalData, err := FetchDecryptedMiguAudio(song)
 		if err != nil {
 			return nil, "", err
 		}

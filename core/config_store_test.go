@@ -25,6 +25,27 @@ func resetConfigStateForTest() {
 	CM.mu.Unlock()
 }
 
+func TestFailedConfigOpenCanBeRetriedAfterClose(t *testing.T) {
+	root := t.TempDir()
+	resetConfigStateForTest()
+	t.Cleanup(resetConfigStateForTest)
+	blocked := filepath.Join(root, "blocked")
+	if err := os.WriteFile(blocked, []byte("fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(blocked, "settings.db"))
+	if err := ensureConfigDB(); err == nil {
+		t.Fatal("invalid path reported ready")
+	}
+	if err := CloseConfigDB(); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(root, "settings.db"))
+	if err := ensureConfigDB(); err != nil {
+		t.Fatalf("failed open poisoned retry: %v", err)
+	}
+}
+
 func TestCookieManagerMigratesLegacyJSONAndPersistsToSQLite(t *testing.T) {
 	baseDir := t.TempDir()
 	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(baseDir, "data", "settings.db"))

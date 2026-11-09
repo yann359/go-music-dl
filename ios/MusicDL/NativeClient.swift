@@ -267,13 +267,15 @@ final class NativeClient: ObservableObject {
     private var discoveryCache: [String: DiscoveryCacheEntry] = [:]
     private var discoveryValues: [String: JSONValue] = [:]
     private let discoveryCacheURL: URL?
+    private let detailStore: DetailStore
     private let networkMonitor = NWPathMonitor()
     private let transport: Transport
     private let usesNativeTransport: Bool
     private let spotifyAuthorization: ((Bool) async throws -> Void)?
     private static let queue = DispatchQueue(label: "musicdl.native-client", qos: .userInitiated, attributes: .concurrent)
 
-    init(cacheURL: URL? = nil, spotifyAuthorization: ((Bool) async throws -> Void)? = nil, transport: Transport? = nil) {
+    init(cacheURL: URL? = nil, detailCacheURL: URL? = nil, spotifyAuthorization: ((Bool) async throws -> Void)? = nil, transport: Transport? = nil) {
+        detailStore = DetailStore(url: detailCacheURL ?? (transport == nil ? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.appendingPathComponent("NativeDetails-v1.json") : nil))
         usesNativeTransport = transport == nil
         if let spotifyAuthorization { self.spotifyAuthorization = spotifyAuthorization }
         else if transport == nil { self.spotifyAuthorization = { force in try await MusicAccounts.shared.prepareSpotifySession(force: force) } }
@@ -319,6 +321,13 @@ final class NativeClient: ObservableObject {
                    NativeSource(id: "apple", name: "Apple Music", toplist: true, category: true),
                    NativeSource(id: "soda", name: "汽水音乐", toplist: true, userPlaylists: true, category: true),
                    NativeSource(id: "spotify", name: "Spotify", userPlaylists: true)]
+        sources += [NativeSource(id: "kuwo", name: "酷我音乐", recommend: true, toplist: true, category: true),
+                    NativeSource(id: "migu", name: "咪咕音乐", toplist: true, category: true),
+                    NativeSource(id: "fivesing", name: "5sing", album: false),
+                    NativeSource(id: "jamendo", name: "Jamendo (CC)"),
+                    NativeSource(id: "joox", name: "JOOX", category: true),
+                    NativeSource(id: "qianqian", name: "千千音乐", category: true),
+                    NativeSource(id: "bilibili", name: "Bilibili", album: false, qrLogin: true)]
         defaultSources = ["netease", "qq"]
         collections = [NativeCollection(id: "9001", name: "慢慢听见", creator: "我的收藏", description: "为忙碌留一点空白", trackCount: 12),
                        NativeCollection(id: "9002", name: "夜色留白", creator: "我的收藏", description: "适合一个人的夜晚", trackCount: 8)]
@@ -433,6 +442,32 @@ final class NativeClient: ObservableObject {
         if isOfflinePreview { return NativeSearchResult(songs: type == "song" ? previewSongs : [], playlists: type == "song" ? [] : collections) }
         return try results(await request("search", params: ["q": .string(query), "type": .string(type), "sources": .array(sources.map(JSONValue.string))]))
     }
+    func searchProgressively(query: String, type: String, sources selected: [String], update: @escaping (NativeSearchResult) -> Void) async throws {
+        if isOfflinePreview || query.hasPrefix("http://") || query.hasPrefix("https://") || query.hasPrefix("spotify:") {
+            update(try await search(query: query, type: type, sources: selected)); return
+        }
+        let defaults = type == "song" ? defaultSources : sources.filter { type == "album" ? $0.album : $0.playlist }.map(\.id)
+        let chosen = selected.isEmpty ? defaults : selected
+        var parts: [String: NativeSearchResult] = [:]
+        var next = 0
+        await withTaskGroup(of: (String, NativeSearchResult).self) { group in
+            func add(_ source: String) {
+                group.addTask { [self] in
+                    do { return (source, try await search(query: query, type: type, sources: [source])) }
+                    catch { return (source, NativeSearchResult(errors: [source + "：连接暂不可用，请重试。"])) }
+                }
+            }
+            for _ in 0..<min(3, chosen.count) { add(chosen[next]); next += 1 }
+            for await (source, part) in group {
+                guard !Task.isCancelled else { group.cancelAll(); break }
+                parts[source] = part
+                let ordered = chosen.compactMap { parts[$0] }
+                update(NativeSearchResult(songs: ordered.flatMap(\.songs), playlists: ordered.flatMap(\.playlists), errors: ordered.flatMap(\.errors)))
+                if next < chosen.count { add(chosen[next]); next += 1 }
+            }
+        }
+        try Task.checkCancellation()
+    }
     func recommendations(sources: [String]) async throws -> NativeSearchResult {
         if isOfflinePreview { return NativeSearchResult(songs: previewSongs, playlists: collections) }
         return try results(await request("recommend", params: ["sources": .array(sources.map(JSONValue.string))]))
@@ -445,11 +480,36 @@ final class NativeClient: ObservableObject {
         return values
     }
     func detail(kind: String, id: String, source: String = "") async throws -> [Song] {
-        if isOfflinePreview { return previewSongs }
-        let result = try await request("detail", params: ["kind": .string(kind), "id": .string(id), "source": .string(source)])
-        let values = try decodeSongs(result["songs"])
-        try checkWarnings(result, empty: values.isEmpty)
-        return values
+        try await detailPage(kind: kind, id: id, source: source).songs
+    }
+    func cachedDetail(kind: String, id: String, source: String) -> NativeDetailPage? {
+        guard kind != "collection", let value = detailStore.cached(source + "\n" + kind + "\n" + id) else { return nil }
+        return try? decodeDetail(value)
+    }
+    private func decodeDetail(_ value: JSONValue) throws -> NativeDetailPage {
+        #if DEBUG
+        let started = Date()
+        defer { print("[native-detail] decode=\(Date().timeIntervalSince(started))s") }
+        #endif
+        guard case .array = value["songs"], case .array = value["errors"] else {
+            throw NativeError.message("曲目响应不完整，请重试。")
+        }
+        let page = NativeDetailPage(songs: try decodeSongs(value["songs"]), warnings: (try? value["errors"].decoded([String].self)) ?? [])
+        if page.songs.isEmpty && page.partial { throw NativeError.message(page.warnings.joined(separator: "\n")) }
+        return page
+    }
+    func detailPage(kind: String, id: String, source: String, force: Bool = false) async throws -> NativeDetailPage {
+        if isOfflinePreview { return NativeDetailPage(songs: previewSongs, warnings: []) }
+        let params: [String: JSONValue] = ["kind": .string(kind), "id": .string(id), "source": .string(source)]
+        let loader = { [self] in
+            let result = try await request("detail", params: params)
+            _ = try decodeDetail(result) // malformed responses cannot enter cache
+            return result
+        }
+        // Mutable personal collections and authorized Spotify data are read live.
+        let value = try await (kind == "collection" || source == "spotify" ? loader() : detailStore.load(source + "\n" + kind + "\n" + id, force: force, loader: loader))
+        try Task.checkCancellation()
+        return try decodeDetail(value)
     }
     func loadLibrary() async throws {
         if isOfflinePreview { return }
@@ -519,6 +579,7 @@ final class NativeClient: ObservableObject {
         try await loadCookies()
     }
     private func invalidateDiscovery() {
+        detailStore.invalidate()
         discoveryGeneration += 1
         discoveryCache = [:]; discoveryValues = [:]
         discoveryPlaylists = []; discoveryCharts = []; discoverySongs = []

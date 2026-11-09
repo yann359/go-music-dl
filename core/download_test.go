@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -86,5 +87,43 @@ func TestSaveDownloadedSongToFileCreatesTemplateSubdirectories(t *testing.T) {
 	}
 	if string(data) != "audio" {
 		t.Fatalf("saved data = %q, want audio", string(data))
+	}
+}
+
+func TestLiveMiguHighestQualityDownload(t *testing.T) {
+	cookie := os.Getenv("MIGU_TEST_COOKIE")
+	if cookie == "" {
+		t.Skip("set MIGU_TEST_COOKIE to run the live Migu download test")
+	}
+
+	CM.SetAll(map[string]string{"migu": cookie})
+	t.Cleanup(func() { CM.SetAll(map[string]string{"migu": ""}) })
+
+	song := &model.Song{
+		Source:  "migu",
+		ID:      "600919000009811300|2|Z3D",
+		AlbumID: "1138997327",
+		Extra: map[string]string{
+			"content_id":    "600919000009811300",
+			"resource_type": "2",
+			"format_type":   "Z3D",
+			"copyright_id":  "6005861HZLK",
+			"song_id":       "1138997181",
+			"album_id":      "1138997327",
+		},
+	}
+
+	data, err := FetchDecryptedMiguAudio(song)
+	if err != nil {
+		t.Fatalf("FetchDecryptedMiguAudio() error = %v", err)
+	}
+	if len(data) < 16 {
+		t.Fatalf("downloaded data is too short: %d", len(data))
+	}
+	if !bytes.HasPrefix(data, []byte("RIFF")) &&
+		!bytes.HasPrefix(data, []byte("fLaC")) &&
+		!bytes.HasPrefix(data, []byte("ID3")) &&
+		(data[0] != 0xFF || data[1]&0xE0 != 0xE0) {
+		t.Fatalf("downloaded data is not a supported audio stream")
 	}
 }

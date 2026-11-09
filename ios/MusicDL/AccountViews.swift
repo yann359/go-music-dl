@@ -88,7 +88,7 @@ struct AccountDetailScreen: View {
                     if accounts.spotifyConfigured { Button("恢复并验证连接") { Task { await accounts.restore() } }.disabled(client.isOfflinePreview) }
                 }
                 if !accounts.spotifyConfigured {
-                    Text("待配置。可先使用其他五个平台；Spotify 开发模式对应用所有者有 Premium 资格要求，暂不配置不会影响其他功能。")
+                    Text("待配置。可先使用其他音乐来源；Spotify 开发模式对应用所有者有 Premium 资格要求，暂不配置不会影响其他功能。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Link("在 Spotify 管理应用授权", destination: URL(string: "https://www.spotify.com/account/apps/")!)
