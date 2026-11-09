@@ -1,5 +1,7 @@
 # CHENGYIN / MusicDL 来源恢复与稳定性专项
 
+> 本文保留 `52acc6e` 阶段的历史测试范围；后续已完成真实 iOS Release 打包，最新 Build 14、48/48 单元与 6/6 UI 结果见 [正式打包记录](ios-ipa-release-2026-11-09.md)。
+
 日期：2026-11-09（北京时间）。基线 `3bf0333`，本地工作分支 `codex/source-recovery-stability`。这是现有项目修复，不是新项目或 UI 重做。**Windows 验证已完成；iOS 编译、模拟器与真机尚未验证，没有新 IPA。**
 
 ## 1. 上下文、保护与来源恢复

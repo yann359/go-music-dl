@@ -1,14 +1,20 @@
 # 项目持续状态
 
-## 2026-11-09：iOS Release IPA 打包（进行中）
-- 基线 `52acc6e`，工作树干净；新分支 `codex/ios-ipa-release` 保留上轮全部修复与原分支。
-- 复用现有 GitHub Actions `macos-26` / Xcode / XcodeGen / Go c-archive 流程；不在 Windows 安装 Xcode。GitHub 仓库现有授权可用，无需提供 Apple 密码、证书或 Token。
-- 目标为真正 iPhoneOS arm64 Release 未签名 IPA，交给 SideStore / AltStore 本地重签；Bundle ID 保持 `com.guohuiyuan.musicdl.nativedesign`，最低 iOS 18，后台 audio 和 MusicKit 权限说明保留。
-- 新增打包后 Mach-O/平台/架构/最低版本/签名/动态依赖/资源核验，并归档核验 JSON。Go 静态编入 App；核心启动、搜索、原生音频和本地数据不需部署 Windows/Node 服务。汽水旧版会员整曲的桌面 bdms.node 签名能力不适用于 iOS，只能按实际公开音频/已有合法来源能力使用，不能承诺全部整曲可播。
-- 首轮 Build 13（运行 42629940184、源码 `1f80c29`）已通过 Release、包内核验、Go 模拟器库及单元测试阶段；48 项原生测试全部通过；UI 5 项中 4 项通过，歌词用例 4 个断言失败。下载层级与截图确认歌词已正确显示为可跳转 Button，原测试误查 StaticText；仅修正测试定位，不修改 UI/歌词行为。失败构建未交付 IPA。新增真实启动 UI 回归（不启用样例数据），最终交付须来自包含此回归的成功构建。
-- 最终产物下载、哈希核验和真机安装尚未完成；不提前宣称真机通过。
+## 2026-11-09：iOS Release IPA 正式打包完成（Build 14，真机侧载待用户执行）
+- 成功运行：[42633849708](https://github.com/yann359/go-music-dl/actions/runs/42633849708)，**Build 14**，实际源码 `2f0b7d43d0c80f0d1ac27d3c2faf80b1946436d8`；分支 `codex/ios-ipa-release`。基线 `52acc6e` 及原修复分支保留，未回退来源/播放器/缓存，未更改 UI、SQLite 结构或用户配置。
+- 真实工具链：GitHub Actions `macos-26` / **Xcode 26.6 (17F113)** / **iPhoneOS SDK 26.5** / Go 1.26.1，Release iPhoneOS **arm64** 编译通过；不是模拟器包或演示壳。
+- 当前 IPA：`../outputs/ios-release-build/build14/music-dl-ios-native-unsigned.ipa`，14,257,557 字节。**未签名、未加密、无旧签名目录及 embedded.mobileprovision**，适合交由 SideStore / AltStore Classic 个人重签；未实际在用户手机签名安装。
+- IPA SHA256：`836d7f43ef0de2d7b801b18b8e8775f1785fb9656b48762cd60196ed0b65994c`。本地 IPA 校验与 CI 一致，GitHub artifact ZIP digest 一致，对应源码 SHA 一致。
+- [云端 IPA / 对应源码 / 许可与核验 JSON](https://github.com/yann359/go-music-dl/actions/runs/42633849708/artifacts/13684521858)，云端有效期至 2026-12-09；本地副本不受此期限限制。解压后导入其中的 `.ipa`，不要将 artifact ZIP 改后缀。
+- Bundle ID `com.guohuiyuan.musicdl.nativedesign`，显示名/可执行文件 `MusicDL`，版本 1.0.0，最低 **iOS 18.0**；后台 audio、系统音乐权限说明、Spotify callback、完整资源与所有 13 来源保留。
+- 核验实际包内 Mach-O、iPhoneOS 平台、arm64、未加密/无签名、系统动态依赖、Assets.car、LICENSE、NOTICE.md、ThirdPartyNotices.txt 均通过，无缺失第三方框架；Go 静态编入 App。
+- macOS 回归：Go 四包与 Node **6/6** 通过；iPhone 17 Pro Max / **iOS 26.5 模拟器**的原生单元测试 **48/48**、UI **6/6** 全部通过。真实 C ABI / SQLite / 13 来源集成，以及**不启用样例数据的真实原生启动 UI**测试通过；深浅色/歌词/空播放器/暂停返回/账号入口回归通过。合成 WAV / 通知注入不等于真实歌曲与实际系统中断。
+- 首轮 Build 13：Release 与 48 单元测试通过，歌词 UI 用例因把可跳转 Button 当作 StaticText 查询而失败；根据截图和层级仅修正测试定位，未改歌词/UI实现。最终 Build 14 已全部重验通过，不交付失败构建。
+- 核心启动、搜索、本地数据及 AVQueuePlayer 不需要 Windows / Node 服务。汽水会员整曲的旧桌面 bdms.node 签名路径、部分外部 FFmpeg 导出仍受 iOS 环境限制；未部署服务器、未新增付费接口。
+- 仍需真机：原账号 SideStore/AltStore 覆盖重签、实际歌曲/权限、iOS 27 后台/锁屏/网络切换/蓝牙/中断与用户旧数据确认。Apple Music 真实服务仍需实际签名的 MusicKit 配置；Spotify 保持待配置；已知 Apple 兼容目录和 5sing 个别歌单限制未伪装为通过。无需向 Codex 提供 Apple 密码或签名私钥。
+- 详细过程、首次失败修复、安装方法和验证边界见 [正式打包记录](docs/ios-ipa-release-2026-11-09.md)。实际核验 JSON 与日志在 `../outputs/ios-release-build/build14/local-verification.json`、`../outputs/ios-release-build/build14.log`；原有 Build 12 等安装包均保留。
 
-## 2026-11-09：全部来源恢复与稳定性专项（代码与 Windows 验证完成，iOS 验收待执行）
+## 上阶段：全部来源恢复与稳定性专项（截至 52acc6e 的历史记录，最新打包结果见上节）
 - 分支 `codex/source-recovery-stability`，干净基线 `3bf0333`；原授权分支与旧 IPA 保留。未推送、未发布、未清除用户数据；SQLite 结构不变。
 - 全部原有 **13 个在线来源 + 本地音乐**恢复，按 `ee4746a` 差异合并 Provider/播放/下载/歌词/CLI/账号入口。保留 MusicKit、Spotify PKCE/Keychain、Liquid Glass、歌词优化及原播放器。
 - P0 播放：显式激活成功后清除残留中断；校验失败实例/丢失缓存文件；有限 watchdog 重建并保留队列/进度；状态由 AVPlayer 真值派生；旧队列清理不能删除新队列音频；过期 URL 最多重取一次。
@@ -73,7 +79,7 @@
 - 原生设计使用独立品牌、系统字体、深浅色与安全区域。REA Windows 仅用于可用的静态包检查；没有观察 iPhone Apple Music 内部源码/动态界面。
 
 ## 分支与已保留版本
-- 当前开发分支：`codex/source-recovery-stability`；原授权分支 `codex/six-sources-official-auth` 保留；原 `codex/ios-native-redesign` 保持原提交，前阶段版本基于 `9b18983`。
+- 当前开发分支：`codex/ios-ipa-release`；来源修复分支 `codex/source-recovery-stability` 保留在 `52acc6e`；原授权分支 `codex/six-sources-official-auth` 保留；原 `codex/ios-native-redesign` 保持原提交，前阶段版本基于 `9b18983`。
 - 上阶段通过的 Build 5：源提交 `a7c784c8ffd378418bdde33f65da746e71b58ee2`。
 - IPA：`../outputs/ios-build5/music-dl-ios-native-unsigned.ipa`。
 - SHA256：`72f1dc69ef597258df90f3a526961c01b6c6e7a1d64ea8046ef6069a8f8781c7`。
