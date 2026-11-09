@@ -16,6 +16,8 @@ plutil -lint "$plist"
 [[ "$(plutil -extract UIBackgroundModes.0 raw -o - "$plist")" == audio ]]
 [[ " $(lipo -archs "$app/MusicDL") " == *' arm64 '* ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$plist")" == "${IOS_APP_ID:-com.guohuiyuan.musicdl.nativedesign}" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$plist")" == MusicDL ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleName' "$plist")" == MusicDL ]]
 codesign --remove-signature "$app" 2>/dev/null || true
 mkdir -p ios/build/Package/Payload
 ditto "$app" ios/build/Package/Payload/MusicDL.app
@@ -23,6 +25,17 @@ output="$PWD/music-dl-ios-native-unsigned.ipa"
 rm -f "$output"
 (cd ios/build/Package && zip -qry "$output" Payload)
 unzip -tq "$output"
+python3 - "$output" "${IOS_APP_ID:-com.guohuiyuan.musicdl.nativedesign}" <<'PY'
+import json, plistlib, sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as archive:
+    info = plistlib.loads(archive.read('Payload/MusicDL.app/Info.plist'))
+    for key in ('CFBundleDisplayName', 'CFBundleName'):
+        assert info[key] == 'MusicDL', (key, info[key])
+    assert info['CFBundleIdentifier'] == sys.argv[2]
+    print('Packaged IPA metadata: ' + json.dumps({key: info[key] for key in (
+        'CFBundleDisplayName', 'CFBundleName', 'CFBundleIdentifier', 'CFBundleVersion'
+    )}))
+PY
 shasum -a 256 music-dl-ios-native-unsigned.ipa > music-dl-ios-native-unsigned.ipa.sha256
 git rev-parse HEAD > music-dl-ios-native-source.txt
 cp LICENSE music-dl-ios-native-LICENSE.txt

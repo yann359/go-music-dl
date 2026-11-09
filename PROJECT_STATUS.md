@@ -2,6 +2,12 @@
 
 更新：2026-11-09（北京时间）。每次开发结束或可控中断前更新本文件；以下状态只描述已验证事实。
 
+## 当前小阶段：SideStore App ID 名称修复
+- 用户报告 `SideSign.DeveloperPortalError 10`，参数 `appIdName` 为 `澄音 MusicDL`；旧 Build 11 的实际包元数据含该显示名。
+- 仅将 Info.plist 的 `CFBundleDisplayName`、`CFBundleName` 与应用构建 `PRODUCT_NAME` 统一为纯英文 `MusicDL`；Bundle Identifier 继续为 `com.guohuiyuan.musicdl.nativedesign`。
+- 打包脚本检查构建产物及 IPA 内的实际名称、Bundle ID，防止仅改源配置却未生效。
+- 不修改业务代码、播放行为或 App 内界面文案；保留旧 IPA。等待 macOS 重新构建与下载核验；SideStore 真机签名结果仍需用户实际安装确认。
+
 ## 目标与核心需求
 - 将 Go Music DL 改为高品质原生 iOS 音乐客户端“澄音 / MusicDL”，面向 iPhone 17 Pro Max / iOS 27。
 - 原生 SwiftUI TabView、NavigationStack、Sheet 与 iOS 26+ Liquid Glass；主要界面不使用 WebView。

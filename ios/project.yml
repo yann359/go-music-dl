@@ -24,6 +24,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.guohuiyuan.musicdl.nativedesign
+        PRODUCT_NAME: MusicDL
         INFOPLIST_FILE: MusicDL/Info.plist
         SWIFT_OBJC_BRIDGING_HEADER: MusicDL/Bridge.h
         OTHER_LDFLAGS: ['$(inherited)', '-lmusicdl', '-lresolv']
