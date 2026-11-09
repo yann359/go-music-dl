@@ -19,7 +19,8 @@ final class NativeVisualTests: XCTestCase {
         app.tabBars.buttons["搜索"].tap(); capture("02-search-light-fixture")
         app.tabBars.buttons["音乐库"].tap(); capture("03-library-light-fixture")
         app.tabBars.buttons["我的"].tap(); capture("04-profile-light-fixture")
-        app.descendants(matching: .any)["open-player"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 8))
+        app.buttons["展开播放器"].tap()
         XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
         capture("05-player-light-fixture")
         app.buttons["歌词"].tap(); capture("06-lyrics-light-fixture")
@@ -28,7 +29,8 @@ final class NativeVisualTests: XCTestCase {
     func testNativeDarkAppearance() {
         let app = open("dark")
         capture("08-discover-dark-fixture")
-        app.descendants(matching: .any)["open-player"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 8))
+        app.buttons["展开播放器"].tap()
         XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
         capture("09-player-dark-fixture")
     }

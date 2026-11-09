@@ -7,30 +7,29 @@ struct MiniPlayer: View {
     var body: some View {
         if let song = audio.currentSong {
             HStack(spacing: 12) {
-                HStack(spacing: 12) {
+                Button { model.showPlayer = true } label: { HStack(spacing: 12) {
                     CoverArt(url: song.cover, title: song.name, radius: 9).frame(width: 42, height: 42)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(song.name).font(.subheadline.weight(.semibold)).lineLimit(1)
                         Text(audio.waiting ? "正在准备音频…" : song.artist).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer(minLength: 4)
-                }.contentShape(Rectangle())
-                    .onTapGesture { model.showPlayer = true }
-                    .gesture(DragGesture(minimumDistance: 28).onEnded { value in
+                }.contentShape(Rectangle()) }
+                    .buttonStyle(.plain)
+                    .simultaneousGesture(DragGesture(minimumDistance: 28).onEnded { value in
                         if abs(value.translation.width) > abs(value.translation.height) {
                             audio.skip(value.translation.width < 0 ? 1 : -1)
                         }
                     })
-                    .accessibilityElement(children: .combine).accessibilityLabel("正在播放，\(song.name)，\(song.artist)")
+                    .accessibilityLabel("展开播放器")
+                    .accessibilityHint("\(song.name)，\(song.artist)")
                     .accessibilityIdentifier("open-player")
-                    .accessibilityAddTraits(.isButton).accessibilityAction { model.showPlayer = true }
                 Button { audio.isPlaying || audio.waiting ? audio.pause() : audio.play() } label: {
                     Image(systemName: audio.isPlaying || audio.waiting ? "pause.fill" : "play.fill").font(.title3).frame(width: 44, height: 44)
                 }.buttonStyle(.plain).accessibilityLabel(audio.isPlaying || audio.waiting ? "暂停" : "播放")
                 Button { audio.skip(1) } label: { Image(systemName: "forward.end.fill").font(.title3).frame(width: 40, height: 44) }
                     .buttonStyle(.plain).accessibilityLabel("下一首")
             }.padding(.horizontal, 12).padding(.vertical, 6)
-                .accessibilityIdentifier("mini-player")
         }
     }
 }

@@ -62,7 +62,7 @@ jobs:
             xcrun xcresulttool export attachments --path ios/build/VisualTests.xcresult --output-path ios/build/screenshots
           fi
       - name: Upload preview and matching source
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: music-dl-ios-native-unsigned
           path: |
@@ -78,9 +78,10 @@ jobs:
             docs/ios-native-feature-matrix.md
             PROJECT_STATUS.md
           retention-days: 30
+          compression-level: 0
       - name: Upload native test report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ios-native-test-report
           path: |
@@ -88,3 +89,4 @@ jobs:
             ios/build/VisualTests.xcresult
             ios/build/screenshots
           if-no-files-found: ignore
+          compression-level: 0
