@@ -25,6 +25,8 @@ output="$PWD/music-dl-ios-native-unsigned.ipa"
 rm -f "$output"
 (cd ios/build/Package && zip -qry "$output" Payload)
 unzip -tq "$output"
+python3 ios/scripts/verify-ipa.py "$output" --bundle-id "${IOS_APP_ID:-com.guohuiyuan.musicdl.nativedesign}" \
+  --output music-dl-ios-native-verification.json
 python3 - "$output" "${IOS_APP_ID:-com.guohuiyuan.musicdl.nativedesign}" <<'PY'
 import json, plistlib, sys, zipfile
 with zipfile.ZipFile(sys.argv[1]) as archive:

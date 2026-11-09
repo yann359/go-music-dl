@@ -68,6 +68,7 @@ jobs:
           path: |
             music-dl-ios-native-unsigned.ipa
             music-dl-ios-native-unsigned.ipa.sha256
+            music-dl-ios-native-verification.json
             music-dl-ios-native-source.txt
             music-dl-ios-native-LICENSE.txt
             music-dl-ios-native-ThirdPartyNotices.txt

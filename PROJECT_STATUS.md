@@ -1,5 +1,12 @@
 # 项目持续状态
 
+## 2026-11-09：iOS Release IPA 打包（进行中）
+- 基线 `52acc6e`，工作树干净；新分支 `codex/ios-ipa-release` 保留上轮全部修复与原分支。
+- 复用现有 GitHub Actions `macos-26` / Xcode / XcodeGen / Go c-archive 流程；不在 Windows 安装 Xcode。GitHub 仓库现有授权可用，无需提供 Apple 密码、证书或 Token。
+- 目标为真正 iPhoneOS arm64 Release 未签名 IPA，交给 SideStore / AltStore 本地重签；Bundle ID 保持 `com.guohuiyuan.musicdl.nativedesign`，最低 iOS 18，后台 audio 和 MusicKit 权限说明保留。
+- 新增打包后 Mach-O/平台/架构/最低版本/签名/动态依赖/资源核验，并归档核验 JSON。Go 静态编入 App；Node 只参与测试，不需部署 Windows/Node 服务。
+- 构建、XCTest、UI、最终产物下载与哈希核验尚在执行；不得提前宣称安装或真机通过。
+
 ## 2026-11-09：全部来源恢复与稳定性专项（代码与 Windows 验证完成，iOS 验收待执行）
 - 分支 `codex/source-recovery-stability`，干净基线 `3bf0333`；原授权分支与旧 IPA 保留。未推送、未发布、未清除用户数据；SQLite 结构不变。
 - 全部原有 **13 个在线来源 + 本地音乐**恢复，按 `ee4746a` 差异合并 Provider/播放/下载/歌词/CLI/账号入口。保留 MusicKit、Spotify PKCE/Keychain、Liquid Glass、歌词优化及原播放器。
