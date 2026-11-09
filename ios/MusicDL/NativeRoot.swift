@@ -22,11 +22,9 @@ struct NativeRoot: View {
     var body: some View {
         Group {
             if model.isReady {
-                if #available(iOS 26.0, *) {
-                    tabs.tabViewBottomAccessory {
-                        if audio.currentSong != nil {
-                            MiniPlayer().matchedTransitionSource(id: "player", in: playerTransition)
-                        }
+                if #available(iOS 26.1, *) {
+                    tabs.tabViewBottomAccessory(isEnabled: audio.currentSong != nil) {
+                        MiniPlayer().matchedTransitionSource(id: "player", in: playerTransition)
                     }.tabBarMinimizeBehavior(.onScrollDown)
                 } else {
                     tabs.safeAreaInset(edge: .bottom, spacing: 0) {

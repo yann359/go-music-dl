@@ -37,7 +37,9 @@ final class AppModel: ObservableObject {
         if isUITesting {
             client.loadOfflinePreview()
             let sample = Song(id: "visual-fixture", source: "local", name: "暮色里的漫游", artist: "澄音 · 界面演示", album: "慢一点，也很好", cover: "", duration: 240, extra: "")
-            audio.handle(PlaybackRequest(action: "queue", songs: [sample], index: 0, loop: "all", order: "list"))
+            if !ProcessInfo.processInfo.arguments.contains("--ui-empty-player") {
+                audio.handle(PlaybackRequest(action: "queue", songs: [sample], index: 0, loop: "all", order: "list"))
+            }
             isReady = true
             return
         }
@@ -45,7 +47,14 @@ final class AppModel: ObservableObject {
         do {
             let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            #if DEBUG
+            _ = try await client.request("diagnostics.enable")
+            let serviceStart = Date()
+            #endif
             let url = try await GoBridge.start(root: root.path)
+            #if DEBUG
+            print("[native-timing] local-service-start elapsed=\(Date().timeIntervalSince(serviceStart))s")
+            #endif
             try await client.loadBootstrap()
             isReady = true
             ai = NativeAIConnection(baseURL: url, audio: audio)

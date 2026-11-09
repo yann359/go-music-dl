@@ -79,4 +79,104 @@ final class NativeClientTests: XCTestCase {
             XCTFail("Preview performed a write")
         } catch { XCTAssertTrue(error.localizedDescription.contains("演示模式")) }
     }
+
+    func testDiscoveryPublishesFastSourceBeforeSlowSourceAndRetriesOnlyFailure() async throws {
+        var calls: [String: Int] = [:]
+        var qqAvailable = false
+        let client = NativeClient { data in
+            let request = try JSONDecoder().decode(JSONValue.self, from: data)
+            let action = request["action"].stringValue
+            let source = request["params"]["sources"].arrayValue.first!.stringValue
+            let key = action + ":" + source
+            calls[key, default: 0] += 1
+            if source == "qq" {
+                try await Task.sleep(nanoseconds: 250_000_000)
+                if !qqAvailable { return Data(#"{"error":"unexpected EOF https://private.example"}"#.utf8) }
+            } else { try await Task.sleep(nanoseconds: 20_000_000) }
+            if action == "toplists" { return Data(#"{"data":{"toplists":[],"errors":[]}}"#.utf8) }
+            return Data("{\"data\":{\"songs\":[],\"playlists\":[{\"id\":\"\(source)\",\"name\":\"Real\",\"source\":\"\(source)\"}],\"errors\":[]}}".utf8)
+        }
+        let load = Task { await client.loadDiscovery() }
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(client.discoveryPlaylists.map(\.source), ["netease"])
+        XCTAssertTrue(client.discoveryLoading)
+        await load.value
+        XCTAssertEqual(Set(client.discoveryFailures.keys), ["recommend:qq"])
+        XCTAssertFalse(client.discoveryFailures.values.contains { $0.contains("http") || $0.contains("EOF") })
+        qqAvailable = true
+        await client.loadDiscovery(onlyFailed: true)
+        XCTAssertEqual(client.discoveryPlaylists.map(\.source), ["netease", "qq"])
+        XCTAssertTrue(client.discoveryFailures.isEmpty)
+        XCTAssertEqual(calls["recommend:netease"], 1)
+        XCTAssertEqual(calls["recommend:qq"], 2)
+        XCTAssertEqual(calls["toplists:netease"], 1)
+    }
+
+    func testDiscoveryWarmStartUsesPersistedValidatedCache() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("discovery.json")
+        let cold = NativeClient(cacheURL: url) { data in
+            let request = try JSONDecoder().decode(JSONValue.self, from: data)
+            if request["action"] == .string("toplists") { return Data(#"{"data":{"toplists":[],"errors":[]}}"#.utf8) }
+            return Data(#"{"data":{"songs":[],"playlists":[{"id":"real","source":"netease"}],"errors":[]}}"#.utf8)
+        }
+        await cold.loadDiscovery()
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        let warm = NativeClient(cacheURL: url) { _ in XCTFail("Fresh valid cache requested again"); return Data() }
+        let start = Date()
+        await warm.loadDiscovery()
+        XCTAssertFalse(warm.discoveryPlaylists.isEmpty)
+        XCTAssertFalse(warm.discoveryLoading)
+        print("[discovery-test] persisted warm cache elapsed=\(Date().timeIntervalSince(start))s")
+    }
+
+    func testLyricsCannotExposeTechnicalErrors() async {
+        let client = NativeClient { _ in Data(#"{"error":"download lyric failed https://private.example unexpected EOF"}"#.utf8) }
+        do {
+            _ = try await client.lyrics(for: Song(id: "id", source: "migu", name: "Song", artist: "Singer", album: "", cover: "", duration: 200, extra: ""))
+            XCTFail("Failure silently accepted")
+        } catch {
+            XCTAssertFalse(error.localizedDescription.contains("http"))
+            XCTAssertFalse(error.localizedDescription.contains("EOF"))
+        }
+    }
+
+    func testStaleDiscoverySurvivesRefreshFailureButExpiredCacheDoesNot() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("discovery.json")
+        let value: JSONValue = .object(["songs": .array([]), "playlists": .array([.object(["id": .string("cached"), "source": .string("netease")])]), "errors": .array([])])
+        for age in [1800.0, 86401.0] {
+            let cache: JSONValue = .object(["recommend:netease": .object(["saved": .number(Date().timeIntervalSinceReferenceDate - age), "value": value])])
+            try JSONEncoder().encode(cache).write(to: url)
+            let client = NativeClient(cacheURL: url) { _ in throw URLError(.notConnectedToInternet) }
+            await client.loadDiscovery()
+            XCTAssertEqual(client.discoveryPlaylists.isEmpty, age > 86400)
+            XCTAssertEqual(client.discoveryFailures.count, 3)
+            XCTAssertFalse(client.discoveryLoading)
+        }
+    }
+
+    func testAccountChangeInvalidatesDiscoveryCache() async throws {
+        let client = NativeClient { data in
+            let request = try JSONDecoder().decode(JSONValue.self, from: data)
+            if request["action"] == .string("cookies.get") { return Data(#"{"data":{"qq":"new-account"}}"#.utf8) }
+            if request["action"] == .string("toplists") { return Data(#"{"data":{"toplists":[],"errors":[]}}"#.utf8) }
+            return Data(#"{"data":{"songs":[],"playlists":[{"id":"real"}],"errors":[]}}"#.utf8)
+        }
+        await client.loadDiscovery()
+        XCTAssertFalse(client.discoveryPlaylists.isEmpty)
+        try await client.loadCookies()
+        XCTAssertTrue(client.discoveryPlaylists.isEmpty)
+    }
+
+    func testMalformedDiscoveryCannotBecomeSuccessfulCachedConnection() async {
+        let client = NativeClient { _ in Data(#"{"data":{}}"#.utf8) }
+        await client.loadDiscovery()
+        XCTAssertTrue(client.discoveryPlaylists.isEmpty)
+        XCTAssertEqual(client.discoveryFailures.count, 3)
+        XCTAssertFalse(client.discoveryLoading)
+    }
 }

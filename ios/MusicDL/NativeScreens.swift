@@ -5,11 +5,10 @@ struct DiscoverScreen: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var client: NativeClient
     @Environment(\.colorScheme) private var scheme
-    @State private var playlists: [NativeCollection] = []
-    @State private var charts: [NativeTopList] = []
-    @State private var songs: [Song] = []
-    @State private var loading = false
-    @State private var problem: String?
+    @Environment(\.scenePhase) private var scenePhase
+    private var playlists: [NativeCollection] { client.discoveryPlaylists }
+    private var charts: [NativeTopList] { client.discoveryCharts }
+    private var songs: [Song] { client.discoverySongs }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
@@ -28,7 +27,7 @@ struct DiscoverScreen: View {
                     }.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(26)
                     .background(MusicDesign.panel(scheme), in: RoundedRectangle(cornerRadius: 30))
-                if loading { HStack { ProgressView(); Text("正在连接音乐来源…").font(.subheadline).foregroundStyle(.secondary) } }
+                if client.discoveryLoading { HStack { ProgressView(); Text("正在连接音乐来源…").font(.subheadline).foregroundStyle(.secondary) } }
                 if !playlists.isEmpty {
                     SectionHeading(title: "发现你的下一张歌单", subtitle: "来自已连接平台的推荐")
                     ScrollView(.horizontal) {
@@ -59,11 +58,18 @@ struct DiscoverScreen: View {
                     SectionHeading(title: "再听一首")
                     SongRows(songs: songs)
                 }
-                if let problem {
+                if !client.discoveryFailures.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("部分来源暂时无法连接", systemImage: "antenna.radiowaves.left.and.right.slash").font(.subheadline.weight(.medium))
-                        Text(problem).font(.caption).foregroundStyle(.secondary)
-                        Button("重新加载") { Task { await load() } }.font(.subheadline)
+                        ForEach(client.discoveryFailures.keys.sorted(), id: \.self) { key in
+                            let source = key.split(separator: ":").last.map(String.init) ?? key
+                            HStack {
+                                Text(sourceName(source) + (key.hasPrefix("toplists:") ? " · 排行榜" : " · 推荐")).font(.caption).foregroundStyle(.secondary)
+                                Spacer()
+                                Button("重试") { Task { await client.loadDiscovery(force: true, key: key) } }
+                                    .font(.subheadline).disabled(client.discoveryLoading)
+                            }
+                        }
                     }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
                         .background(MusicDesign.panel(scheme), in: RoundedRectangle(cornerRadius: 20))
                 }
@@ -74,20 +80,14 @@ struct DiscoverScreen: View {
             }.padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 28)
         }.background(MusicDesign.canvas(scheme)).navigationTitle("发现")
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { model.selectedTab = 3 } label: { Image(systemName: "person.crop.circle").font(.title3) }.accessibilityLabel("我的账号") } }
-            .refreshable { await load() }.task { if playlists.isEmpty { await load() } }
+            .refreshable { await client.loadDiscovery(force: true) }
+            .task { await client.loadDiscovery() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await client.loadDiscovery(onlyFailed: true) } }
+            }
     }
     private func sourceName(_ source: String) -> String { client.sources.first { $0.id == source }?.name ?? source }
-    private func load() async {
-        guard !loading else { return }; loading = true; problem = nil
-        defer { loading = false }
-        do {
-            let result = try await client.recommendations(sources: ["netease", "qq"])
-            playlists = result.playlists; songs = result.songs
-            if !result.errors.isEmpty { problem = result.errors.joined(separator: "\n") }
-        } catch { problem = error.localizedDescription }
-        do { charts = try await client.topLists(sources: ["netease"]) }
-        catch { if problem == nil { problem = error.localizedDescription } }
-    }
+
 }
 
 extension NativeCollection { var identityKey: String { source + ":" + id } }

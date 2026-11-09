@@ -1,9 +1,11 @@
 import XCTest
 
 final class NativeVisualTests: XCTestCase {
-    private func open(_ style: String) -> XCUIApplication {
+    private func open(_ style: String, emptyPlayer: Bool = false, extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-music.appearance", style]
+        if emptyPlayer { app.launchArguments.append("--ui-empty-player") }
+        app.launchArguments += extra
         app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
         return app
@@ -33,5 +35,49 @@ final class NativeVisualTests: XCTestCase {
         app.buttons["展开播放器"].tap()
         XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
         capture("09-player-dark-fixture")
+    }
+
+    func testColdEmptyPlayerNavigationAndPlaybackLifecycle() {
+        for style in ["light", "dark"] {
+            let app = open(style, emptyPlayer: true)
+            XCTAssertFalse(app.buttons["展开播放器"].exists)
+            capture("empty-discover-\(style)")
+            let tabFrame = app.tabBars.firstMatch.frame
+            for tab in ["搜索", "音乐库", "我的", "发现"] {
+                app.tabBars.buttons[tab].tap()
+                XCTAssertFalse(app.buttons["展开播放器"].exists)
+                XCTAssertEqual(app.tabBars.firstMatch.frame, tabFrame)
+            }
+            app.tabBars.buttons["音乐库"].tap()
+            app.buttons["本地音乐"].tap()
+            let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
+            XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
+            XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 8))
+            app.buttons["暂停"].tap()
+            XCTAssertTrue(app.buttons["展开播放器"].exists)
+            XCUIDevice.shared.press(.home); app.activate()
+            XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 8))
+            app.buttons["展开播放器"].tap()
+            XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
+            app.buttons["播放队列"].tap()
+            app.buttons["清空"].tap()
+            app.buttons["清空队列并停止播放"].tap()
+            app.buttons["收起播放器"].tap()
+            XCTAssertFalse(app.buttons["展开播放器"].exists)
+            capture("cleared-player-\(style)")
+            app.terminate()
+        }
+    }
+
+    func testFinalLyricsUIHasOneCreditAndKeepsRepeatedChorus() {
+        let app = open("light", extra: ["--ui-lyrics-duplicates"])
+        app.buttons["展开播放器"].tap()
+        XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
+        app.buttons["歌词"].tap()
+        XCTAssertTrue(app.staticTexts["作曲：周杰伦"].waitForExistence(timeout: 8))
+        XCTAssertEqual(app.staticTexts.matching(identifier: "作曲：周杰伦").count, 1)
+        XCTAssertEqual(app.staticTexts.matching(identifier: "编曲：林迈可").count, 1)
+        XCTAssertEqual(app.staticTexts.matching(identifier: "重复副歌").count, 2)
+        capture("deduplicated-credits-preserved-chorus")
     }
 }

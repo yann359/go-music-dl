@@ -5,11 +5,14 @@ package web
 // share the existing JSON routes and their write guards. This is never used
 // for delivering AVPlayer audio bytes.
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/guohuiyuan/go-music-dl/core"
 	"github.com/guohuiyuan/music-lib/model"
@@ -153,6 +156,9 @@ func NativeClientRequest(raw string) (output string, err error) {
 	}
 	var data interface{}
 	switch request.Action {
+	case "diagnostics.enable":
+		enableNativeDiagnostics()
+		data = true
 	case "sources", "bootstrap":
 		data = nativeSourceCatalog()
 	case "search":
@@ -351,8 +357,14 @@ func nativePlaylists(action string, params map[string]json.RawMessage) (nativeCl
 			var err error
 			switch action {
 			case "recommend":
-				if fn := core.GetRecommendFunc(source); fn != nil {
-					playlists, err = fn()
+				if fn := nativeRecommendProvider(source); fn != nil {
+					ctx, cancel := context.WithTimeout(context.Background(), nativeDiscoveryTimeout)
+					defer cancel()
+					var value interface{}
+					value, err = nativeDiscoveryCalls.run(ctx, nativeProviderKey("recommend", source), func() (interface{}, error) { return fn() })
+					if err == nil {
+						playlists = append([]model.Playlist(nil), value.([]model.Playlist)...)
+					}
 				} else {
 					err = errors.New("recommendations are unsupported")
 				}
@@ -374,7 +386,11 @@ func nativePlaylists(action string, params map[string]json.RawMessage) (nativeCl
 			}
 			part.Playlists = append(part.Playlists, playlists...)
 			if err != nil {
-				part.Errors = append(part.Errors, core.GetSourceDescription(source)+"："+err.Error())
+				if action == "recommend" {
+					part.Errors = append(part.Errors, core.GetSourceDescription(source)+"：连接暂时不可用，请重试")
+				} else {
+					part.Errors = append(part.Errors, core.GetSourceDescription(source)+"："+err.Error())
+				}
 			}
 			parts[i] = part
 		}(i, source)
@@ -387,24 +403,44 @@ func nativePlaylists(action string, params map[string]json.RawMessage) (nativeCl
 	return result, nil
 }
 
+var nativeRecommendProvider = core.GetRecommendFunc
+var nativeTopListsProvider = core.GetTopListsFunc
+var nativeDiscoveryTimeout = 6 * time.Second
+
 func nativeTopLists(params map[string]json.RawMessage) (interface{}, error) {
+	sources := nativeSelectedSources(params, core.GetTopListSourceNames())
+	parts := make([][]model.TopList, len(sources))
+	errs := make([]error, len(sources))
+	var group sync.WaitGroup
+	for i, source := range sources {
+		group.Add(1)
+		go func(i int, source string) {
+			defer group.Done()
+			fn := nativeTopListsProvider(source)
+			if fn == nil {
+				errs[i] = errors.New("unsupported")
+				return
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), nativeDiscoveryTimeout)
+			defer cancel()
+			value, err := nativeDiscoveryCalls.run(ctx, nativeProviderKey("toplists", source), func() (interface{}, error) { return fn() })
+			errs[i] = err
+			if err == nil {
+				parts[i] = append([]model.TopList(nil), value.([]model.TopList)...)
+				for j := range parts[i] {
+					parts[i][j].Source = source
+				}
+			}
+		}(i, source)
+	}
+	group.Wait()
 	toplists := []model.TopList{}
 	failures := []string{}
-	for _, source := range nativeSelectedSources(params, core.GetTopListSourceNames()) {
-		fn := core.GetTopListsFunc(source)
-		if fn == nil {
-			failures = append(failures, source+"：排行榜不可用")
-			continue
+	for i, part := range parts {
+		toplists = append(toplists, part...)
+		if errs[i] != nil {
+			failures = append(failures, core.GetSourceDescription(sources[i])+"：排行榜暂时不可用，请重试")
 		}
-		values, err := fn()
-		if err != nil {
-			failures = append(failures, source+"："+err.Error())
-			continue
-		}
-		for i := range values {
-			values[i].Source = source
-		}
-		toplists = append(toplists, values...)
 	}
 	return map[string]interface{}{"toplists": toplists, "errors": failures}, nil
 }
@@ -496,11 +532,7 @@ func nativeLyric(params map[string]json.RawMessage) (interface{}, error) {
 			return nil, err
 		}
 	} else {
-		fn := core.GetLyricFunc(song.Source)
-		if fn == nil {
-			return map[string]string{"text": ""}, nil
-		}
-		text, err = fn(song)
+		text, err = resilientNativeLyrics(song, filepath.Join("data", "cache", "native-lyrics"))
 		if err != nil {
 			return nil, err
 		}

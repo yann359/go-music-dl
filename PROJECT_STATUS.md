@@ -2,7 +2,19 @@
 
 更新：2026-11-09（北京时间）。每次开发结束或可控中断前更新本文件；以下状态只描述已验证事实。
 
-## 最新完成的小阶段：SideStore App ID 名称修复
+## 当前维护阶段：四项问题修复（代码已实现，iOS 验收待执行）
+- 日期：2026-11-09；恢复基线 `69e94bb`，仓库初始干净，保留外层未跟踪目录、用户数据、所有旧 IPA。继续使用 `codex/ios-native-redesign`，本轮未提交/推送。
+- 已定位并修改：空内容仍挂载底部附件；推荐聚合等待慢源且再串行请求榜单；歌词一次失败直接上抛；逐字方括号时间被当成整句的重复起点。
+- 首页按当前歌曲启停 iOS 26.1+ 附件；来源最多 3 并行、6 秒调用截止、同源请求合并、逐项显示、成功结果 15 分钟复用/24 小时过期、单项及网络恢复重试。
+- 歌词增加咪咕可取消请求、完整响应体校验和解码、最多 3 次退避重试、同曲缓存、严格歌名/歌手/专辑/已知时长匹配的已有来源降级；只对连续署名去重，保留正常重复正文。
+- 修改集中在原生 Root/Client/Discover/Player、独立 Foundation 歌词解析和 Go 原生来源/歌词请求层；未改 AudioEngine、SQLite 数据结构、音源列表或视觉设计规范。完整逐文件清单、根因与恢复位置见 [四项维护报告](docs/ios-maintenance-2026-11-09.md)。
+- Windows 回归：Go 六包 338 通过/11 跳过，Node 6/6，go vet、Windows 后端构建通过；增量 golangci-lint 0 issues。全量 lint 84 个存量问题未通过，不扩大范围清理；Go race 因无 CGO 编译器未执行。
+- 实测 Windows 公开来源一次旧顺序/新并行：首内容 335.561/81.125 ms，全部 428.102/155.880 ms，结果数量一致；先旧后新有 DNS/连接复用偏差，不能宣称 iPhone 冷启动提升比例。受控弱源首内容 220.180/25.510 ms，仅为模型测试。
+- 新 Swift 单元回归 10 项和 UI 回归 2 项已补，尚未编译运行。当前 Windows 无 Xcode/iPhone；冷/热启动、移动弱网、布局/深浅色截图、后台返回及真实歌词高亮仍待 macOS/真机验收，不能视为 A–E 全部通过。
+- 依赖风险：旧 music-lib 无 context，调用方 6 秒返回后底层可能继续到两分钟；并发槽保持占用、重复请求合并，避免无限堆积。歌词备用匹配刻意保守；缺少确切歌曲 ID，未验证用户那一首上游原文。
+- 下一步仅为本轮验收：运行现有 macOS 原生编译/XCTest/UI 工作流，成功后打包新 IPA 并完成上述 iPhone 检查。本轮没有新 IPA；下面历史 Build 12 不包含这些修复。
+
+## 上阶段完成：SideStore App ID 名称修复
 - 用户报告 `SideSign.DeveloperPortalError 10`，参数 `appIdName` 为 `澄音 MusicDL`；旧 Build 11 的实际包元数据含该显示名。
 - 仅将 Info.plist 的 `CFBundleDisplayName`、`CFBundleName` 与应用构建 `PRODUCT_NAME` 统一为纯英文 `MusicDL`；Bundle Identifier 继续为 `com.guohuiyuan.musicdl.nativedesign`。
 - 打包脚本检查构建产物及 IPA 内的实际名称、Bundle ID，防止仅改源配置却未生效。

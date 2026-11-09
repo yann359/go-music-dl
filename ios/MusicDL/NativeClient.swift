@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Network
 
 /// Lossless JSON storage keeps every original setting available to native forms.
 enum JSONValue: Codable, Equatable {
@@ -257,10 +258,44 @@ final class NativeClient: ObservableObject {
     @Published private(set) var isLoading = false
     @Published var error: String?
     @Published private(set) var isOfflinePreview = false
+    @Published private(set) var discoveryPlaylists: [NativeCollection] = []
+    @Published private(set) var discoveryCharts: [NativeTopList] = []
+    @Published private(set) var discoverySongs: [Song] = []
+    @Published private(set) var discoveryFailures: [String: String] = [:]
+    @Published private(set) var discoveryLoading = false
+    private var discoveryGeneration = 0
+    private var discoveryCache: [String: DiscoveryCacheEntry] = [:]
+    private var discoveryValues: [String: JSONValue] = [:]
+    private let discoveryCacheURL: URL?
+    private let networkMonitor = NWPathMonitor()
     private let transport: Transport
     private static let queue = DispatchQueue(label: "musicdl.native-client", qos: .userInitiated, attributes: .concurrent)
 
-    init(transport: Transport? = nil) { self.transport = transport ?? Self.goTransport }
+    init(cacheURL: URL? = nil, transport: Transport? = nil) {
+        self.transport = transport ?? Self.goTransport
+        discoveryCacheURL = cacheURL ?? (transport == nil ? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.appendingPathComponent("NativeDiscovery-v1.json") : nil)
+        if let url = discoveryCacheURL, let data = try? Data(contentsOf: url), data.count <= 4 * 1024 * 1024,
+           let cached = try? JSONDecoder().decode([String: DiscoveryCacheEntry].self, from: data) {
+            discoveryCache = cached.filter { Date().timeIntervalSince($0.value.saved) >= 0 && Date().timeIntervalSince($0.value.saved) < 86400 }
+        }
+        if transport == nil {
+            networkMonitor.pathUpdateHandler = { [weak self] path in
+                if path.status == .satisfied {
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        while self.discoveryLoading {
+                            do { try await Task.sleep(nanoseconds: 100_000_000) }
+                            catch { return }
+                        }
+                        guard !self.discoveryFailures.isEmpty else { return }
+                        await self.loadDiscovery(onlyFailed: true)
+                    }
+                }
+            }
+            networkMonitor.start(queue: DispatchQueue(label: "musicdl.network-status"))
+        }
+    }
+    deinit { networkMonitor.cancel() }
 
     private var previewSongs: [Song] {
         [Song(id: "preview-firstlight", source: "local", name: "第一缕晨光", artist: "澄音 · 界面样例", album: "慢慢听见", cover: "", duration: 248, extra: ""),
@@ -302,6 +337,10 @@ final class NativeClient: ObservableObject {
     func request(_ action: String, params: [String: JSONValue] = [:]) async throws -> JSONValue {
         guard !isOfflinePreview else { throw NativeError.message("当前为界面演示模式，不会执行联网、播放或数据修改。请正常启动后使用。") }
         try Task.checkCancellation()
+        #if DEBUG
+        let started = Date()
+        defer { print("[native-timing] action=\(action) elapsed=\(Date().timeIntervalSince(started))s") }
+        #endif
         let input = try JSONEncoder().encode(JSONValue.object(["action": .string(action), "params": .object(params)]))
         let data: Data
         do { data = try await transport(input) }
@@ -324,8 +363,9 @@ final class NativeClient: ObservableObject {
             sources = try result["sources"].decoded([NativeSource].self)
             defaultSources = (try? result["defaults"].decoded([String].self)) ?? []
             qrSources = (try? result["qr_sources"].decoded([String].self)) ?? []
-            try await loadLibrary()
-            try await loadSettings()
+            async let library: Void = loadLibrary()
+            async let settings: Void = loadSettings()
+            _ = try await (library, settings)
         } catch { self.error = error.localizedDescription; throw error }
     }
 
@@ -425,18 +465,42 @@ final class NativeClient: ObservableObject {
         let result = try await request("settings.save", params: ["settings": .object(combined)])
         settings = result.objectValue
     }
-    func loadCookies() async throws { if !isOfflinePreview { cookies = try await request("cookies.get").decoded([String: String].self) } }
+    func loadCookies() async throws {
+        guard !isOfflinePreview else { return }
+        let values = try await request("cookies.get").decoded([String: String].self)
+        if values != cookies { invalidateDiscovery() }
+        cookies = values
+    }
     func saveCookies(_ values: [String: String]) async throws {
         _ = try await request("cookies.save", params: ["cookies": .object(values.mapValues(JSONValue.string))])
         try await loadCookies()
+    }
+    private func invalidateDiscovery() {
+        discoveryGeneration += 1
+        discoveryCache = [:]; discoveryValues = [:]
+        discoveryPlaylists = []; discoveryCharts = []; discoverySongs = []
+        if let url = discoveryCacheURL { try? FileManager.default.removeItem(at: url) }
     }
     func switchSource(_ song: Song, target: String = "") async throws -> Song {
         let value = try await request("switch_source", params: ["song": try .encoded(song), "target": .string(target)])
         return try value.decoded(NativeSongPayload.self).song
     }
     func lyrics(for song: Song) async throws -> String {
-        if isOfflinePreview { return "[00:00.00]界面演示歌词 · 澄音\n[00:08.00]让忙碌慢一点\n[00:16.00]让声音陪着你\n[00:24.00]把此刻留给自己" }
-        return try await request("lyric", params: ["song": try .encoded(song)])["text"].stringValue
+        if isOfflinePreview {
+            if ProcessInfo.processInfo.arguments.contains("--ui-lyrics-duplicates") {
+                return "[00:00.00]作[00:00.50]曲：周杰伦[00:01.00]\n[00:01.00]编曲：林迈可[00:02.00]\n[00:02.00]作曲: 周杰伦\n[00:03.00]编曲：林迈可\n[00:04.00][00:06.00]重复副歌"
+            }
+            return "[00:00.00]界面演示歌词 · 澄音\n[00:08.00]让忙碌慢一点\n[00:16.00]让声音陪着你\n[00:24.00]把此刻留给自己"
+        }
+        do { return try await request("lyric", params: ["song": try .encoded(song)])["text"].stringValue }
+        catch is CancellationError { throw CancellationError() }
+        catch {
+            #if DEBUG
+            print("[native-lyrics] source=\(song.source) error=\(error)")
+            #endif
+            let safe = ["网络暂时中断，请重试。", "歌词服务暂时繁忙，请稍后重试。", "歌词内容暂时无法读取，请重试。", "此来源的歌词暂时无法访问，请检查账号授权。"]
+            throw LyricLoadError.unavailable(safe.first { error.localizedDescription.contains($0) } ?? "歌词来源暂时不可用，请稍后重试。")
+        }
     }
     func loadDownloads() async throws {
         if isOfflinePreview { return }
@@ -483,5 +547,96 @@ final class NativeClient: ObservableObject {
         let values = try result["playlists"].decoded([NativeCollection].self)
         try checkWarnings(result, empty: values.isEmpty)
         return values
+    }
+}
+
+private struct DiscoveryCacheEntry: Codable {
+    let saved: Date // last genuinely successful response, not a connection claim
+    let value: JSONValue
+}
+
+extension NativeClient {
+    func loadDiscovery(force: Bool = false, onlyFailed: Bool = false, key: String? = nil) async {
+        guard !discoveryLoading else { return }
+        if isOfflinePreview {
+            discoveryPlaylists = collections; discoverySongs = previewSongs
+            discoveryCharts = [NativeTopList(id: "preview-top", name: "今日灵感", source: "local", trackCount: 20)]
+            return
+        }
+        let generation = discoveryGeneration
+        let keys = ["recommend:netease", "recommend:qq", "toplists:netease"]
+        for item in keys {
+            if let cached = discoveryCache[item], Date().timeIntervalSince(cached.saved) >= 86400 {
+                discoveryCache[item] = nil; discoveryValues[item] = nil
+            }
+        }
+        for item in keys where discoveryValues[item] == nil {
+            if let cached = discoveryCache[item], Date().timeIntervalSince(cached.saved) < 86400,
+               (try? validateDiscovery(cached.value, key: item)) != nil {
+                discoveryValues[item] = cached.value
+                #if DEBUG
+                print("[native-timing] discovery=\(item) cache=hit age=\(Date().timeIntervalSince(cached.saved))s")
+                #endif
+            }
+        }
+        rebuildDiscovery()
+        let pending = keys.filter { item in
+            if let key, key != item { return false }
+            if onlyFailed && discoveryFailures[item] == nil { return false }
+            let stale = discoveryCache[item].map { Date().timeIntervalSince($0.saved) >= 900 } ?? true
+            return force || onlyFailed || discoveryValues[item] == nil || discoveryFailures[item] != nil || stale
+        }
+        guard !pending.isEmpty else { return }
+        discoveryLoading = true
+        defer {
+            discoveryLoading = false
+            if generation != discoveryGeneration { Task { await self.loadDiscovery(force: true) } }
+        }
+        await withTaskGroup(of: (String, JSONValue?, String?).self) { group in
+            for item in pending {
+                group.addTask { [self] in
+                    let parts = item.split(separator: ":").map(String.init)
+                    do {
+                        let value = try await request(parts[0], params: ["sources": .array([.string(parts[1])])])
+                        return (item, value, nil)
+                    } catch { return (item, nil, "连接暂时不可用，请重试。") }
+                }
+            }
+            for await (item, value, failure) in group {
+                guard !Task.isCancelled, generation == discoveryGeneration else { continue }
+                do {
+                    guard let value else { throw NativeError.message(failure ?? "请重试") }
+                    // Validate before promoting a response to a successful cache.
+                    try validateDiscovery(value, key: item)
+                    discoveryValues[item] = value
+                    discoveryCache[item] = DiscoveryCacheEntry(saved: Date(), value: value)
+                    discoveryFailures[item] = nil
+                    rebuildDiscovery() // publish every completed source, never wait for the slowest
+                    if let url = discoveryCacheURL, let data = try? JSONEncoder().encode(discoveryCache) {
+                        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                        try? data.write(to: url, options: .atomic)
+                    }
+                } catch { discoveryFailures[item] = "连接暂时不可用，请重试。" }
+            }
+        }
+    }
+
+    private func validateDiscovery(_ value: JSONValue, key: String) throws {
+        guard case .array = value["errors"], value["errors"].arrayValue.isEmpty else {
+            throw NativeError.message("来源暂时不可用")
+        }
+        if key.hasPrefix("recommend:") {
+            guard case .array = value["songs"], case .array = value["playlists"] else {
+                throw NativeError.message("来源返回数据不完整")
+            }
+            _ = try results(value)
+        } else { _ = try value["toplists"].decoded([NativeTopList].self) }
+    }
+
+    private func rebuildDiscovery() {
+        let recommendations = ["recommend:netease", "recommend:qq"].compactMap { discoveryValues[$0] }
+        discoveryPlaylists = recommendations.flatMap { (try? $0["playlists"].decoded([NativeCollection].self)) ?? [] }
+        discoverySongs = recommendations.flatMap { (try? decodeSongs($0["songs"])) ?? [] }
+        discoveryCharts = (try? discoveryValues["toplists:netease"]?["toplists"].decoded([NativeTopList].self)) ?? []
     }
 }

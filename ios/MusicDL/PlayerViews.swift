@@ -47,6 +47,7 @@ struct FullPlayer: View {
     @State private var lyrics: [LyricLine] = []
     @State private var lyricError: String?
     @State private var lyricLoading = false
+    @State private var lyricAttempt = 0
     @State private var rate: Double = 1
     private var song: Song? { audio.currentSong }
     var body: some View {
@@ -64,7 +65,7 @@ struct FullPlayer: View {
                                 .scaleEffect(audio.isPlaying || reduceMotion ? 1 : 0.94)
                                 .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.85), value: audio.isPlaying)
                         } else if page == 1 {
-                            LyricsPane(lines: lyrics, position: audio.position, loading: lyricLoading, error: lyricError) { audio.seek($0) }
+                            LyricsPane(lines: lyrics, position: audio.position, loading: lyricLoading, error: lyricError, retry: { lyricAttempt += 1 }) { audio.seek($0) }
                                 .frame(height: min(geometry.size.height * 0.43, 380))
                         } else {
                             QueuePane().frame(height: min(geometry.size.height * 0.43, 380))
@@ -115,7 +116,7 @@ struct FullPlayer: View {
             }.ignoresSafeArea(edges: .bottom)
         }.onAppear { draftPosition = audio.position; rate = Double(audio.playbackRate) }
             .onChange(of: audio.position) { _, value in if !seeking { draftPosition = value } }
-            .task(id: song?.key) { await loadLyrics() }
+            .task(id: (song?.key ?? "") + ":\(lyricAttempt)") { await loadLyrics() }
             .accessibilityIdentifier("full-player")
     }
     private var header: some View {
@@ -154,8 +155,19 @@ struct FullPlayer: View {
         guard let song else { return }
         lyricLoading = true
         defer { if !Task.isCancelled { lyricLoading = false } }
-        do { let text = try await client.lyrics(for: song); if !Task.isCancelled { lyrics = LyricLine.parse(text) } }
-        catch { if !Task.isCancelled { lyricError = error.localizedDescription } }
+        do {
+            let text = try await client.lyrics(for: song)
+            if !Task.isCancelled {
+                lyrics = LyricLine.parse(text)
+                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && lyrics.isEmpty {
+                    lyricError = "歌词内容暂时无法读取，请重试。"
+                }
+            }
+        } catch let error as LyricLoadError {
+            if !Task.isCancelled { lyricError = error.localizedDescription }
+        } catch {
+            if !Task.isCancelled { lyricError = "请检查网络后重试，音乐播放不受影响。" }
+        }
     }
     static func time(_ seconds: Double) -> String {
         let value = seconds.isFinite ? max(0, Int(seconds)) : 0
@@ -189,44 +201,24 @@ struct QueuePane: View {
     }
 }
 
-struct LyricLine: Identifiable, Equatable {
-    var id: Int
-    var time: Double?
-    var text: String
-    static func parse(_ raw: String) -> [LyricLine] {
-        let expression = try! NSRegularExpression(pattern: "\\[(\\d+):(\\d+(?:\\.\\d+)?)\\]")
-        let inline = try! NSRegularExpression(pattern: "<\\d+:\\d+(?:\\.\\d+)?>")
-        var offset = 0.0
-        if let match = raw.range(of: "\\[offset:-?\\d+\\]", options: .regularExpression) {
-            offset = (Double(raw[match].dropFirst(8).dropLast()) ?? 0) / 1000
-        }
-        var values: [(Double?, String)] = []
-        for line in raw.components(separatedBy: .newlines) {
-            let string = line as NSString
-            let matches = expression.matches(in: line, range: NSRange(location: 0, length: string.length))
-            let withoutTimes = expression.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: string.length), withTemplate: "")
-            let text = inline.stringByReplacingMatches(in: withoutTimes, range: NSRange(location: 0, length: (withoutTimes as NSString).length), withTemplate: "").trimmingCharacters(in: .whitespaces)
-            if text.isEmpty || (matches.isEmpty && text.hasPrefix("[")) { continue }
-            if matches.isEmpty { values.append((nil, text)) }
-            else { for match in matches { values.append((max(0, (Double(string.substring(with: match.range(at: 1))) ?? 0) * 60 + (Double(string.substring(with: match.range(at: 2))) ?? 0) + offset), text)) } }
-        }
-        if values.contains(where: { $0.0 != nil }) { values = values.filter { $0.0 != nil }.sorted { $0.0! < $1.0! } }
-        return values.enumerated().map { LyricLine(id: $0.offset, time: $0.element.0, text: $0.element.1) }
-    }
-}
-
 struct LyricsPane: View {
     let lines: [LyricLine]
     let position: Double
     let loading: Bool
     let error: String?
+    let retry: () -> Void
     let seek: (Double) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var active: Int? { lines.last(where: { ($0.time ?? .infinity) <= position })?.id }
     var body: some View {
         if loading { ProgressView("正在读取歌词…") }
-        else if let error { NativeEmptyState(symbol: "text.bubble", title: "歌词暂时不可用", detail: error) }
-        else if lines.isEmpty { NativeEmptyState(symbol: "quote.bubble", title: "让旋律自己说话", detail: "这首歌暂时没有可用歌词。") }
+        else if let error {
+            VStack(spacing: 12) {
+                NativeEmptyState(symbol: "text.bubble", title: "歌词暂时不可用", detail: error)
+                Button("重试歌词", action: retry).buttonStyle(.bordered)
+            }
+        }
+        else if lines.isEmpty { NativeEmptyState(symbol: "quote.bubble", title: "暂无歌词", detail: "这首歌暂时没有可用歌词。") }
         else {
             ScrollViewReader { proxy in
                 ScrollView {
