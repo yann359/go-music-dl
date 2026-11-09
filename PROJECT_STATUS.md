@@ -30,7 +30,7 @@
 - 客户端代理：`NativeClient.swift`、`NativeClientTests.swift`，包含显式 UI 测试样例模式。
 - 主代理：`DesignSystem.swift`、`NativeAppModel.swift`、`NativeRoot.swift`、`NativeScreens.swift`，以及 AudioEngine 可观察状态/队列操作。
 
-## 上次中断点（已恢复）
+## 上次中断点（历史恢复记录，最终结果见下节）
 - 已补齐全屏/迷你播放器、LRC 跟随与点击跳转、队列排序/移除/清空、系统输出选择器。
 - 已补齐我的、Cookie/二维码、完整设置/WebDAV、音源浏览/分类/榜单和用户平台歌单。
 - 原管理界面 WebView 已从 iOS UI 目标中移除；不改动原网页/Android 页面。
@@ -41,21 +41,30 @@
 - 已取得第二轮日志：Xcode 26.6；13 项原生单元测试通过；两项 UI 测试均找不到迷你播放器的可访问性标识；报告上传为 ArtifactService/CreateArtifact 请求超时（不是已证实的存储配额问题）。将展开区域改为有明确标签的原生 Button，并移除外层重复标识，等待重验。
 
 ## 测试与已知限制
-- 重设计首轮 macOS 运行 `42537618882` 在原本地音乐测试清理阶段失败：索引异步写与 SQLite 关闭竞争。已增加索引任务收尾等待、隔离新原生测试数据库；原断言保留。定向测试连续 5 轮通过，等待全量与 macOS 重验。
-- Build 5：Go 回归、6 项桥接测试、5 项原生模拟器测试通过；Windows/Linux 5 组构建通过。
-- 本轮 Windows 实际运行：`go test ./internal/web ./internal/appshell ./core ./internal/spotify ./internal/cli ./cmd/music-dl` 全通过；原 Node 桥接 6 项通过。
-- 新增 Swift 客户端 5 项测试、歌词解析 3 项测试与原生 UI 截图测试，等待 macOS 执行。
-- 后续新增测试：全部来源失败不伪装空结果、专辑/授权元数据保留、手动换源保留暂停与队列、真实 C ABI 启动及收藏增删。新增测试需以最终云端运行结果为准。
-- AI 状态上报改为串行合并，避免快速暂停被节流丢弃或旧状态覆盖新状态；C ABI 集成测试增加真实原生 SSE 连接与音量指令往返。
-- 第五轮 `42539762359`：Go/release 编译成功，17 项原生测试中 16 项通过；真实 C ABI 收藏增删通过，手动换源的暂停进度断言失败，UI 阶段未运行。报告上传已成功，旧上传超时并非持续阻塞。
-- 针对失败修复：换源读取 AVPlayer 实际时间或待执行跳转，跳转等待 AVPlayerItem 就绪再执行；测试等待明确就绪/跳转结果，保留原进度断言。待下一轮验证。
+- 最新成功运行：[42540853672](https://github.com/yann359/go-music-dl/actions/runs/42540853672)，代码 `97b36c9c39562dfb9376b2497e98d09763ab3744`。
+- 环境：macOS / Xcode 26.6，iPhone 17 Pro Max / iOS 26.5 模拟器；不是用户的 iOS 27 真机。
+- 原生测试 **17/17 通过**：AudioEngine 6、歌词解析 3、NativeClient 7、真实 Go 桥接集成 1（含 SQLite 收藏增删、原生 SSE 与音量往返）。
+- Go 回归与 Node 桥接 **6/6** 通过。Windows 上 `go test ./internal/web ./internal/appshell ./core ./internal/spotify ./internal/cli ./cmd/music-dl` 同样通过。
+- 收窄任务前已启动的同一次构建另有原生深浅色 UI 自动化 **2/2 通过**；此后未开展新 UI 工作，也未做人工截图验收。
+- 历史失败：`42537618882` 的 SQLite 异步写/关闭竞争已修复并通过后续 macOS 回归；`42539762359` 的换源进度变零已修复，同一进度断言在最新运行通过；旧 UI 标识与上传超时也已在最新运行通过。
+- 模拟器音频测试使用短合成 WAV：三段推进不等于三首真实歌曲完整播放；中断/路由用例是通知注入，不等于真实来电/AirPods。
 - Windows 无 Xcode/SwiftUI 编译器；iOS 编译、模拟器与截图必须在 macOS Actions 执行。
-- 无 iPhone 连接；30 分钟后台、三首完整真实歌曲、真实来电及 AirPods 测试未执行。
+- 无 iPhone 连接；桌面/锁屏 30 分钟、三首完整真实歌曲、系统锁屏/控制中心实际按钮、真实来电及 AirPods 测试均未执行。不能据自动测试宣称全部真机中断已修复。
 - 音源可达性、账号权限、格式解码、首曲缓存延迟仍需实测；不绕过版权或付费授权。
 
-## 本次恢复与下一步
-1. 已检查当前 Git 历史、目录、全部未提交文件与代理成果；未重建项目。
-2. 创建本文件以固定恢复点。
-3. 已补齐缺失原生页面并通过 Go/Node 检查；构建独立品牌图标与新的 `com.guohuiyuan.musicdl.nativedesign` 安装标识，与旧预览版并排。
-4. 正在提交到开发分支以执行 Xcode 26+ 构建，修复实际编译错误并运行原生测试/截图。
-5. 验证 unsigned IPA、更新功能矩阵和测试记录，再交付安装与真机验收步骤。
+## 最近修改与可测试安装包
+- 代码阶段提交：`97b36c9`，修改 `ios/MusicDL/AudioEngine.swift`、`NativeAppModel.swift`、`ios/Tests/AudioEngineTests.swift`、`NativeBridgeIntegrationTests.swift`，修复就绪/跳转竞争和状态上报顺序；既有 UI 页面未修改。
+- 详细改动、证据边界及真机步骤：`docs/ios-background-audio-stage.md`。
+- 新 IPA：`../outputs/ios-audio-stage/music-dl-ios-native-unsigned.ipa`，Build **11**，arm64，包内声明后台 audio、无 `_CodeSignature` 目录，适合 SideStore 重签。
+- IPA SHA256：`c2fbcaf6f09d34484dc6f889635e5cb975e816a9ce768c4faddbeda6fefd9303`；已核对构建附带校验值、对应源码提交和 Bundle ID。
+- [云端安装包/源码/许可](https://github.com/yann359/go-music-dl/actions/runs/42540853672/artifacts/13641678130)，有效期至 2026-12-09。解压 artifact ZIP 后导入其中的 IPA。
+- 已再次核对旧 Build 5 SHA256 未变化；未覆盖旧 IPA。
+
+## 当前阶段与停止条件（按用户最新指令收窄）
+- 本轮仅主智能体，聚焦后台音频与相关回归；不再开始 UI 或其他功能阶段，不重复全仓扫描/架构分析。
+- 恢复时工作树干净；已有修改均保存在独立分支。保留前两阶段代码、既有 UI 与旧 IPA。
+- 当前代码提交 `97b36c9`：修复原生换源/恢复的就绪与进度竞争，以及播放状态上报顺序；不改 UI 页面。
+- 已确认现有后台实现：`AudioEngine.swift` 使用 `.playback` / `.longFormAudio`，`Info.plist` 声明 `UIBackgroundModes(audio)`，AVQueuePlayer 读缓存文件，MPRemoteCommandCenter 绑定系统控制。没有退后台即暂停的 SwiftUI 生命周期处理。
+- macOS 验证和包核验已完成，结果如上；使用收窄指令前已启动的构建，没有为文档更新重新构建。
+- 本阶段结果与恢复点保存后停止；不自动开始 UI、附加功能迁移或下一轮构建。后续先按记录执行真机验收，由实际结果决定是否需要修复。
+- 必须保留的外部验收：iPhone 桌面/锁屏 30 分钟、三首完整真实歌曲、控制中心/锁屏按钮、AirPods、真实来电。Windows/macOS 模拟器测试不能替代这些结果。
