@@ -2,11 +2,16 @@
 
 更新：2026-11-09（北京时间）。每次开发结束或可控中断前更新本文件；以下状态只描述已验证事实。
 
-## 当前小阶段：SideStore App ID 名称修复
+## 最新完成的小阶段：SideStore App ID 名称修复
 - 用户报告 `SideSign.DeveloperPortalError 10`，参数 `appIdName` 为 `澄音 MusicDL`；旧 Build 11 的实际包元数据含该显示名。
 - 仅将 Info.plist 的 `CFBundleDisplayName`、`CFBundleName` 与应用构建 `PRODUCT_NAME` 统一为纯英文 `MusicDL`；Bundle Identifier 继续为 `com.guohuiyuan.musicdl.nativedesign`。
 - 打包脚本检查构建产物及 IPA 内的实际名称、Bundle ID，防止仅改源配置却未生效。
-- 不修改业务代码、播放行为或 App 内界面文案；保留旧 IPA。等待 macOS 重新构建与下载核验；SideStore 真机签名结果仍需用户实际安装确认。
+- 不修改业务代码、播放行为或 App 内界面文案；旧 IPA 保留，Build 11 的 SHA256 再次核对未变。
+- 名称修复提交：`35bfc86ae5673754d9f1e138c32c759bb3f5bbc4`；[构建 42588799339](https://github.com/yann359/go-music-dl/actions/runs/42588799339) **成功**。原有回归：17 项原生测试、2 项 UI 测试通过；未为文档结果更新重复构建。
+- 新 IPA：**Build 12**，本机 `../outputs/ios-sidestore-name-fix/music-dl-ios-native-unsigned.ipa`；[云端安装包/对应源码/许可证](https://github.com/yann359/go-music-dl/actions/runs/42588799339/artifacts/13661057643)。下载 artifact ZIP，解压后将新 IPA 导入 SideStore 重签。
+- 实际 IPA 内核验：`CFBundleDisplayName=MusicDL`、`CFBundleName=MusicDL`、`CFBundleExecutable=MusicDL`、`CFBundleIdentifier=com.guohuiyuan.musicdl.nativedesign`、`CFBundleVersion=12`。无 `InfoPlist.strings` 名称覆盖，arm64，后台 `audio` 声明保留，无 `_CodeSignature` 目录。
+- IPA SHA256：`b71ce9fdbb548100d049b5df432bbb96bc4e94c9318048fb6b826222da60f098`；与构建附带校验文件一致，源码提交核对一致。下载 artifact ZIP 自身 SHA256 也与 Actions digest 一致。详细本地结果：`../outputs/ios-sidestore-name-fix/verification.json`。
+- 本阶段源码变更仅 `ios/MusicDL/Info.plist`、`ios/project.yml`、`ios/scripts/package.sh` 与本进度文件。已完成打包和元数据修复；未在实际 SideStore/Apple 账号执行签名，错误是否消除须用户安装 Build 12 确认，不虚报安装成功。保存后停止。
 
 ## 目标与核心需求
 - 将 Go Music DL 改为高品质原生 iOS 音乐客户端“澄音 / MusicDL”，面向 iPhone 17 Pro Max / iOS 27。
@@ -46,8 +51,8 @@
 - 已将 UI 检查设备限制为 iOS 26+，优先 iPhone 17 Pro Max；使用模拟器 ad-hoc 签名；播放器断言改为可见的收起按钮，避免依赖 SwiftUI 容器的可访问性类型。
 - 已取得第二轮日志：Xcode 26.6；13 项原生单元测试通过；两项 UI 测试均找不到迷你播放器的可访问性标识；报告上传为 ArtifactService/CreateArtifact 请求超时（不是已证实的存储配额问题）。将展开区域改为有明确标签的原生 Button，并移除外层重复标识，等待重验。
 
-## 测试与已知限制
-- 最新成功运行：[42540853672](https://github.com/yann359/go-music-dl/actions/runs/42540853672)，代码 `97b36c9c39562dfb9376b2497e98d09763ab3744`。
+## 后台音频阶段测试与已知限制（保留记录）
+- 该阶段成功运行：[42540853672](https://github.com/yann359/go-music-dl/actions/runs/42540853672)，代码 `97b36c9c39562dfb9376b2497e98d09763ab3744`。最新名称修复构建见上节。
 - 环境：macOS / Xcode 26.6，iPhone 17 Pro Max / iOS 26.5 模拟器；不是用户的 iOS 27 真机。
 - 原生测试 **17/17 通过**：AudioEngine 6、歌词解析 3、NativeClient 7、真实 Go 桥接集成 1（含 SQLite 收藏增删、原生 SSE 与音量往返）。
 - Go 回归与 Node 桥接 **6/6** 通过。Windows 上 `go test ./internal/web ./internal/appshell ./core ./internal/spotify ./internal/cli ./cmd/music-dl` 同样通过。
@@ -58,7 +63,7 @@
 - 无 iPhone 连接；桌面/锁屏 30 分钟、三首完整真实歌曲、系统锁屏/控制中心实际按钮、真实来电及 AirPods 测试均未执行。不能据自动测试宣称全部真机中断已修复。
 - 音源可达性、账号权限、格式解码、首曲缓存延迟仍需实测；不绕过版权或付费授权。
 
-## 最近修改与可测试安装包
+## 后台音频阶段修改与留存安装包
 - 代码阶段提交：`97b36c9`，修改 `ios/MusicDL/AudioEngine.swift`、`NativeAppModel.swift`、`ios/Tests/AudioEngineTests.swift`、`NativeBridgeIntegrationTests.swift`，修复就绪/跳转竞争和状态上报顺序；既有 UI 页面未修改。
 - 详细改动、证据边界及真机步骤：`docs/ios-background-audio-stage.md`。
 - 新 IPA：`../outputs/ios-audio-stage/music-dl-ios-native-unsigned.ipa`，Build **11**，arm64，包内声明后台 audio、无 `_CodeSignature` 目录，适合 SideStore 重签。
@@ -66,7 +71,7 @@
 - [云端安装包/源码/许可](https://github.com/yann359/go-music-dl/actions/runs/42540853672/artifacts/13641678130)，有效期至 2026-12-09。解压 artifact ZIP 后导入其中的 IPA。
 - 已再次核对旧 Build 5 SHA256 未变化；未覆盖旧 IPA。
 
-## 当前阶段与停止条件（按用户最新指令收窄）
+## 上一后台音频阶段与停止条件（保留记录）
 - 本轮仅主智能体，聚焦后台音频与相关回归；不再开始 UI 或其他功能阶段，不重复全仓扫描/架构分析。
 - 恢复时工作树干净；已有修改均保存在独立分支。保留前两阶段代码、既有 UI 与旧 IPA。
 - 当前代码提交 `97b36c9`：修复原生换源/恢复的就绪与进度竞争，以及播放状态上报顺序；不改 UI 页面。
