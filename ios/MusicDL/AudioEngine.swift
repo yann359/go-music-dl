@@ -40,6 +40,9 @@ final class AudioEngine: NSObject, ObservableObject {
     private var notifications: [NSObjectProtocol] = []
     private var commands: [(MPRemoteCommand, Any)] = []
     private var preparing = false
+    private var artwork: MPMediaItemArtwork?
+    private var artworkKey = ""
+    private var artworkTask: Task<Void, Never>?
 
     init(files: AudioFiles = AudioFiles()) {
         self.files = files
@@ -122,6 +125,14 @@ final class AudioEngine: NSObject, ObservableObject {
         handle(PlaybackRequest(action: "queue", songs: updated, index: index, loop: loop, order: order))
     }
 
+    func replaceCurrentSource(_ song: Song, expectedKey: String) {
+        guard currentSong?.key == expectedKey, songs.indices.contains(index) else { playSongs([song]); return }
+        let seconds = position
+        songs[index] = song
+        failedFallbacks.removeAll()
+        rebuild(keepingCurrent: false, position: seconds)
+    }
+
     func remove(at offsets: IndexSet) {
         let selected = currentSong
         var updated = songs; updated.remove(atOffsets: offsets)
@@ -165,6 +176,7 @@ final class AudioEngine: NSObject, ObservableObject {
         songs = []; sequence = []; index = 0
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        artworkTask?.cancel(); artwork = nil; artworkKey = ""
         Task { await files.prune(keeping: []) }
         publish()
     }
@@ -288,6 +300,7 @@ final class AudioEngine: NSObject, ObservableObject {
         itemObservation = nil
         guard let item = player.currentItem, let selected = itemIndices[ObjectIdentifier(item)] else { publish(); return }
         index = selected
+        loadArtwork()
         let activeIDs = Set(player.items().map(ObjectIdentifier.init))
         itemIndices = itemIndices.filter { activeIDs.contains($0.key) }
         itemSources = itemSources.filter { activeIDs.contains($0.key) }
@@ -356,6 +369,24 @@ final class AudioEngine: NSObject, ObservableObject {
 
     private func fail(_ text: String) { message = text; pause() }
 
+    private func loadArtwork() {
+        guard let song = currentSong, artworkKey != song.key else { return }
+        artworkKey = song.key; artwork = nil; artworkTask?.cancel()
+        guard let url = CoverArt.imageURL(song.cover) else { return }
+        let key = song.key
+        artworkTask = Task { [weak self] in
+            guard let self else { return }
+            // Artwork is optional; it never participates in audio preparation.
+            if let (data, response) = try? await URLSession.shared.data(from: url),
+               (response as? HTTPURLResponse)?.statusCode == 200,
+               data.count <= 12 * 1024 * 1024, let image = UIImage(data: data),
+               !Task.isCancelled, self.currentSong?.key == key {
+                self.artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+                self.publish()
+            }
+        }
+    }
+
     private func configureRemoteCommands() {
         let center = MPRemoteCommandCenter.shared()
         func bind(_ command: MPRemoteCommand, _ action: @escaping @MainActor () -> Void) {
@@ -392,7 +423,7 @@ final class AudioEngine: NSObject, ObservableObject {
         self.waiting = wantsPlayback && !playing && !interrupted
         if songs.indices.contains(index) {
             let song = songs[index]
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+            var information: [String: Any] = [
                 MPMediaItemPropertyTitle: song.name, MPMediaItemPropertyArtist: song.artist,
                 MPMediaItemPropertyAlbumTitle: song.album, MPMediaItemPropertyPlaybackDuration: length,
                 MPNowPlayingInfoPropertyElapsedPlaybackTime: position,
@@ -401,6 +432,8 @@ final class AudioEngine: NSObject, ObservableObject {
                 MPNowPlayingInfoPropertyPlaybackQueueIndex: index,
                 MPNowPlayingInfoPropertyPlaybackQueueCount: songs.count
             ]
+            if let artwork { information[MPMediaItemPropertyArtwork] = artwork }
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = information
         }
         var state: [String: Any] = ["index": index, "position": position, "duration": length,
                          "playing": playing, "waiting": wantsPlayback && !playing && !interrupted,

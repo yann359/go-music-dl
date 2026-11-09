@@ -25,6 +25,16 @@ func TestNativePlaybackRejectsIncompleteInput(t *testing.T) {
 	}
 }
 
+func TestNativeSongPreservesAlbumAndAuthorizationMetadata(t *testing.T) {
+	song, err := decodeNativeSong(`{"id":"one","source":"qq","album_id":"album","link":"https://example.com/one","is_vip":true}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if song.AlbumID != "album" || song.Link != "https://example.com/one" || !song.IsVIP {
+		t.Fatalf("metadata lost: %#v", song)
+	}
+}
+
 func TestNativePlaybackRejectsLocalTraversal(t *testing.T) {
 	// Local IDs must go through the original library's path validation.
 	if _, err := NativePlaybackAsset(`{"id":"Li4vc2VjcmV0Lm1wMw","source":"local"}`, false); err == nil {

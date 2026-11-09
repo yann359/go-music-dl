@@ -9,6 +9,13 @@ struct Song: Codable, Equatable {
     var cover: String
     var duration: Int
     var extra: String
+    var albumID: String? = nil
+    var link: String? = nil
+    var isVIP: Bool? = nil
+    private enum CodingKeys: String, CodingKey {
+        case id, source, name, artist, album, cover, duration, extra, link
+        case albumID = "album_id", isVIP = "is_vip"
+    }
     var key: String { source + ":" + id + ":" + extra }
 }
 

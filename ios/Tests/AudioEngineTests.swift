@@ -112,4 +112,27 @@ final class AudioEngineTests: XCTestCase {
         XCTAssertFalse(engine.player === previousPlayer)
         XCTAssertEqual(engine.player.rate, 0)
     }
+
+    func testManualSourceReplacementPreservesQueueAndPausedPosition() async throws {
+        let url = try fixture()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let engine = AudioEngine(files: AudioFiles { song, _ in
+            AssetDescriptor(url: url, headers: [:], temporary: "", source: song.source, id: song.id)
+        })
+        defer { engine.shutdown() }
+        let original = songs()
+        engine.handle(PlaybackRequest(action: "queue", songs: original, index: 0, loop: "all", order: "list"))
+        try await Task.sleep(nanoseconds: 250_000_000)
+        engine.seek(0.5)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        var replacement = original[0]; replacement.source = "alternate"; replacement.id = "replacement"
+        engine.replaceCurrentSource(replacement, expectedKey: original[0].key)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(engine.songs.count, 3)
+        XCTAssertEqual(engine.songs[1], original[1])
+        XCTAssertEqual(engine.songs[2], original[2])
+        XCTAssertEqual(engine.currentSong?.source, "alternate")
+        XCTAssertEqual(engine.player.rate, 0)
+        XCTAssertEqual(engine.player.currentTime().seconds, 0.5, accuracy: 0.1)
+    }
 }

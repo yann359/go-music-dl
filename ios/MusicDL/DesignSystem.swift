@@ -28,7 +28,7 @@ struct CoverArt: View {
                     .offset(x: geometry.size.width * 0.35, y: -geometry.size.height * 0.3)
                 Image(systemName: "waveform").font(.system(size: geometry.size.width * 0.25, weight: .ultraLight))
                     .foregroundStyle(.white.opacity(0.8))
-                if let link = URL(string: url), ["http", "https"].contains(link.scheme ?? "") {
+                if let link = Self.imageURL(url) {
                     AsyncImage(url: link) { image in image.resizable().scaledToFill() } placeholder: { Color.clear }
                 }
             }.frame(width: geometry.size.width, height: geometry.size.height).clipped()
@@ -43,6 +43,11 @@ struct CoverArt: View {
             [Color(red: 0.48, green: 0.49, blue: 0.68), Color(red: 0.21, green: 0.22, blue: 0.40)],
             [Color(red: 0.74, green: 0.61, blue: 0.37), Color(red: 0.32, green: 0.27, blue: 0.24)]
         ][index]
+    }
+    static func imageURL(_ raw: String) -> URL? {
+        guard !raw.isEmpty, let value = URL(string: raw, relativeTo: URL(string: "http://127.0.0.1:37777"))?.absoluteURL,
+              ["http", "https"].contains(value.scheme ?? "") else { return nil }
+        return value
     }
 }
 

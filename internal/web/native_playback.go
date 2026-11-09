@@ -18,6 +18,9 @@ type nativeSong struct {
 	Name     string          `json:"name"`
 	Artist   string          `json:"artist"`
 	Album    string          `json:"album"`
+	AlbumID  string          `json:"album_id"`
+	Link     string          `json:"link"`
+	IsVIP    bool            `json:"is_vip"`
 	Cover    string          `json:"cover"`
 	Duration int             `json:"duration"`
 	Extra    json.RawMessage `json:"extra"`
@@ -42,7 +45,7 @@ func decodeNativeSong(raw string) (*model.Song, error) {
 	}
 	return &model.Song{ID: input.ID, Source: input.Source, Name: input.Name,
 		Artist: input.Artist, Album: input.Album, Cover: input.Cover,
-		Duration: input.Duration, Extra: extra}, nil
+		Duration: input.Duration, Extra: extra, AlbumID: input.AlbumID, Link: input.Link, IsVIP: input.IsVIP}, nil
 }
 
 // NativePlaybackAsset resolves a single authorized source. Temporary decoded

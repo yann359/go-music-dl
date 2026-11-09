@@ -20,7 +20,7 @@ final class NativeVisualTests: XCTestCase {
         app.tabBars.buttons["音乐库"].tap(); capture("03-library-light-fixture")
         app.tabBars.buttons["我的"].tap(); capture("04-profile-light-fixture")
         app.descendants(matching: .any)["open-player"].firstMatch.tap()
-        XCTAssertTrue(app.otherElements["full-player"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
         capture("05-player-light-fixture")
         app.buttons["歌词"].tap(); capture("06-lyrics-light-fixture")
         app.buttons["播放队列"].tap(); capture("07-queue-light-fixture")
@@ -29,7 +29,7 @@ final class NativeVisualTests: XCTestCase {
         let app = open("dark")
         capture("08-discover-dark-fixture")
         app.descendants(matching: .any)["open-player"].firstMatch.tap()
-        XCTAssertTrue(app.otherElements["full-player"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
         capture("09-player-dark-fixture")
     }
 }

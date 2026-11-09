@@ -228,6 +228,7 @@ struct SongActions: View {
     @EnvironmentObject private var audio: AudioEngine
     @EnvironmentObject private var client: NativeClient
     @State private var deleteFile = false
+    @State private var showAlbum = false
     var body: some View {
         Menu {
             Button("接下来播放", systemImage: "text.line.first.and.arrowtriangle.forward") { audio.append(song, playNext: true); model.notify("已加入下一首") }
@@ -242,8 +243,9 @@ struct SongActions: View {
             }
             Button("下载原音质", systemImage: "arrow.down.circle") { model.perform { try await client.enqueueDownload([song]); model.notify("已加入下载任务") } }
             Button("尝试其他音源", systemImage: "arrow.triangle.2.circlepath") {
-                model.perform { let replacement = try await client.switchSource(song); model.play([replacement]); model.notify("已切换至 \(replacement.source)") }
+                model.perform { let replacement = try await client.switchSource(song); audio.replaceCurrentSource(replacement, expectedKey: song.key); model.notify("已切换至 \(replacement.source)") }
             }
+            if let albumID = song.albumID, !albumID.isEmpty { Button("查看专辑", systemImage: "square.stack") { showAlbum = true } }
             if !song.album.isEmpty { Text("专辑：\(song.album)") }
             if let collectionID {
                 Button("从歌单移除", systemImage: "minus.circle", role: .destructive) {
@@ -256,6 +258,7 @@ struct SongActions: View {
         } label: {
             Image(systemName: "ellipsis").font(.headline).frame(width: 44, height: 44).contentShape(Rectangle())
         }.accessibilityLabel("\(song.name)的更多操作").foregroundStyle(.secondary)
+            .sheet(isPresented: $showAlbum) { NavigationStack { SongDetailScreen(title: song.album, kind: "album", id: song.albumID ?? "", source: song.source, cover: song.cover) } }
             .confirmationDialog("删除本地文件“\(song.name)”？此操作无法撤销。", isPresented: $deleteFile, titleVisibility: .visible) {
                 Button("删除音频文件", role: .destructive) { model.perform { if audio.currentSong?.key == song.key { audio.stop() }; try await client.deleteLocalSong(id: song.id); onChange(); model.notify("本地文件已删除") } }
             }

@@ -41,7 +41,8 @@ jobs:
       - name: Test native queue in simulator
         timeout-minutes: 10
         run: |
-          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for r in d["devices"].values() for x in r if x["name"].startswith("iPhone")))')
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,re,sys; d=json.load(sys.stdin); candidates=[(tuple(map(int,re.findall(r"\d+",runtime))),x["name"]=="iPhone 17 Pro Max",x["udid"]) for runtime,devices in d["devices"].items() if "iOS-" in runtime and int(re.search(r"iOS-(\d+)",runtime).group(1))>=26 for x in devices if x["name"].startswith("iPhone")]; assert candidates,"No iOS 26+ iPhone simulator installed"; print(max(candidates)[2])')
+          xcrun simctl list devices available | grep "$DEVICE_ID"
           xcodebuild -project ios/MusicDL.xcodeproj -scheme MusicDL -configuration Debug \
             -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath ios/build/NativeTests.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
@@ -53,7 +54,7 @@ jobs:
           xcodebuild -project ios/MusicDL.xcodeproj -scheme MusicDLVisual -configuration Debug \
             -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath ios/build/VisualTests.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            -maximum-test-execution-time-allowance 120 CODE_SIGNING_ALLOWED=NO test
+            -maximum-test-execution-time-allowance 120 CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- test
       - name: Export screen attachments
         if: always()
         run: |

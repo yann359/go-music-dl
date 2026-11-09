@@ -45,6 +45,20 @@ final class NativeClientTests: XCTestCase {
         } catch { XCTAssertTrue(error.localizedDescription.contains("音源授权已过期")) }
     }
 
+    func testAllProviderFailuresAreReportedAsFailure() async {
+        let client = NativeClient { _ in Data(#"{"data":{"songs":[],"playlists":[],"errors":["来源授权已过期"]}}"#.utf8) }
+        do { _ = try await client.search(query: "test", sources: ["qq"]); XCTFail("Provider failures appeared as empty success") }
+        catch { XCTAssertTrue(error.localizedDescription.contains("授权已过期")) }
+    }
+
+    func testAlbumAndAuthorizationMetadataReachNativePlayer() async throws {
+        let client = NativeClient { _ in Data(#"{"data":{"songs":[{"id":"one","source":"qq","album_id":"album","link":"https://example.com/track","is_vip":true}],"errors":[]}}"#.utf8) }
+        let result = try await client.search(query: "test", sources: ["qq"])
+        XCTAssertEqual(result.songs.first?.albumID, "album")
+        XCTAssertEqual(result.songs.first?.isVIP, true)
+        XCTAssertEqual(result.songs.first?.link, "https://example.com/track")
+    }
+
     func testLibraryIDsAndDownloadStatusesDecodeOriginalGoFormats() throws {
         let collection = try JSONDecoder().decode(NativeCollection.self, from: Data(#"{"id":42,"name":"收藏","kind":"manual","source":"local"}"#.utf8))
         XCTAssertEqual(collection.id, "42")

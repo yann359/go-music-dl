@@ -174,7 +174,7 @@ struct NativeCategory: Decodable, Identifiable, Hashable {
 
 private struct NativeSongPayload: Decodable {
     let song: Song
-    private enum CodingKeys: String, CodingKey { case id, songID = "song_id", source, name, artist, album, cover, duration, extra }
+    private enum CodingKeys: String, CodingKey { case id, songID = "song_id", source, name, artist, album, cover, duration, extra, link; case albumID = "album_id", isVIP = "is_vip" }
     init(from decoder: Decoder) throws {
         let box = try decoder.container(keyedBy: CodingKeys.self)
         let extra: String
@@ -188,7 +188,10 @@ private struct NativeSongPayload: Decodable {
                     artist: (try? box.decode(String.self, forKey: .artist)) ?? "未知歌手",
                     album: (try? box.decode(String.self, forKey: .album)) ?? "",
                     cover: (try? box.decode(String.self, forKey: .cover)) ?? "",
-                    duration: (try? box.decode(Int.self, forKey: .duration)) ?? 0, extra: extra)
+                    duration: (try? box.decode(Int.self, forKey: .duration)) ?? 0, extra: extra,
+                    albumID: try? box.decode(String.self, forKey: .albumID),
+                    link: try? box.decode(String.self, forKey: .link),
+                    isVIP: try? box.decode(Bool.self, forKey: .isVIP))
     }
 }
 
@@ -327,9 +330,13 @@ final class NativeClient: ObservableObject {
     }
 
     private func results(_ value: JSONValue) throws -> NativeSearchResult {
-        NativeSearchResult(songs: try decodeSongs(value["songs"]),
+        let result = NativeSearchResult(songs: try decodeSongs(value["songs"]),
                            playlists: value["playlists"] == .null ? [] : try value["playlists"].decoded([NativeCollection].self),
                            errors: (try? value["errors"].decoded([String].self)) ?? [])
+        if result.songs.isEmpty && result.playlists.isEmpty && !result.errors.isEmpty {
+            throw NativeError.message(result.errors.joined(separator: "\n"))
+        }
+        return result
     }
     private func decodeSongs(_ value: JSONValue) throws -> [Song] {
         guard value != .null else { return [] }
