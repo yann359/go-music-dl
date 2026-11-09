@@ -45,6 +45,7 @@
 - Build 5：Go 回归、6 项桥接测试、5 项原生模拟器测试通过；Windows/Linux 5 组构建通过。
 - 本轮 Windows 实际运行：`go test ./internal/web ./internal/appshell ./core ./internal/spotify ./internal/cli ./cmd/music-dl` 全通过；原 Node 桥接 6 项通过。
 - 新增 Swift 客户端 5 项测试、歌词解析 3 项测试与原生 UI 截图测试，等待 macOS 执行。
+- 后续新增测试：全部来源失败不伪装空结果、专辑/授权元数据保留、手动换源保留暂停与队列、真实 C ABI 启动及收藏增删。新增测试需以最终云端运行结果为准。
 - Windows 无 Xcode/SwiftUI 编译器；iOS 编译、模拟器与截图必须在 macOS Actions 执行。
 - 无 iPhone 连接；30 分钟后台、三首完整真实歌曲、真实来电及 AirPods 测试未执行。
 - 音源可达性、账号权限、格式解码、首曲缓存延迟仍需实测；不绕过版权或付费授权。
