@@ -133,7 +133,7 @@ func TestTopListSongsRouteRejectsUnsupportedSource(t *testing.T) {
 	group := router.Group(RoutePrefix)
 	RegisterMusicRoutes(group, group)
 
-	req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/toplist_songs?source=qianqian&toplist_id=123", nil)
+	req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/toplist_songs?source=retired-source&toplist_id=123", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

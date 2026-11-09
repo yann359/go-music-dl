@@ -80,4 +80,25 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertEqual(app.staticTexts.matching(identifier: "重复副歌").count, 2)
         capture("deduplicated-credits-preserved-chorus")
     }
+
+    func testSixAccountsAndOfficialAuthorizationEntrypoints() {
+        let app = open("light")
+        app.tabBars.buttons["我的"].tap()
+        let ids = ["netease", "apple", "qq", "soda", "kugou", "spotify"]
+        app.buttons["全部音乐来源"].tap()
+        for id in ids { XCTAssertTrue(app.buttons["music-source-" + id].exists) }
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "music-source-")).count, 6)
+        app.navigationBars.buttons["我的"].tap()
+        app.buttons["音源账号"].tap()
+        for id in ids { XCTAssertTrue(app.buttons["account-source-" + id].exists) }
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "account-source-")).count, 6)
+        app.buttons["account-source-apple"].tap()
+        XCTAssertTrue(app.buttons["连接 Apple Music"].exists)
+        XCTAssertEqual(app.secureTextFields.count, 0)
+        app.navigationBars.buttons["音源账号"].tap()
+        app.buttons["account-source-spotify"].tap()
+        XCTAssertTrue(app.textFields["spotify-client-id"].exists)
+        XCTAssertEqual(app.secureTextFields.count, 0)
+        capture("official-accounts-spotify-pending")
+    }
 }

@@ -256,55 +256,10 @@ func cookieCaptureHints() map[string]cookieCaptureHint {
 			Domain:   "www.kugou.com",
 			Hint:     "登录后打开任意歌单或播放页，筛选 /api/ 请求。",
 		},
-		"kuwo": {
-			LoginURL: "https://www.kuwo.cn",
-			Domain:   "www.kuwo.cn",
-			Hint:     "登录并播放一首歌，筛选同域请求。",
-		},
-		"migu": {
-			LoginURL: "https://music.migu.cn",
-			Domain:   "music.migu.cn",
-			Hint:     "登录并播放一首歌，筛选同域的音乐接口请求。",
-		},
-		"fivesing": {
-			LoginURL: "https://5sing.kugou.com",
-			Domain:   "5sing.kugou.com",
-			Hint:     "登录后打开歌曲或歌单页面，筛选同域请求。",
-		},
-		"jamendo": {
-			LoginURL: "https://www.jamendo.com",
-			Domain:   "www.jamendo.com",
-			Hint:     "普通试听通常不需要 Cookie；需要账号态时登录后筛选同域请求。",
-		},
-		"joox": {
-			LoginURL: "https://www.joox.com",
-			Domain:   "www.joox.com",
-			Hint:     "登录并播放一首歌，筛选同域请求。",
-		},
-		"qianqian": {
-			LoginURL: "https://music.taihe.com",
-			Domain:   "music.taihe.com",
-			Hint:     "登录并播放一首歌，筛选同域请求。",
-		},
 		"soda": {
 			LoginURL: "https://www.qishui.com",
 			Domain:   "api.qishui.com",
-			Hint:     "登录并播放一首歌，筛选 api.qishui.com/luna/ 请求；扫码登录成功后也会自动保存 Cookie。",
-		},
-		"bilibili": {
-			LoginURL: "https://www.bilibili.com",
-			Domain:   "api.bilibili.com",
-			Hint:     "登录并播放任意视频或音频，筛选该域请求；Cookie 中通常包含 SESSDATA。",
-		},
-		"spotify": {
-			LoginURL: "https://developer.spotify.com/dashboard",
-			Domain:   "api.spotify.com",
-			Hint:     `Paste JSON: {"client_id":"...","client_secret":"...","refresh_token":"...","market":"US"}. Public catalog only needs client_id and client_secret; personal playlists need OAuth playlist-read-private scope.`,
-		},
-		"apple": {
-			LoginURL: "https://music.apple.com",
-			Domain:   "amp-api.music.apple.com",
-			Hint:     "登录后播放一首歌并刷新页面，筛选该域请求；Cookie 中至少应包含 media-user-token。",
+			Hint:     "登录并播放一首歌，筛选 api.qishui.com/luna/ 请求；当前未开放可用扫码入口，保留已有兼容凭证方式。",
 		},
 	}
 }
@@ -622,10 +577,16 @@ func StartWithOptions(port string, opts StartOptions) {
 	})
 
 	configAPI.HEAD("/cookies", func(c *gin.Context) { c.Status(http.StatusNoContent) })
-	configAPI.GET("/cookies", func(c *gin.Context) { c.JSON(200, core.CM.GetAll()) })
+	configAPI.GET("/cookies", func(c *gin.Context) { c.JSON(200, activeAccountCookies(false)) })
 	configAPI.POST("/cookies", func(c *gin.Context) {
 		var req map[string]string
 		if err := c.ShouldBindJSON(&req); err == nil {
+			for source := range req {
+				if !core.IsMusicPlatform(source) {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported account source"})
+					return
+				}
+			}
 			core.CM.SetAll(req)
 			core.CM.Save()
 			c.JSON(200, gin.H{"status": "ok"})

@@ -6,7 +6,7 @@ struct MusicDLApp: App {
     var body: some Scene {
         WindowGroup {
             NativeRoot()
-                .environmentObject(model).environmentObject(model.client).environmentObject(model.audio)
+                .environmentObject(model).environmentObject(model.client).environmentObject(model.audio).environmentObject(model.accounts)
                 .tint(MusicDesign.coral)
                 .task { await model.start() }
         }

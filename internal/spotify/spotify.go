@@ -40,6 +40,9 @@ func New(raw string) *Client {
 }
 
 func (c *Client) token() (string, error) {
+	if token, native, err := nativeAccessToken(); native {
+		return token, err
+	}
 	if c.config.AccessToken != "" {
 		return c.config.AccessToken, nil
 	}
@@ -129,6 +132,7 @@ type playlist struct {
 		Name string `json:"display_name"`
 	}
 	Tracks struct{ Total int }
+	Items  *struct{ Total int }
 }
 type page[T any] struct {
 	Items []T
@@ -154,7 +158,11 @@ func song(t track) model.Song {
 		Link: "https://open.spotify.com/track/" + t.ID, Ext: "mp3", Extra: map[string]string{"preview_url": t.Preview}}
 }
 func collection(p playlist) model.Playlist {
-	return model.Playlist{ID: p.ID, Name: p.Name, Description: p.Description, Cover: cover(p.Images), TrackCount: p.Tracks.Total, Creator: p.Owner.Name, Source: "spotify", Link: "https://open.spotify.com/playlist/" + p.ID}
+	count := p.Tracks.Total
+	if p.Items != nil {
+		count = p.Items.Total
+	}
+	return model.Playlist{ID: p.ID, Name: p.Name, Description: p.Description, Cover: cover(p.Images), TrackCount: count, Creator: p.Owner.Name, Source: "spotify", Link: "https://open.spotify.com/playlist/" + p.ID}
 }
 
 func (c *Client) Search(keyword string) ([]model.Song, error) {

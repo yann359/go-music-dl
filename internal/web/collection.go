@@ -401,6 +401,18 @@ func loadImportedCollectionSongs(collection *Collection) ([]model.Song, error) {
 	if source == "" {
 		return nil, fmt.Errorf("missing imported source")
 	}
+	if !core.IsMusicPlatform(source) {
+		// Do not migrate/delete the collection or silently query a different
+		// provider. Older manual snapshots, if present, remain accessible.
+		saved, err := loadSavedSongs(collection.ID)
+		if err != nil {
+			return nil, err
+		}
+		if len(saved) > 0 {
+			return saved, nil
+		}
+		return nil, errors.New("此歌单的来源已移除，歌单信息仍保留；可重新搜索歌曲或使用已保存的本地音乐")
+	}
 
 	externalID := strings.TrimSpace(collection.ExternalID)
 	link := collection.originalLink()

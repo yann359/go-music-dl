@@ -269,9 +269,15 @@ final class NativeClient: ObservableObject {
     private let discoveryCacheURL: URL?
     private let networkMonitor = NWPathMonitor()
     private let transport: Transport
+    private let usesNativeTransport: Bool
+    private let spotifyAuthorization: ((Bool) async throws -> Void)?
     private static let queue = DispatchQueue(label: "musicdl.native-client", qos: .userInitiated, attributes: .concurrent)
 
-    init(cacheURL: URL? = nil, transport: Transport? = nil) {
+    init(cacheURL: URL? = nil, spotifyAuthorization: ((Bool) async throws -> Void)? = nil, transport: Transport? = nil) {
+        usesNativeTransport = transport == nil
+        if let spotifyAuthorization { self.spotifyAuthorization = spotifyAuthorization }
+        else if transport == nil { self.spotifyAuthorization = { force in try await MusicAccounts.shared.prepareSpotifySession(force: force) } }
+        else { self.spotifyAuthorization = nil }
         self.transport = transport ?? Self.goTransport
         discoveryCacheURL = cacheURL ?? (transport == nil ? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.appendingPathComponent("NativeDiscovery-v1.json") : nil)
         if let url = discoveryCacheURL, let data = try? Data(contentsOf: url), data.count <= 4 * 1024 * 1024,
@@ -309,8 +315,10 @@ final class NativeClient: ObservableObject {
         isOfflinePreview = true
         sources = [NativeSource(id: "netease", name: "网易云音乐", recommend: true, toplist: true, qrLogin: true, userPlaylists: true),
                    NativeSource(id: "qq", name: "QQ 音乐", recommend: true, toplist: true, qrLogin: true, userPlaylists: true),
-                   NativeSource(id: "bilibili", name: "哔哩哔哩", album: false),
-                   NativeSource(id: "local", name: "本地音乐", album: false, playlist: false)]
+                   NativeSource(id: "kugou", name: "酷狗音乐", recommend: true, toplist: true),
+                   NativeSource(id: "apple", name: "Apple Music", toplist: true, category: true),
+                   NativeSource(id: "soda", name: "汽水音乐", toplist: true, userPlaylists: true, category: true),
+                   NativeSource(id: "spotify", name: "Spotify", userPlaylists: true)]
         defaultSources = ["netease", "qq"]
         collections = [NativeCollection(id: "9001", name: "慢慢听见", creator: "我的收藏", description: "为忙碌留一点空白", trackCount: 12),
                        NativeCollection(id: "9002", name: "夜色留白", creator: "我的收藏", description: "适合一个人的夜晚", trackCount: 8)]
@@ -334,9 +342,21 @@ final class NativeClient: ObservableObject {
         }
     }
 
-    func request(_ action: String, params: [String: JSONValue] = [:]) async throws -> JSONValue {
+    func request(_ action: String, params: [String: JSONValue] = [:], retrySpotify: Bool = true) async throws -> JSONValue {
         guard !isOfflinePreview else { throw NativeError.message("当前为界面演示模式，不会执行联网、播放或数据修改。请正常启动后使用。") }
         try Task.checkCancellation()
+        let spotify = params["source"] == .string("spotify") || params["target"] == .string("spotify") || params["song"]?["source"] == .string("spotify") || params["sources"]?.arrayValue.contains(.string("spotify")) == true
+        if let prepare = spotifyAuthorization, spotify {
+            do { try await prepare(false) }
+            catch {
+                let remaining = (params["sources"]?.arrayValue ?? []).filter { $0 != .string("spotify") }
+                guard !remaining.isEmpty else { throw error }
+                var subset = params; subset["sources"] = .array(remaining)
+                var available = try await request(action, params: subset, retrySpotify: false)
+                available["errors"] = .array(available["errors"].arrayValue + [.string("Spotify 待配置或尚未连接，其他来源已继续加载。")])
+                return available
+            }
+        }
         #if DEBUG
         let started = Date()
         defer { print("[native-timing] action=\(action) elapsed=\(Date().timeIntervalSince(started))s") }
@@ -350,8 +370,30 @@ final class NativeClient: ObservableObject {
         let envelope: JSONValue
         do { envelope = try JSONDecoder().decode(JSONValue.self, from: data) }
         catch { throw NativeError.message("音乐服务返回了无法识别的数据，请重试") }
-        if !envelope["error"].stringValue.isEmpty { throw NativeError.message("音乐服务：" + envelope["error"].stringValue) }
-        return envelope["data"]
+        let directError = envelope["error"].stringValue
+        let sourceErrors = envelope["data"]["errors"].arrayValue
+        let spotifyRejected = directError.contains("Spotify API HTTP 401") || sourceErrors.contains { $0.stringValue.contains("Spotify API HTTP 401") }
+        if let prepare = spotifyAuthorization, spotify && spotifyRejected {
+            if retrySpotify && ["search", "recommend", "toplists", "categories", "detail", "user_playlists", "category_playlists", "switch_source", "lyric"].contains(action) {
+                do { try await prepare(true) }
+                catch {
+                    let hasResults = ["songs", "playlists", "toplists", "categories"].contains { !envelope["data"][$0].arrayValue.isEmpty }
+                    guard hasResults else { throw error }
+                    var available = envelope["data"]
+                    available["errors"] = .array(sourceErrors.map { $0.stringValue.contains("Spotify API HTTP 401") ? .string("Spotify 授权暂不可用，其他来源仍可使用。") : $0 })
+                    return available
+                }
+                return try await request(action, params: params, retrySpotify: false)
+            }
+            if usesNativeTransport { await MusicAccounts.shared.expireSpotify() }
+            if !directError.isEmpty { throw MusicAccountError.expired }
+        }
+        if !directError.isEmpty { throw NativeError.message("音乐服务：" + directError) }
+        var result = envelope["data"]
+        if spotifyRejected {
+            result["errors"] = .array(sourceErrors.map { $0.stringValue.contains("Spotify API HTTP 401") ? .string("Spotify 授权已失效，请重新连接；其他来源仍可使用。") : $0 })
+        }
+        return result
     }
 
     func loadBootstrap() async throws {
@@ -470,6 +512,7 @@ final class NativeClient: ObservableObject {
         let values = try await request("cookies.get").decoded([String: String].self)
         if values != cookies { invalidateDiscovery() }
         cookies = values
+        if usesNativeTransport { MusicAccounts.shared.updateLegacyCredentials(values) }
     }
     func saveCookies(_ values: [String: String]) async throws {
         _ = try await request("cookies.save", params: ["cookies": .object(values.mapValues(JSONValue.string))])

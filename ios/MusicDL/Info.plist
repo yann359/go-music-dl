@@ -8,6 +8,12 @@
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0.0</string>
   <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+  <key>NSAppleMusicUsageDescription</key><string>澄音需要你的允许来访问 Apple Music，验证可用音乐服务和订阅能力。</string>
+  <key>SpotifyClientID</key><string>$(SPOTIFY_CLIENT_ID)</string>
+  <key>CFBundleURLTypes</key><array><dict>
+    <key>CFBundleURLName</key><string>Spotify OAuth</string>
+    <key>CFBundleURLSchemes</key><array><string>com.guohuiyuan.musicdl.spotify-login</string></array>
+  </dict></array>
   <key>LSRequiresIPhoneOS</key><true/>
   <key>UILaunchScreen</key><dict/>
   <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>

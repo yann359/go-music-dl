@@ -10,8 +10,9 @@ final class NativeBridgeIntegrationTests: XCTestCase {
         let baseURL = try await GoBridge.start(root: root.path)
         let client = NativeClient()
         try await client.loadBootstrap()
-        XCTAssertEqual(client.sources.count, 14)
-        XCTAssertTrue(client.sources.contains { $0.id == "local" })
+        XCTAssertEqual(client.sources.map(\.id), ["netease", "apple", "qq", "soda", "kugou", "spotify"])
+        // Device files remain a separate library capability, not an online account.
+        XCTAssertFalse(client.sources.contains { $0.id == "local" })
         let collection = try await client.createCollection(name: "Native bridge acceptance")
         let sample = Song(id: "native-bridge-fixture", source: "netease", name: "仅用于数据库验收", artist: "测试样本", album: "", cover: "", duration: 0, extra: "{}")
         try await client.addToCollection(id: collection.id, song: sample)

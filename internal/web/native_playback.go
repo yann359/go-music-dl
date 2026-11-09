@@ -55,6 +55,9 @@ func NativePlaybackAsset(raw string, fallback bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if !core.IsMusicPlatform(song.Source) && !isLocalMusicSource(song.Source) {
+		return "", errors.New("此来源已移除，歌曲记录仍保留；可在现有来源中重新搜索或播放本地文件")
+	}
 	if fallback && !isLocalMusicSource(song.Source) {
 		song, _, err = findBestSwitchSong(song.Name, song.Artist, song.Source, "", song.Duration)
 		if err != nil {

@@ -39,20 +39,17 @@ struct ProfileScreen: View {
 
 struct AccountsScreen: View {
     @EnvironmentObject private var client: NativeClient
-    @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var accounts: MusicAccounts
     var body: some View {
         List {
-            Section { Text("账号凭证只在本机音乐服务中使用。使用你有权访问的账号与音源。").font(.subheadline).foregroundStyle(.secondary) }
-            ForEach(client.sources.filter { $0.id != "local" }, id: \.id) { source in
-                NavigationLink { CookieScreen(source: source) } label: {
-                    HStack {
-                        Text(source.name); Spacer()
-                        Text((client.cookies[source.id] ?? "").isEmpty ? "未配置" : "已配置").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
+            Section { Text("官方授权与兼容连接分开说明。未连接的账号不会阻塞其他来源；歌单与播放记录始终保留。")
+                .font(.subheadline).foregroundStyle(.secondary) }
+            ForEach(client.sources, id: \.id) { source in
+                NavigationLink { AccountDetailScreen(source: source) } label: {
+                    HStack { Text(source.name); Spacer(); AccountStatusLabel(summary: accounts.summary(source.id), pendingConfiguration: source.id == "spotify" && !accounts.spotifyConfigured) }
+                }.accessibilityIdentifier("account-source-" + source.id)
             }
-            if client.qrSources.contains("qq_wx") { NavigationLink("QQ 微信扫码登录") { QRLoginScreen(source: "qq_wx", name: "QQ 微信登录") } }
-        }.navigationTitle("音源账号").task { model.perform { try await client.loadCookies() } }
+        }.navigationTitle("音源账号").task { try? await client.loadCookies() }
     }
 }
 
@@ -61,17 +58,15 @@ struct CookieScreen: View {
     @EnvironmentObject private var client: NativeClient
     @EnvironmentObject private var model: AppModel
     @State private var value = ""
-    @State private var reveal = false
     @State private var clearing = false
     @State private var saving = false
     var body: some View {
         Form {
-            if client.qrSources.contains(source.id) { Section { NavigationLink { QRLoginScreen(source: source.id, name: source.name) } label: { Label("扫码登录", systemImage: "qrcode") } } }
-            Section("Cookie 或平台凭证") {
-                if reveal { TextEditor(text: $value).frame(minHeight: 160).font(.system(.caption, design: .monospaced)).textInputAutocapitalization(.never).autocorrectionDisabled() }
-                else { SecureField("粘贴已授权凭证", text: $value).textInputAutocapitalization(.never).autocorrectionDisabled() }
-                Toggle("显示凭证内容", isOn: $reveal)
-                Text(source.id == "spotify" ? "Spotify 使用官方 API 凭证配置。完整歌曲与歌词并非官方 Web API 的下载能力。" : "凭证格式沿用原项目。不要分享给其他人；授权到期时请重新登录。").font(.caption).foregroundStyle(.secondary)
+            if client.qrSources.contains(source.id) { Section { NavigationLink { QRLoginScreen(source: source.id, name: source.name) } label: { Label("兼容扫码登录（原项目）", systemImage: "qrcode") } } }
+            Section("兼容凭证") {
+                SecureField("输入你有权使用的已有凭证", text: $value).textInputAutocapitalization(.never).autocorrectionDisabled()
+                Text("仅沿用原项目的已有凭证方式，不是官方 OAuth。凭证不会明文显示；不要输入平台密码。")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 Button(saving ? "正在保存…" : "保存凭证") { save(value) }.disabled(saving)
@@ -120,11 +115,16 @@ struct QRLoginScreen: View {
                         let result = try await client.checkQR(source: source, key: created.key)
                         guard !Task.isCancelled else { return }
                         message = result.message ?? result.status
-                        if ["authorized", "success", "confirmed"].contains(result.status) { try await client.loadCookies(); model.notify("登录状态已更新"); return }
+                        if ["authorized", "success", "confirmed"].contains(result.status) {
+                            try await client.loadCookies()
+                            await model.accounts.validateLegacy(source: source == "qq_wx" ? "qq" : source, client: client)
+                            model.notify("账号凭证已更新，连接结果请查看账号详情")
+                            return
+                        }
                         if ["expired", "failed", "error", "cancelled"].contains(result.status) { return }
                     }
                     message = "二维码已过期，请重新获取"
-                } catch is CancellationError { } catch { message = error.localizedDescription }
+                } catch is CancellationError { } catch { message = "暂时无法完成兼容扫码，请检查网络或稍后重试。" }
             }
     }
     private static func qrImage(_ text: String) -> UIImage? {

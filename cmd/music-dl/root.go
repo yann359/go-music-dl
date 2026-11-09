@@ -30,12 +30,9 @@ var rootCmd = &cobra.Command{
   - netease   (网易云音乐)
   - qq        (QQ音乐)
   - kugou     (酷狗音乐)
-  - kuwo      (酷我音乐)
-  - migu      (咪咕音乐)
-  - qianqian  (千千音乐)
+  - apple     (Apple Music)
+  - spotify   (Spotify，需官方 API 授权)
   - soda      (汽水音乐)
-  - fivesing  (5sing原创)
-  - ... 以及 jamendo, joox, bilibili 等
 
 特性:
   - TUI 交互式界面，支持空格多选

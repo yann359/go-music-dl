@@ -16,7 +16,10 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/guohuiyuan/go-music-dl/core"
+
 	"github.com/guohuiyuan/go-music-dl/internal/appshell"
+	"github.com/guohuiyuan/go-music-dl/internal/spotify"
 	"github.com/guohuiyuan/go-music-dl/internal/web"
 )
 
@@ -35,6 +38,8 @@ func response(value string, err error) *C.char {
 //export MusicDLStart
 func MusicDLStart(root *C.char) *C.char {
 	startOnce.Do(func() {
+		core.EnableNativeAppleAuthorization()
+		spotify.EnableNativeAuthorization()
 		dir := C.GoString(root)
 		startError = os.MkdirAll(dir, 0700)
 		if startError != nil {

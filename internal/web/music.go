@@ -1875,7 +1875,7 @@ func isSwitchSourceAllowed(source string, current string) bool {
 	if source == "" || source == current {
 		return false
 	}
-	if source == "soda" || source == "fivesing" {
+	if source == "soda" {
 		return false
 	}
 	if isLocalMusicSource(source) {

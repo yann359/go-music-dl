@@ -134,7 +134,7 @@ final class NativeClientTests: XCTestCase {
     func testLyricsCannotExposeTechnicalErrors() async {
         let client = NativeClient { _ in Data(#"{"error":"download lyric failed https://private.example unexpected EOF"}"#.utf8) }
         do {
-            _ = try await client.lyrics(for: Song(id: "id", source: "migu", name: "Song", artist: "Singer", album: "", cover: "", duration: 200, extra: ""))
+            _ = try await client.lyrics(for: Song(id: "id", source: "soda", name: "Song", artist: "Singer", album: "", cover: "", duration: 200, extra: ""))
             XCTFail("Failure silently accepted")
         } catch {
             XCTAssertFalse(error.localizedDescription.contains("http"))
@@ -178,5 +178,25 @@ final class NativeClientTests: XCTestCase {
         XCTAssertTrue(client.discoveryPlaylists.isEmpty)
         XCTAssertEqual(client.discoveryFailures.count, 3)
         XCTAssertFalse(client.discoveryLoading)
+    }
+
+    func testPendingSpotifyNeverBlocksOtherSelectedSources() async throws {
+        let client = NativeClient(spotifyAuthorization: { _ in throw MusicAccountError.configuration }) { data in
+            let request = try JSONDecoder().decode(JSONValue.self, from: data)
+            XCTAssertEqual(request["params"]["sources"].arrayValue, [.string("qq")])
+            return Data(#"{"data":{"songs":[{"id":"real","source":"qq"}],"playlists":[],"errors":[]}}"#.utf8)
+        }
+        let result = try await client.search(query: "Song", sources: ["spotify", "qq"])
+        XCTAssertEqual(result.songs.map(\.source), ["qq"])
+        XCTAssertTrue(result.errors.contains { $0.contains("Spotify 待配置") })
+    }
+
+    func testSpotifyRefreshFailurePreservesOtherProviderResults() async throws {
+        let client = NativeClient(spotifyAuthorization: { force in if force { throw MusicAccountError.network } }) { _ in
+            Data(#"{"data":{"songs":[{"id":"real","source":"qq"}],"playlists":[],"errors":["Spotify API HTTP 401"]}}"#.utf8)
+        }
+        let result = try await client.search(query: "Song", sources: ["qq", "spotify"])
+        XCTAssertEqual(result.songs.map(\.source), ["qq"])
+        XCTAssertFalse(result.errors.contains { $0.contains("401") })
     }
 }

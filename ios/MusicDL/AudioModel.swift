@@ -17,6 +17,7 @@ struct Song: Codable, Equatable {
         case albumID = "album_id", isVIP = "is_vip"
     }
     var key: String { source + ":" + id + ":" + extra }
+    var sourceAvailable: Bool { ["netease", "apple", "qq", "soda", "kugou", "spotify", "local", "local-file"].contains(source) }
 }
 
 struct PlaybackRequest: Decodable {
@@ -57,11 +58,34 @@ enum GoBridge {
     }
 
     static func resolve(_ song: Song, fallback: Bool) async throws -> AssetDescriptor {
+        if song.source == "spotify" { try await MusicAccounts.shared.prepareSpotifySession() }
         let encoded = String(decoding: try JSONEncoder().encode(song), as: UTF8.self)
+        do { return try await resolveRequest(encoded, fallback: fallback) }
+        catch {
+            guard song.source == "spotify", error.localizedDescription.contains("Spotify API HTTP 401") else { throw error }
+            try await MusicAccounts.shared.prepareSpotifySession(force: true)
+            do { return try await resolveRequest(encoded, fallback: fallback) }
+            catch {
+                if error.localizedDescription.contains("Spotify API HTTP 401") {
+                    await MusicAccounts.shared.expireSpotify()
+                    throw MusicAccountError.expired
+                }
+                throw error
+            }
+        }
+    }
+    private static func resolveRequest(_ encoded: String, fallback: Bool) async throws -> AssetDescriptor {
         let data = try await call {
             encoded.withCString { MusicDLResolve(UnsafeMutablePointer(mutating: $0), fallback ? 1 : 0) }
         }
         return try JSONDecoder().decode(AssetDescriptor.self, from: data)
+    }
+
+    static func installSpotifySession(accessToken: String, expires: Date) async throws {
+        let payload: [String: Any] = ["action": "auth.spotify.session", "params": ["access_token": accessToken, "expires_at": Int(expires.timeIntervalSince1970)]]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let text = String(decoding: data, as: UTF8.self)
+        _ = try await call { text.withCString { MusicDLRequest(UnsafeMutablePointer(mutating: $0)) } }
     }
 
     private static func call(_ operation: @escaping () -> UnsafeMutablePointer<CChar>?) async throws -> Data {

@@ -34,12 +34,12 @@ func TestNativeSourceCatalogPreservesEveryCoreSource(t *testing.T) {
 		}
 		seen[source.ID] = true
 	}
-	for _, source := range core.GetAllSourceNames() {
+	for _, source := range core.GetMusicPlatformNames() {
 		if !seen[source] {
 			t.Fatalf("core source omitted: %s", source)
 		}
 	}
-	if len(seen) != len(core.GetAllSourceNames()) {
+	if len(seen) != len(core.GetMusicPlatformNames()) {
 		t.Fatal("catalog invented unsupported sources")
 	}
 }

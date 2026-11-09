@@ -5,6 +5,7 @@ import AVFoundation
 final class AppModel: ObservableObject {
     let audio: AudioEngine
     let client = NativeClient()
+    let accounts = MusicAccounts.shared
     @Published var isReady = false
     @Published var error: String?
     @Published var toast: String?
@@ -59,12 +60,17 @@ final class AppModel: ObservableObject {
             isReady = true
             ai = NativeAIConnection(baseURL: url, audio: audio)
             ai?.start()
+            Task { await accounts.restore() }
         } catch { self.error = error.localizedDescription }
     }
 
     func play(_ songs: [Song], at index: Int = 0) {
         guard songs.indices.contains(index) else { return }
-        audio.playSongs(songs, at: index)
+        let available = songs.filter(\.sourceAvailable)
+        guard !available.isEmpty else { notify("此来源已移除，记录仍保留。请重新搜索或使用本地音乐。"); return }
+        let selected = min(songs.prefix(index).filter(\.sourceAvailable).count, available.count - 1)
+        if available.count != songs.count { notify("已跳过不可用来源的曲目，歌单记录仍保留。") }
+        audio.playSongs(available, at: selected)
     }
 
     func perform(_ operation: @escaping () async throws -> Void) {

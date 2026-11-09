@@ -4,6 +4,7 @@ options:
     iOS: '18.0'
 settings:
   base:
+    SPOTIFY_CLIENT_ID: ""
     SWIFT_VERSION: '5.0'
     CODE_SIGNING_ALLOWED: NO
     ENABLE_BITCODE: NO
@@ -34,6 +35,9 @@ targets:
       - sdk: AVFoundation.framework
       - sdk: MediaPlayer.framework
       - sdk: Security.framework
+      - sdk: MusicKit.framework
+      - sdk: AuthenticationServices.framework
+      - sdk: Network.framework
   MusicDLTests:
     type: bundle.unit-test
     platform: iOS

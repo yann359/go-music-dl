@@ -1,16 +1,17 @@
 import SwiftUI
 
 struct SourceBrowserScreen: View {
+    @EnvironmentObject private var accounts: MusicAccounts
     @EnvironmentObject private var client: NativeClient
     var body: some View {
         List(client.sources, id: \.id) { source in
             NavigationLink { PlatformScreen(source: source) } label: {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(source.name).font(.headline)
-                    Text([source.recommend ? "推荐" : nil, source.toplist ? "排行榜" : nil, source.category ? "分类" : nil, source.userPlaylists ? "账号歌单" : nil].compactMap { $0 }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+                    HStack { Text(source.name).font(.headline); Spacer(); AccountStatusLabel(summary: accounts.summary(source.id), pendingConfiguration: source.id == "spotify" && !accounts.spotifyConfigured) }
+                    Text(source.capabilityDescription).font(.caption).foregroundStyle(.secondary)
                 }.padding(.vertical, 6)
-            }
-        }.navigationTitle("音乐来源")
+            }.accessibilityIdentifier("music-source-" + source.id)
+        }.navigationTitle("音乐来源").task { try? await client.loadCookies() }
     }
 }
 
@@ -24,6 +25,7 @@ struct PlatformScreen: View {
     @State private var loading = false
     var body: some View {
         List {
+            Section { NavigationLink("账号与连接状态") { AccountDetailScreen(source: source) } }
             if loading { ProgressView("正在连接\(source.name)…") }
             if let problem { Section { Text(problem).font(.subheadline).foregroundStyle(.secondary); Button("重试") { Task { await load() } } } }
             if source.userPlaylists { NavigationLink("我的平台歌单") { UserPlaylistsScreen(initialSource: source.id) } }

@@ -206,12 +206,12 @@ struct SongRows: View {
                             CoverArt(url: song.cover, title: song.name, radius: 10).frame(width: 52, height: 52)
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(song.name).font(.body.weight(.medium)).foregroundStyle(audio.currentSong?.key == song.key ? MusicDesign.coral : .primary).lineLimit(1)
-                                Text([song.artist, song.source.uppercased()].filter { !$0.isEmpty }.joined(separator: " · "))
+                                Text([song.artist, song.sourceAvailable ? song.source.uppercased() : "来源已移除 · 记录保留"].filter { !$0.isEmpty }.joined(separator: " · "))
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer(minLength: 0)
                         }.contentShape(Rectangle())
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.plain).disabled(!song.sourceAvailable)
                     SongActions(song: song, collectionID: collectionID, onChange: onChange)
                 }.padding(.vertical, 11)
                 Divider().padding(.leading, 65).opacity(0.4)
@@ -231,8 +231,8 @@ struct SongActions: View {
     @State private var showAlbum = false
     var body: some View {
         Menu {
-            Button("接下来播放", systemImage: "text.line.first.and.arrowtriangle.forward") { audio.append(song, playNext: true); model.notify("已加入下一首") }
-            Button("加入播放队列", systemImage: "text.append") { audio.append(song); model.notify("已加入播放队列") }
+            Button("接下来播放", systemImage: "text.line.first.and.arrowtriangle.forward") { audio.append(song, playNext: true); model.notify("已加入下一首") }.disabled(!song.sourceAvailable)
+            Button("加入播放队列", systemImage: "text.append") { audio.append(song); model.notify("已加入播放队列") }.disabled(!song.sourceAvailable)
             Button("加入我喜欢的音乐", systemImage: "heart") { model.perform { try await model.favorite(song) } }
             if !client.collections.isEmpty {
                 Menu("添加到歌单", systemImage: "plus.rectangle.on.folder") {
@@ -241,7 +241,7 @@ struct SongActions: View {
                     }
                 }
             }
-            Button("下载原音质", systemImage: "arrow.down.circle") { model.perform { try await client.enqueueDownload([song]); model.notify("已加入下载任务") } }
+            Button("下载原音质", systemImage: "arrow.down.circle") { model.perform { try await client.enqueueDownload([song]); model.notify("已加入下载任务") } }.disabled(!song.sourceAvailable)
             Button("尝试其他音源", systemImage: "arrow.triangle.2.circlepath") {
                 model.perform { let replacement = try await client.switchSource(song); audio.replaceCurrentSource(replacement, expectedKey: song.key); model.notify("已切换至 \(replacement.source)") }
             }

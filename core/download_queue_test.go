@@ -15,7 +15,7 @@ import (
 func queueInputs(n int) []DownloadTaskInput {
 	inputs := make([]DownloadTaskInput, n)
 	for i := range inputs {
-		inputs[i] = DownloadTaskInput{Song: model.Song{ID: fmt.Sprint(i), Source: "kuwo", Name: fmt.Sprintf("Song %d", i), Artist: "Artist"}, Directory: "/downloads", Embed: true}
+		inputs[i] = DownloadTaskInput{Song: model.Song{ID: fmt.Sprint(i), Source: "kugou", Name: fmt.Sprintf("Song %d", i), Artist: "Artist"}, Directory: "/downloads", Embed: true}
 	}
 	return inputs
 }

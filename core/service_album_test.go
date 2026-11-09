@@ -24,7 +24,7 @@ type playlistIntegrationCase struct {
 }
 
 func TestAlbumFactoriesAndSourceList(t *testing.T) {
-	supported := []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "soda", "apple", "spotify"}
+	supported := []string{"netease", "qq", "kugou", "soda", "apple", "spotify"}
 	for _, source := range supported {
 		if fn := GetAlbumSearchFunc(source); fn == nil {
 			t.Fatalf("GetAlbumSearchFunc(%q) returned nil", source)
@@ -43,7 +43,7 @@ func TestAlbumFactoriesAndSourceList(t *testing.T) {
 }
 
 func TestPlaylistFactoriesAndSourceList(t *testing.T) {
-	supported := []string{"netease", "qq", "kugou", "kuwo", "migu", "jamendo", "joox", "qianqian", "bilibili", "soda", "fivesing", "apple", "spotify"}
+	supported := []string{"netease", "qq", "kugou", "soda", "apple", "spotify"}
 	for _, source := range supported {
 		if fn := GetPlaylistSearchFunc(source); fn == nil {
 			t.Fatalf("GetPlaylistSearchFunc(%q) returned nil", source)
@@ -74,26 +74,13 @@ func TestUserPlaylistFactoriesAndSourceList(t *testing.T) {
 	}
 }
 
-func TestJooxPlaylistIntegration(t *testing.T) {
-	requireIntegration(t)
-	runPlaylistIntegration(t, playlistIntegrationCase{
-		source:       "joox",
-		keyword:      "Taylor",
-		fallbackID:   "YrcoxvVy7I2fJqO2sCzUaA==",
-		fallbackLink: "https://www.joox.com/hk/playlist/YrcoxvVy7I2fJqO2sCzUaA==",
-	})
-}
-
 func TestUpgradedSongParseIntegration(t *testing.T) {
 	requireIntegration(t)
 
 	tests := []struct {
 		source string
 		link   string
-	}{
-		{source: "qianqian", link: "https://music.91q.com/song/T10038909559"},
-		{source: "joox", link: "https://www.joox.com/hk/single/12Q4rvA6Cj+vquLW8B8NDw=="},
-	}
+	}{}
 
 	for _, tt := range tests {
 		t.Run(tt.source, func(t *testing.T) {
@@ -124,34 +111,7 @@ func TestUpgradedSongParseIntegration(t *testing.T) {
 func TestUpgradedPlaylistIntegration(t *testing.T) {
 	requireIntegration(t)
 
-	tests := []playlistIntegrationCase{
-		{
-			source:       "migu",
-			keyword:      "周杰伦",
-			fallbackID:   "228114498",
-			fallbackLink: "https://music.migu.cn/v5/#/playlist?playlistId=228114498&playlistType=ordinary",
-		},
-		{
-			source:         "qianqian",
-			keyword:        "周杰伦",
-			fallbackID:     "309319",
-			fallbackLink:   "https://music.91q.com/songlist/309319",
-			searchOptional: true,
-		},
-		{
-			source:         "jamendo",
-			keyword:        "music",
-			fallbackID:     "500608900",
-			fallbackLink:   "https://www.jamendo.com/playlist/500608900/indie",
-			searchOptional: true,
-		},
-		{
-			source:       "joox",
-			keyword:      "Taylor",
-			fallbackID:   "YrcoxvVy7I2fJqO2sCzUaA==",
-			fallbackLink: "https://www.joox.com/hk/playlist/YrcoxvVy7I2fJqO2sCzUaA==",
-		},
-	}
+	tests := []playlistIntegrationCase{}
 
 	for _, tt := range tests {
 		t.Run(tt.source, func(t *testing.T) {
@@ -291,11 +251,7 @@ func TestGetOriginalLinkSupportsAlbums(t *testing.T) {
 		{source: "netease", id: "123", want: "https://music.163.com/#/album?id=123"},
 		{source: "qq", id: "abc", want: "https://y.qq.com/n/ryqq/albumDetail/abc"},
 		{source: "kugou", id: "456", want: "https://www.kugou.com/album/456.html"},
-		{source: "kuwo", id: "789", want: "http://www.kuwo.cn/album_detail/789"},
-		{source: "migu", id: "321", want: "https://music.migu.cn/v3/music/album/321"},
-		{source: "jamendo", id: "654", want: "https://www.jamendo.com/album/654"},
-		{source: "joox", id: "album-id", want: "https://www.joox.com/hk/album/album-id"},
-		{source: "qianqian", id: "PS1000000001", want: "https://music.91q.com/album/PS1000000001"},
+
 		{source: "soda", id: "852", want: "https://www.qishui.com/share/album?album_id=852"},
 	}
 
@@ -316,13 +272,8 @@ func TestGetOriginalLinkSupportsPlaylists(t *testing.T) {
 		{source: "qq", id: "abc", want: "https://y.qq.com/n/ryqq/playlist/abc"},
 		{source: "kugou", id: "456", want: "https://www.kugou.com/yy/special/single/456.html"},
 		{source: "kugou", id: "cloudlist:456", want: ""},
-		{source: "kuwo", id: "789", want: "http://www.kuwo.cn/playlist_detail/789"},
-		{source: "migu", id: "321", want: "https://music.migu.cn/v5/#/playlist?playlistId=321&playlistType=ordinary"},
-		{source: "jamendo", id: "654", want: "https://www.jamendo.com/playlist/654"},
-		{source: "joox", id: "playlist-id", want: "https://www.joox.com/hk/playlist/playlist-id"},
-		{source: "qianqian", id: "309319", want: "https://music.91q.com/songlist/309319"},
+
 		{source: "soda", id: "852", want: "https://www.qishui.com/playlist/852"},
-		{source: "fivesing", id: "abc123", want: "http://5sing.kugou.com/dj/abc123.html"},
 	}
 
 	for _, tt := range tests {
@@ -337,10 +288,6 @@ func TestDetectSourceSupportsAlbumCapableNewSources(t *testing.T) {
 		link string
 		want string
 	}{
-		{link: "https://music.migu.cn/v3/music/album/123", want: "migu"},
-		{link: "https://www.jamendo.com/album/456", want: "jamendo"},
-		{link: "https://www.joox.com/hk/album/abc", want: "joox"},
-		{link: "https://music.91q.com/album/PS0001", want: "qianqian"},
 		{link: "https://www.qishui.com/share/album?album_id=777", want: "soda"},
 	}
 

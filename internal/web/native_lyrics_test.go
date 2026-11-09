@@ -73,7 +73,7 @@ func TestNativeLyricFailureClassificationAndSanitizedUI(t *testing.T) {
 }
 
 func TestNativeLyricStrictMatchRejectsVersionsCoversAndUnknownDurations(t *testing.T) {
-	original := model.Song{Source: "migu", ID: "one", Name: "晴天", Artist: "周杰伦", Album: "叶惠美", Duration: 269}
+	original := model.Song{Source: "soda", ID: "one", Name: "晴天", Artist: "周杰伦", Album: "叶惠美", Duration: 269}
 	for _, tc := range []struct {
 		name, artist, album string
 		duration            int
@@ -97,7 +97,7 @@ func TestNativeLyricStrictMatchRejectsVersionsCoversAndUnknownDurations(t *testi
 func TestNativeLyricFallbackUsesOnlyVerifiedMatch(t *testing.T) {
 	origProvider, origSearch := nativeLyricProvider, nativeLyricSearch
 	t.Cleanup(func() { nativeLyricProvider = origProvider; nativeLyricSearch = origSearch })
-	song := &model.Song{ID: "original", Source: "migu", Name: "Song", Artist: "Singer", Album: "Album", Duration: 200}
+	song := &model.Song{ID: "original", Source: "soda", Name: "Song", Artist: "Singer", Album: "Album", Duration: 200}
 	nativeLyricSearch = func(source string) core.SearchFunc {
 		return func(string) ([]model.Song, error) {
 			return []model.Song{

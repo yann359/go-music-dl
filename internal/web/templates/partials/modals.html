@@ -319,13 +319,14 @@
                 <div class="cookie-capture-guide">
                     <strong>手动获取 Cookie：</strong>先在新标签页登录下方平台，按 <kbd>F12</kbd> 打开开发者工具并切到“网络”，刷新页面后选择同域请求，在“请求标头”中复制完整的 <code>Cookie</code> 值。只粘贴冒号后的值，不要带 <code>Cookie:</code> 前缀。
                 </div>
+                <p class="settings-panel-hint">Apple Music 与 Spotify 请在原生 iOS 账号页面使用官方授权。本网页未实现对应 OAuth 登录，不要求粘贴这些平台的 Cookie。</p>
                 <div class="cookie-list">
                     {{ range $source := .AllSources }}
-                    {{ if ne $source "local" }}
+                    {{ if and (ne $source "local") (ne $source "apple") (ne $source "spotify") }}
                     <div class="cookie-item">
                         <label>{{ $source }}</label>
                         <div class="cookie-input-row">
-                            <input type="text" id="cookie-{{$source}}" placeholder="在此粘贴 Cookie..." aria-describedby="cookie-hint-{{$source}}">
+                            <input type="password" id="cookie-{{$source}}" placeholder="在此粘贴 Cookie..." aria-describedby="cookie-hint-{{$source}}">
                             {{ if eq $source "qq" }}
                             {{ if index $.QRLoginSupported "qq" }}
                             <button type="button" class="cookie-qr-btn" onclick="startQRLogin('qq')"><i class="fa-brands fa-qq"></i> QQ扫码</button>

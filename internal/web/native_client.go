@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/guohuiyuan/go-music-dl/core"
+	"github.com/guohuiyuan/go-music-dl/internal/spotify"
 	"github.com/guohuiyuan/music-lib/model"
 )
 
@@ -118,18 +119,21 @@ func nativeMembership(source string, values []string) bool {
 
 func nativeSourceCatalog() map[string]interface{} {
 	sources := make([]map[string]interface{}, 0)
-	for _, source := range core.GetAllSourceNames() {
+	for _, source := range core.GetMusicPlatformNames() {
 		sources = append(sources, map[string]interface{}{
 			"id": source, "name": core.GetSourceDescription(source),
-			"search":         core.GetSearchFunc(source) != nil || isLocalMusicSource(source),
-			"playlist":       nativeMembership(source, core.GetPlaylistSourceNames()) || isLocalMusicSource(source),
-			"album":          nativeMembership(source, core.GetAlbumSourceNames()),
-			"toplist":        nativeMembership(source, core.GetTopListSourceNames()),
-			"recommend":      nativeMembership(source, core.GetRecommendSourceNames()),
-			"category":       nativeMembership(source, core.GetPlaylistCategorySourceNames()),
+			"search":   core.GetSearchFunc(source) != nil || isLocalMusicSource(source),
+			"playlist": nativeMembership(source, core.GetPlaylistSourceNames()) || isLocalMusicSource(source),
+			"album":    nativeMembership(source, core.GetAlbumSourceNames()),
+			// Spotify's current development mode cannot access the old browse
+			// categories or public chart contents. Keep legacy server adapters,
+			// but do not advertise those as usable native OAuth capabilities.
+			"toplist":        source != "spotify" && nativeMembership(source, core.GetTopListSourceNames()),
+			"recommend":      source != "spotify" && nativeMembership(source, core.GetRecommendSourceNames()),
+			"category":       source != "spotify" && nativeMembership(source, core.GetPlaylistCategorySourceNames()),
 			"qr_login":       nativeMembership(source, core.GetQRLoginSourceNames()),
 			"user_playlists": nativeMembership(source, core.GetUserPlaylistSourceNames()),
-			"configured":     core.CM.Get(source) != "",
+			"configured":     legacyAccountSource(source) && core.CM.Get(source) != "",
 		})
 	}
 	return map[string]interface{}{"sources": sources, "defaults": core.GetDefaultSourceNames(), "qr_sources": core.GetQRLoginSourceNames()}
@@ -156,6 +160,11 @@ func NativeClientRequest(raw string) (output string, err error) {
 	}
 	var data interface{}
 	switch request.Action {
+	case "accounts.legacy.validate":
+		data = nativeValidateLegacyAccount(request.Params)
+	case "auth.spotify.session":
+		err = spotify.SetNativeAuthorization(nativeString(request.Params, "access_token"), int64(nativeInt(request.Params, "expires_at", 0)))
+		data = map[string]bool{"accepted": err == nil}
 	case "diagnostics.enable":
 		enableNativeDiagnostics()
 		data = true
@@ -188,10 +197,15 @@ func NativeClientRequest(raw string) (output string, err error) {
 	case "settings.save":
 		data, err = nativeSaveSettings(request.Params)
 	case "cookies.get":
-		data = core.CM.GetAll()
+		data = activeAccountCookies(true)
 	case "cookies.save":
 		var cookies map[string]string
 		if err = json.Unmarshal(request.Params["cookies"], &cookies); err == nil {
+			for source := range cookies {
+				if !legacyAccountSource(source) {
+					return "", errors.New("此账号请使用对应的官方授权入口")
+				}
+			}
 			core.CM.SetAll(cookies)
 			core.CM.Save()
 			data = map[string]string{"status": "ok"}

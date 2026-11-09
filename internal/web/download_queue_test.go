@@ -38,7 +38,7 @@ func TestDownloadQueueAPIPersistsAppendAndRejectsCrossOrigin(t *testing.T) {
 		r.ServeHTTP(w, req)
 		return w
 	}
-	payload := []byte(`{"request_id":"one","songs":[{"id":"1","source":"kuwo","name":"One"},{"id":"2","source":"kuwo","name":"Two"}]}`)
+	payload := []byte(`{"request_id":"one","songs":[{"id":"1","source":"kugou","name":"One"},{"id":"2","source":"kugou","name":"Two"}]}`)
 	if w := request("POST", "", payload, "http://other.test"); w.Code != 403 {
 		t.Fatal(w.Code, w.Body.String())
 	}
@@ -48,7 +48,7 @@ func TestDownloadQueueAPIPersistsAppendAndRejectsCrossOrigin(t *testing.T) {
 	if w := request("POST", "", payload, "http://music.test"); w.Code != 202 || !bytes.Contains(w.Body.Bytes(), []byte(`"added":0`)) {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	second := []byte(`{"request_id":"two","songs":[{"id":"3","source":"kuwo","name":"Three"}]}`)
+	second := []byte(`{"request_id":"two","songs":[{"id":"3","source":"kugou","name":"Three"}]}`)
 	if w := request("POST", "", second, "http://music.test"); w.Code != 202 {
 		t.Fatal(w.Code, w.Body.String())
 	}
@@ -79,7 +79,7 @@ func TestDownloadQueueAPIPersistsAppendAndRejectsCrossOrigin(t *testing.T) {
 	if w := request("POST", "/1/retry", nil, "http://music.test"); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	invalid := []byte(`{"request_id":"invalid","songs":[{"id":"4","source":"kuwo"},{"source":"kuwo"}]}`)
+	invalid := []byte(`{"request_id":"invalid","songs":[{"id":"4","source":"kugou"},{"source":"kugou"}]}`)
 	if w := request("POST", "", invalid, "http://music.test"); w.Code != 400 {
 		t.Fatal(w.Code, w.Body.String())
 	}
