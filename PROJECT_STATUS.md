@@ -9,6 +9,8 @@
 - Spotify上游新匿名Web Player/TOTP搜索路径未引入现有官方OAuth边界；入口保留，未配置时明确失败。已用nativebridge依赖清单核查没有链接music-lib/spotify匿名实现。
 - 真换源3候选：酷我/咪咕音频片段成功，JOOX失败；不等于真机整曲播放。逐来源差异、REA证据、修复路径及验收表见 [本轮报告](docs/ios-rea-search-crash-audit-2026-11-10.md)。
 - 首轮macOS [Build21](https://github.com/yann359/go-music-dl/actions/runs/42788448454)（`5c34f8f`）已通过Go/JS、设备Release和模拟器Go库构建，XCTest在执行；它不含最后依赖对齐，不作为最终交付。本轮最终macOS/XCTest/UI/IPA待后续工作流完成，下节Build20仅为历史包。尚无iPhone crash/ips报告或真机验证。
+- 最终代码候选为 `351eabdc65391d93bef12bba417cd64d635f6cd9`；[Build22](https://github.com/yann359/go-music-dl/actions/runs/42789761149) 已通过Go/JS、设备Release及模拟器Go库，XCTest进行中。Build21被同分支新运行按工作流并发规则取消，不是已通过的交付包；最终IPA下载和本地核验仍待完成。
+- Build22终态：XCTest步骤10分钟超时，UI/IPA上传跳过，**没有交付IPA**。实际 `scheduling.log` 显示09:27:41拿到worker、09:37:18才完成bootstrap，而步骤09:37:03已超时；不能计为已执行测试通过或断言失败。日志 `outputs/rea-build22.log`、测试诊断ZIP保留；已把模拟器冷启动/bootstatus拆为独立15分钟步骤并保存服务日志，测试断言与原10分钟测试预算不变，准备新运行。
 
 ## 上阶段：搜索恢复与IPA交付完成（2026-11-10）
 

@@ -30,6 +30,17 @@ jobs:
           go version
       - name: Install XcodeGen
         run: command -v xcodegen || brew install xcodegen
+      - name: Boot and prepare iOS simulator
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          mkdir -p ios/build
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,re,sys; d=json.load(sys.stdin); candidates=[(tuple(map(int,re.findall(r"\d+",runtime))),x["name"]=="iPhone 17 Pro Max",x["udid"]) for runtime,devices in d["devices"].items() if "iOS-" in runtime and int(re.search(r"iOS-(\d+)",runtime).group(1))>=26 for x in devices if x["name"].startswith("iPhone")]; assert candidates,"No iOS 26+ iPhone simulator installed"; print(max(candidates)[2])')
+          STATE=$(xcrun simctl list devices -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["state"] for devices in d["devices"].values() for x in devices if x["udid"]==sys.argv[1]))' "$DEVICE_ID")
+          if [ "$STATE" != Booted ]; then xcrun simctl boot "$DEVICE_ID"; fi
+          xcrun simctl bootstatus "$DEVICE_ID" -b | tee ios/build/simulator-boot.log
+          xcrun simctl spawn "$DEVICE_ID" launchctl print system > ios/build/simulator-services.log
+          echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
       - name: Verify Go and JavaScript bridge
         run: |
           go test ./internal/spotify ./internal/web ./internal/appshell ./core
@@ -41,13 +52,11 @@ jobs:
       - name: Test native queue in simulator
         timeout-minutes: 10
         run: |
-          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,re,sys; d=json.load(sys.stdin); candidates=[(tuple(map(int,re.findall(r"\d+",runtime))),x["name"]=="iPhone 17 Pro Max",x["udid"]) for runtime,devices in d["devices"].items() if "iOS-" in runtime and int(re.search(r"iOS-(\d+)",runtime).group(1))>=26 for x in devices if x["name"].startswith("iPhone")]; assert candidates,"No iOS 26+ iPhone simulator installed"; print(max(candidates)[2])')
           xcrun simctl list devices available | grep "$DEVICE_ID"
           xcodebuild -project ios/MusicDL.xcodeproj -scheme MusicDL -configuration Debug \
             -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath ios/build/NativeTests.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -maximum-test-execution-time-allowance 60 CODE_SIGNING_ALLOWED=NO test
-          echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
       - name: Test native screens and capture appearances
         timeout-minutes: 12
         run: |
@@ -89,5 +98,7 @@ jobs:
             ios/build/NativeTests.xcresult
             ios/build/VisualTests.xcresult
             ios/build/screenshots
+            ios/build/simulator-boot.log
+            ios/build/simulator-services.log
           if-no-files-found: ignore
           compression-level: 0
