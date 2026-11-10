@@ -46,6 +46,9 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     private var notifications: [NSObjectProtocol] = []
     private var commands: [(MPRemoteCommand, Any)] = []
     private(set) var nowPlayingSession: MPNowPlayingSession?
+    private var lastNowPlayingMetadata: NSDictionary?
+    private weak var lastNowPlayingItem: AVPlayerItem?
+    private(set) var nowPlayingUpdateCount = 0
     private var ownershipRequestPending = false
     private var ownershipAttempted = false
     private var shuttingDown = false
@@ -75,6 +78,9 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             Task { @MainActor in self?.currentItemChanged() }
         })
         observations.append(player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
+            Task { @MainActor in self?.publish() }
+        })
+        observations.append(player.observe(\.rate, options: [.new]) { [weak self] _, _ in
             Task { @MainActor in self?.publish() }
         })
         ticker = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main) { [weak self] _ in
@@ -206,6 +212,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         songs = []; sequence = []; index = 0; savedPosition = 0; playbackError = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo = nil
+        lastNowPlayingMetadata = nil; lastNowPlayingItem = nil
         artworkTask?.cancel(); artwork = nil; artworkKey = ""
         let token = revision
         Task { await files.prune(keeping: [], generation: token) }
@@ -241,7 +248,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             Task { @MainActor in
                 guard let self, token == self.seekRevision, item === self.player.currentItem else { return }
                 if finished { self.pendingSeek = nil }
-                self.publish()
+                self.publish(refreshTiming: finished)
             }
         }
     }
@@ -508,6 +515,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         guard let session = nowPlayingSession else { return }
         session.delegate = nil
         session.nowPlayingInfoCenter.nowPlayingInfo = nil
+        lastNowPlayingMetadata = nil; lastNowPlayingItem = nil
         // This entire session is being retired, not edited in place. Let its
         // lifetime own its KVO teardown. Removing every player first caused a
         // reproducible duplicate currentItem-observer removal on iOS 26.5.
@@ -524,6 +532,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             "can_become_active": String(nowPlayingSession?.canBecomeActive ?? false),
             "session_players": String(nowPlayingSession?.players.count ?? 0),
             "registered_commands": String(commands.count),
+            "metadata_updates": String(nowPlayingUpdateCount),
             "queue_count": String(songs.count),
             "state": playbackState.rawValue,
             "rate": String(player.rate),
@@ -594,8 +603,15 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         commands.append((center.changePlaybackPositionCommand, token))
     }
 
-    func publish(includeQueue: Bool = false) {
+    func publish(includeQueue: Bool = false, refreshTiming: Bool = false) {
         guard !shuttingDown else { return }
+        // KVO callbacks hop to MainActor. A rate/timer callback can arrive before
+        // currentItemChanged, so read track identity from the same player item
+        // as its timing instead of briefly publishing the previous track.
+        if let item = player.currentItem, let selected = itemIndices[ObjectIdentifier(item)] {
+            index = selected
+        }
+        if currentSong?.key != artworkKey { loadArtwork() }
         let elapsed = player.currentTime().seconds
         let duration = player.currentItem?.duration.seconds ?? 0
         let position = elapsed.isFinite ? max(0, elapsed) : savedPosition
@@ -617,7 +633,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
                 MPMediaItemPropertyTitle: song.name, MPMediaItemPropertyArtist: song.artist,
                 MPMediaItemPropertyAlbumTitle: song.album, MPMediaItemPropertyPlaybackDuration: length,
                 MPNowPlayingInfoPropertyElapsedPlaybackTime: position,
-                MPNowPlayingInfoPropertyPlaybackRate: playing ? speed : Float(0),
+                MPNowPlayingInfoPropertyPlaybackRate: playing ? player.rate : Float(0),
                 MPNowPlayingInfoPropertyDefaultPlaybackRate: speed,
                 MPNowPlayingInfoPropertyPlaybackQueueIndex: index,
                 MPNowPlayingInfoPropertyPlaybackQueueCount: songs.count
@@ -626,7 +642,18 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             information[MPNowPlayingInfoPropertyIsLiveStream] = false
             information[MPNowPlayingInfoPropertyExternalContentIdentifier] = song.source + ":" + song.id
             if let artwork { information[MPMediaItemPropertyArtwork] = artwork }
-            nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo = information
+            // iOS extrapolates elapsed time using the published rate. Keep UI
+            // ticks local; publish immediately for track/artwork/state changes
+            // and completed seeks, without clearing info on scene transitions.
+            var metadata = information
+            metadata.removeValue(forKey: MPNowPlayingInfoPropertyElapsedPlaybackTime)
+            let snapshot = metadata as NSDictionary
+            if refreshTiming || lastNowPlayingMetadata?.isEqual(snapshot) != true || lastNowPlayingItem !== player.currentItem {
+                nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo = information
+                lastNowPlayingMetadata = snapshot
+                lastNowPlayingItem = player.currentItem
+                nowPlayingUpdateCount += 1
+            }
         }
         for (command, _) in commands { command.isEnabled = currentSong != nil }
         if playing { claimNowPlayingSession() }

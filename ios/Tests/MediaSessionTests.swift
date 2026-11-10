@@ -1,6 +1,7 @@
 import XCTest
 import AVFoundation
 import MediaPlayer
+import UIKit
 @testable import MusicDL
 
 @MainActor
@@ -9,9 +10,9 @@ final class MediaSessionTests: XCTestCase {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".wav")
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1))
         let file = try AVAudioFile(forWriting: url, settings: format.settings)
-        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 96000))
-        buffer.frameLength = 96000
-        for i in 0..<96000 { buffer.floatChannelData![0][i] = Float(sin(Double(i) * 440 * 2 * .pi / 48000)) * 0.02 }
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 576000))
+        buffer.frameLength = 576000
+        for i in 0..<576000 { buffer.floatChannelData![0][i] = Float(sin(Double(i) * 440 * 2 * .pi / 48000)) * 0.02 }
         try file.write(from: buffer)
         addTeardownBlock { try? FileManager.default.removeItem(at: url) }
         return AudioEngine(files: AudioFiles { song, _ in
@@ -74,6 +75,92 @@ final class MediaSessionTests: XCTestCase {
         XCTAssertNil(engine.nowPlayingSession)
         XCTAssertNil(next.nowPlayingInfoCenter.nowPlayingInfo)
         XCTAssertFalse(next.remoteCommandCenter.playCommand.isEnabled)
+    }
+
+    func testProgressAndForegroundKeepContinuousSystemSession() async throws {
+        let engine = try engine(); defer { engine.shutdown() }
+        try await queue(engine)
+        let session = try XCTUnwrap(engine.nowPlayingSession)
+        let player = engine.player
+        engine.play()
+        for _ in 0..<100 { if engine.isPlaying { break }; try await Task.sleep(nanoseconds: 50_000_000) }
+        XCTAssertTrue(engine.isPlaying)
+        try await Task.sleep(nanoseconds: 150_000_000)
+        let writes = engine.nowPlayingUpdateCount
+        let start = engine.position
+        // Real progress crosses a UI tick; it must not rewrite system metadata.
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        for _ in 0..<10 { engine.publish() }
+        XCTAssertGreaterThan(engine.position, start)
+        XCTAssertEqual(engine.nowPlayingUpdateCount, writes)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(engine.nowPlayingUpdateCount, writes)
+        XCTAssertTrue(engine.player === player)
+        XCTAssertTrue(engine.nowPlayingSession === session)
+        XCTAssertTrue(engine.isPlaying)
+        engine.pause()
+        XCTAssertGreaterThan(engine.nowPlayingUpdateCount, writes)
+        let pausedWrites = engine.nowPlayingUpdateCount
+        engine.publish()
+        XCTAssertEqual(engine.nowPlayingUpdateCount, pausedWrites)
+        // A paused seek changes timing only and must still reach system UIs.
+        engine.seek(0.5)
+        for _ in 0..<100 {
+            if engine.nowPlayingUpdateCount > pausedWrites { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        let elapsed = try XCTUnwrap(session.nowPlayingInfoCenter.nowPlayingInfo?[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? NSNumber)
+        XCTAssertEqual(elapsed.doubleValue, 0.5, accuracy: 0.1)
+        XCTAssertGreaterThan(engine.nowPlayingUpdateCount, pausedWrites)
+        XCTAssertEqual(engine.player.rate, 0)
+    }
+
+    func testImmediateTrackChangePublishesMatchingIdentityBeforeKVOHop() async throws {
+        let engine = try engine(); defer { engine.shutdown() }
+        try await queue(engine)
+        var next = try XCTUnwrap(engine.currentSong)
+        next.id = "next"; next.name = "Next fixture"
+        engine.append(next)
+        engine.setMode(loop: "none", order: "list")
+        for _ in 0..<100 {
+            if engine.player.items().count == 2 { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        XCTAssertEqual(engine.player.items().count, 2)
+        let session = try XCTUnwrap(engine.nowPlayingSession)
+        engine.skip(1)
+        engine.publish() // Deliberately no await: currentItem KVO is still queued.
+        XCTAssertEqual(engine.index, 1)
+        let info = try XCTUnwrap(session.nowPlayingInfoCenter.nowPlayingInfo)
+        XCTAssertEqual(info[MPMediaItemPropertyTitle] as? String, next.name)
+        XCTAssertEqual(info[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String, "fixture:next")
+        XCTAssertEqual((info[MPNowPlayingInfoPropertyPlaybackQueueIndex] as? NSNumber)?.intValue, 1)
+        XCTAssertTrue(engine.nowPlayingSession === session)
+    }
+
+    func testRepeatedTrackRestartsSystemTimelineWithoutReplacingSession() async throws {
+        let engine = try engine(); defer { engine.shutdown() }
+        try await queue(engine)
+        for _ in 0..<100 {
+            if engine.player.items().count >= 2 { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        let item = try XCTUnwrap(engine.player.currentItem)
+        let session = engine.nowPlayingSession
+        engine.seek(0.5)
+        for _ in 0..<100 {
+            if abs(engine.player.currentTime().seconds - 0.5) < 0.1 { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        engine.skip(1)
+        let writes = engine.nowPlayingUpdateCount
+        engine.publish()
+        XCTAssertFalse(engine.player.currentItem === item)
+        XCTAssertGreaterThan(engine.nowPlayingUpdateCount, writes)
+        let elapsed = try XCTUnwrap(engine.nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo?[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? NSNumber)
+        XCTAssertEqual(elapsed.doubleValue, 0, accuracy: 0.1)
+        XCTAssertTrue(engine.nowPlayingSession === session)
     }
 
     func testBackgroundReturnRestoresPlayerOnceWithoutResumingPausedAudio() async throws {

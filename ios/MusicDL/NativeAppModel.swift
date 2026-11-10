@@ -124,8 +124,13 @@ final class AppModel: ObservableObject {
         // Legacy MediaPlayer does not identify whether activation came from
         // Now Playing or the app icon. Use the same playback destination for
         // a genuine background return, never for Control Center's inactive phase.
-        if isReady && restorePlayerOnForeground && audio.currentSong != nil {
-            showPlayer = true
+        if isReady && restorePlayerOnForeground && audio.currentSong != nil && !showPlayer {
+            // The system already animates the app's return from Now Playing.
+            // Restore its destination without a second mini-player zoom/sheet
+            // animation competing with that transition.
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { showPlayer = true }
             audio.recordMediaEvent("player-restored")
         }
         // Navigation must not recreate the player, seek, or resume paused audio.
