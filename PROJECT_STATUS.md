@@ -1,12 +1,14 @@
-## 当前阶段：原生灵动岛时机与过渡复查（2026-11-11，修复待本轮 macOS 验证）
+## 当前阶段：原生灵动岛时机与过渡复查（2026-11-11，Build28自动化通过，真机待验）
 
 - 本轮不使用 REA；已先读源码、Git 历史及本文。从干净 `3afcf14` 建立 `codex/island-native-transitions`，保留历史 Build26。范围仅媒体系统交互，不改 UI 设计、搜索、下载、来源或签名。
 - 已在线读取用户指定的四份 Apple 官方资料及媒体时间/会话文档；[本轮报告](docs/ios-native-island-transitions-2026-11-11.md) 记录来源、根因、测试与真机矩阵。没有 Apple Music/iPhone 实测，不把文档推断写成同机对比。
 - 确认没有 ActivityKit/自制岛/重复生产引擎。前台显示系统 Now Playing 不能据此认定异常，公开 API 不承诺仅后台上岛；保持前后台真实信息，不延迟、不清空隐藏、不用私有 API。
 - 修复 `AudioEngine.swift`：系统元数据按显著变化发布，每秒只保留本地状态刷新；seek、循环新 item、封面/时长/队列/实际速率仍即时同步；先对齐当前 item 的曲目索引与封面，避免异步 KVO 使新进度配旧标题。停止/销毁重置发布缓存，前后台不重建会话。诊断新增累计 metadata_updates。
 - 修复 `NativeAppModel.swift`：后台返回确需恢复 FullPlayer 时禁用额外 zoom/sheet 动画，避免与系统返回动画叠加；已显示时不重复恢复。用户主动展开动画保留，不自动播放/seek。
-- `MediaSessionTests.swift` 新增连续进度/前台不重发、暂停 seek、即时切歌身份、同曲新 item 时间锚点回归；保留全部旧测试。本地 Node 6/6、diff 检查通过。Windows 无 Swift/iOS SDK，接下来用既有 macOS 工作流验证；旧 Build26 结果不代表本轮代码。
+- `MediaSessionTests.swift` 新增连续进度/前台不重发、暂停 seek、即时切歌身份、同曲新 item 时间锚点回归；保留全部旧测试。本地 Go 四包、Node 6/6、diff 检查通过。`NativeVisualTests.swift` 收紧歌曲目标识别并补充长按/系统暂停恢复探测，无法定位明确 skip。代码 `d55096eafc577cc0ce0d8a2521b70e4a04935098` 的 [Build28](https://github.com/yann359/go-music-dl/actions/runs/42923690865) **全部成功**：macOS Go四包/Node6、设备与模拟器编译、Swift65/65（64单元/受控回归+1真实C ABI集成），UI7通过/2跳过/0失败。两项跳过均为模拟器没有暴露可识别媒体岛，不能当作轻点/长按通过。Build27被补齐探测的新版本取代取消，未交付。
+- [Build28 IPA/匹配源码/许可证](https://github.com/yann359/go-music-dl/actions/runs/42923690865/artifacts/13813703204) 已下载至 `../outputs/ios-release-build/build28/music-dl-ios-native-unsigned.ipa`，14,353,065字节；SHA256 `e9aa3d5570f67db085b4c5f04bbfca3bb7635438f7e30f68bbd9aeb11f0a6ef7`。MusicDL、原Bundle ID、1.0.0/Build28、arm64 iPhoneOS、iOS18+、未签名/未加密、后台audio。源码、资源/依赖、hash、ZIP CRC、GitHub artifact digest及本地/CI验证一致；旧包保留，未重签/安装。云端有效至2026-12-11（本地时间）。[测试报告](https://github.com/yann359/go-music-dl/actions/runs/42923690865/artifacts/13814302395)，原始日志在外层 `outputs/island-native-build28.log`。
 - 尚待真机：前台播放→Home→返回、锁屏/控制中心控制、轻点/长按岛、切歌/暂停及 Apple Music 同机对照。系统决定岛显隐、暂停保留时长、形态和系统动画；不能承诺强制前台隐藏或已彻底修复签后激活。
+- 回滚代码：`git revert d55096e 1b349ba`；状态记录单独docs提交，不改变已通过验证的Swift源码。
 
 ## 上阶段：原生媒体岛交互专项（2026-11-10，Build26自动化通过，真机待验）
 

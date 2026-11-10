@@ -23,6 +23,8 @@
 
 以上是公开 API 和系统交互约定，不是 Apple Music 私有源码或逐帧动画实现。未接入 iPhone、未实际操作 Apple Music，不能宣称完成真实同机对比。
 
+另下载并阅读该页面的官方 `BecomingANowPlayableApp.zip` 示例，检查 `IOSNowPlayableBehavior.swift` 和 `NowPlayable.swift` 的播放类别、激活/停用、静态/动态元数据发布；样例保存在工作区外层 `outputs/island-native-official-sample.zip`。样例使用经典全局信息中心是有效实现，本项目继续沿用单会话中心，不同时向全局中心重复发布。
+
 ## 排查结果与修复
 
 1. **前台立即上岛并非已证实的代码故障。** 未发现 ActivityKit 导入、Live Activity/Widget 扩展、NSSupportsLiveActivities、自定义岛或竞争的生产播放引擎。现有播放会话为单个 AVQueuePlayer + MPNowPlayingSession，手动发布且自动发布关闭；命令使用同会话中心。前台和后台持续提供真实媒体信息是正常原生路径。公开接口不承诺前台隐藏媒体岛，也不允许选择系统收缩、扩张和 Home 过渡的时刻。本轮没有根据前后台隐藏/清空信息、推迟注册或模拟系统动画。
@@ -31,13 +33,29 @@
 4. **返回时存在两层动画的代码路径。** 上一轮后台返回会主动打开 FullPlayer，它带有从 mini player 展开的 zoom/sheet。此时系统也在处理 App 返回过渡。现在仅在确需恢复且播放器尚未显示时，使用无动画事务恢复原有页面；用户主动点击 mini player 的动画保留。是否消除用户设备上的视觉卡顿仍需真机验证，不能仅靠源码认定全部闪烁根因。
 5. **其余会话生命周期保留。** Home/锁屏/active 不新建会话或清空信息；pause 保留信息并发布速率 0；stop 清理；实际媒体服务重置或播放失败恢复才替换 player/session；沿用已修正的 KVO 释放顺序。播放音频类别为 playback/default/longFormAudio，不混音，后台 audio 配置保留。远程播放、暂停、切歌、seek 和原播放恢复边界不变。
 
-修改文件：`ios/MusicDL/AudioEngine.swift`、`ios/MusicDL/NativeAppModel.swift`、`ios/Tests/MediaSessionTests.swift`、本文和 `PROJECT_STATUS.md`。诊断日志新增累计 metadata_updates，仍不含歌曲、凭证或 URL。
+修改文件：`ios/MusicDL/AudioEngine.swift`、`ios/MusicDL/NativeAppModel.swift`、`ios/Tests/MediaSessionTests.swift`、`ios/UITests/NativeVisualTests.swift`、本文和 `PROJECT_STATUS.md`。诊断日志新增累计 metadata_updates，仍不含歌曲、凭证或 URL。
 
 ## 验证与系统限制
 
 新增真实 AVQueuePlayer + 合成 WAV 回归：连续进度与前台通知不重写元数据/不更换会话；暂停与暂停 seek 立即同步；不等待 KVO 的手动切歌信息匹配当前 item；单曲重复播放重置系统时间锚点。保留原会话、媒体服务重置、后台返回及全部既有测试。音频 fixture 延长至 12 秒，以免时间相关用例被 2 秒循环干扰。测试中的等候仅用于观察真实准备/播放，不是产品延迟动画。
 
-本地 Node 6/6 通过，git diff --check 通过。Windows 没有 Swift/iOS SDK，本轮 macOS 编译与 XCTest 结果待后续写入 PROJECT_STATUS.md；上一轮 Build26 仅是历史结果。
+点击探测改为只识别系统暴露的歌曲内容，避免把 Home Screen 的 MusicDL 图标误认作媒体岛；新增长按系统目标、保持 App 在后台、系统暂停/恢复及返回状态探测。没有可识别目标或展开控件时明确 skip，不把 app.activate 当作岛点击证据。
+
+本地 Go 四包与 Node 6/6 通过，git diff --check 通过。Windows 没有 Swift/iOS SDK，本轮使用现有 macOS 工作流实际编译/执行。首次 Build27 在模拟器准备阶段被本轮补齐 UI 探测的新版本取代，取消未交付；最终代码 `d55096eafc577cc0ce0d8a2521b70e4a04935098` 的 [Build28](https://github.com/yann359/go-music-dl/actions/runs/42923690865) **全部成功**，不是沿用 Build26 结果。
+
+| 本轮实际验证 | 结果 | 说明 |
+|---|---|---|
+| macOS Go 四包 / Node 桥接 | 全通过 / 6通过 | 未修改业务代码 |
+| iPhone Release / 模拟器编译 | 通过 | Xcode26.6 / SDK26.5，部署目标仍 iOS18 |
+| Swift XCTest | 65通过 / 0失败 | 64单元/受控回归 + 1真实 C ABI 集成；MediaSessionTests 六项全部通过 |
+| 非preview启动/键盘搜索及后台返回 UI | 2通过 | 既有正常流程回归，无搜索修改 |
+| fixture UI | 5通过 | 含 Home 往返和播放器状态 |
+| 系统媒体岛轻点/长按 | 2明确跳过 | 模拟器未暴露歌曲媒体岛目标，没有操作 App 图标冒充成功 |
+| iPhone 与 Apple Music 同机对照 | 未执行 | 仍需真实设备验证视觉过渡、锁屏、控制中心、轻点/长按 |
+
+本轮日志保存在外层 `outputs/island-native-build28.log`；[完整测试报告](https://github.com/yann359/go-music-dl/actions/runs/42923690865/artifacts/13814302395) 保留原始 xcresult 与截图。
+
+新 [Build28 IPA 与匹配源码](https://github.com/yann359/go-music-dl/actions/runs/42923690865/artifacts/13813703204) 已下载到 `../outputs/ios-release-build/build28/music-dl-ios-native-unsigned.ipa`，14,353,065字节，SHA256 `e9aa3d5570f67db085b4c5f04bbfca3bb7635438f7e30f68bbd9aeb11f0a6ef7`，云端有效至2026-12-11（本地时间）。本地运行原有 verify-ipa.py，与 CI verification JSON 完全一致：MusicDL、原 bundle ID、1.0.0/Build28、arm64 iPhoneOS、iOS18+、未签名/未加密、后台audio、资源/依赖检查通过。附带 SHA256、源码提交文件、源码 ZIP 中四份改动 Swift 文件及 GitHub artifact digest/ZIP CRC 均已核验。旧 Build26 保留，没有重签、安装或卸载 App。
 
 真机验收矩阵（本轮均待执行）：
 
@@ -53,4 +71,4 @@
 
 不使用私有 API，不修改 bundle/signing，不新增自我 openURL。源码能修正冗余发布、曲目信息竞态及重复导航动画；不能强制系统前台藏岛、后台显岛，不能控制长按展开/锁屏/多活动竞争动画，不能用无真机日志证明已解决 SideStore 激活问题。
 
-回滚：本轮代码形成独立修复提交，可 `git revert <本轮修复提交>`；保留 Build26 IPA，不卸载 App 或触碰本地音乐数据。
+回滚：`git revert d55096e 1b349ba` 撤回本轮测试与代码修复；保留 Build26 IPA，不卸载 App 或触碰本地音乐数据。最终状态记录单独形成 docs 提交，不改变已测试的 Swift 源码。
