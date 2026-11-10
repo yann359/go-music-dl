@@ -146,6 +146,26 @@ final class SearchSessionTests: XCTestCase {
         XCTAssertEqual(session.result?.songs.first?.source, "netease")
     }
 
+    func testNetworkServiceAndParsingFailuresStayDistinct() async throws {
+        let cases: [(Data?, Error?, String)] = [
+            (nil, URLError(.notConnectedToInternet), "网络连接中断"),
+            (nil, NativeError.message("bridge stopped"), "应用内音乐服务不可用"),
+            (Data("invalid JSON".utf8), nil, "响应解析错误"),
+            (Data(#"{"data":{"songs":[],"playlists":[],"errors":["音乐服务内部异常"]}}"#.utf8), nil, "内部异常")
+        ]
+        for (data, failure, expected) in cases {
+            let client = client { _ in
+                if let failure { throw failure }
+                return data!
+            }
+            try await client.loadBootstrap()
+            var final = NativeSearchResult()
+            try await client.searchProgressively(query: "晴天", type: "song", sources: ["qq"]) { final = $0 }
+            XCTAssertTrue(final.songs.isEmpty)
+            XCTAssertTrue(final.errors.first?.contains(expected) == true, "Expected \(expected), got \(final.errors)")
+        }
+    }
+
     func testAllRegisteredDefaultsPublishEvenWithEmptyLegacyDefaultList() async throws {
         var searched = Set<String>()
         let client = client { request in

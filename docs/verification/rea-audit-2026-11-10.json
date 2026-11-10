@@ -1,0 +1,900 @@
+{
+  "server": {
+    "package": "rea-agents",
+    "version": "6.4.0",
+    "platform": "win32",
+    "native_runtime": "unsupported_host",
+    "ghidra": "not_configured"
+  },
+  "current_javascript": {
+    "evidence_id": "ev_8633d22f552820e490d24ce06342531d09f3e662f6979da529becd3da1f7edeb",
+    "parent": "ev_2b0d2eef9b1d751bd69eebd7202942c4bf166a5da5902faf86ffd5019068ce1b",
+    "summary": {
+      "input_path": "C:\\Users\\Administrator\\Documents\\ChatGPT\\apple music\\go-music-dl\\ios\\MusicDL",
+      "format": "directory",
+      "root_artifact_sha256": "7d61736e4fcc101fd184e6cae8e3ab7f084cd4aaaf824f2894edd7d8573a8669",
+      "statistics": {
+        "relevant_files": 3,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 6233,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 1,
+        "visited_ast_nodes": 1033,
+        "findings": 0,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "electron": {
+        "browser_windows": 0,
+        "explicit_web_preferences": 0,
+        "preload_entrypoints": 0,
+        "context_bridge_apis": 0,
+        "exposed_api_members": 0,
+        "ipc": {
+          "operations": 0,
+          "literal_channels": 0,
+          "dynamic_channel_operations": 0,
+          "renderer_transmissions": 0,
+          "renderer_listeners": 0,
+          "main_handlers": 0,
+          "paired_renderer_transmissions": 0,
+          "ambiguous_renderer_transmissions": 0,
+          "unpaired_literal_renderer_transmissions": 0
+        },
+        "sender_validation_observations": 0,
+        "utility_processes": 0,
+        "resolved_utility_entrypoints": 0,
+        "native_addon_bindings": 0,
+        "resolved_native_addon_bindings": 0
+      },
+      "coverage": {
+        "application": {
+          "status": "complete",
+          "truncated": false,
+          "omitted_count": 0,
+          "limits": []
+        },
+        "semantic": {
+          "status": "unknown",
+          "truncated": false,
+          "omitted_nodes": 0,
+          "omitted_relations": 0,
+          "limits": [],
+          "families": [
+            {
+              "family": "boundary",
+              "status": "partial",
+              "retained_relations": 14,
+              "omitted_relations": 0,
+              "unknown_count": 0
+            },
+            {
+              "family": "call-flow",
+              "status": "partial",
+              "retained_relations": 61,
+              "omitted_relations": 0,
+              "unknown_count": 40
+            },
+            {
+              "family": "child-process",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": 0,
+              "unknown_count": 0
+            },
+            {
+              "family": "closure",
+              "status": "partial",
+              "retained_relations": 97,
+              "omitted_relations": 0,
+              "unknown_count": 0
+            },
+            {
+              "family": "configuration",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": 0,
+              "unknown_count": 0
+            },
+            {
+              "family": "data-flow",
+              "status": "partial",
+              "retained_relations": 375,
+              "omitted_relations": 0,
+              "unknown_count": 36
+            },
+            {
+              "family": "event",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": 0,
+              "unknown_count": 0
+            },
+            {
+              "family": "object-flow",
+              "status": "partial",
+              "retained_relations": 59,
+              "omitted_relations": 0,
+              "unknown_count": 84
+            },
+            {
+              "family": "promise-ownership",
+              "status": "partial",
+              "retained_relations": 2,
+              "omitted_relations": 0,
+              "unknown_count": 0
+            },
+            {
+              "family": "request",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": 0,
+              "unknown_count": 0
+            },
+            {
+              "family": "resource-lifecycle",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": 0,
+              "unknown_count": 0
+            },
+            {
+              "family": "timer",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": 0,
+              "unknown_count": 0
+            }
+          ]
+        },
+        "application_unknowns": 0,
+        "semantic_unknowns": 160
+      },
+      "limitation_count": 5
+    },
+    "limitations": [
+      "Boundary extraction covers unshadowed JSON/global coercions plus parse and validation method candidates.",
+      "Child-process extraction covers asynchronous node:child_process creation, literal argv/env/stdio options, exit/error listeners, and kill signals.",
+      "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+      "Configuration extraction covers process.env, process.argv, node:fs reads, and direct logical defaults.",
+      "Event extraction covers EventEmitter-style literal registrations, removals, and dispatch candidates; dynamic names remain unknown.",
+      "Function fingerprints are static candidates; equal digests can remain ambiguous and do not prove behavioral equivalence.",
+      "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+      "Local data flow does not claim control-flow-sensitive reaching definitions or arbitrary dynamic property resolution.",
+      "Promise ownership covers explicit unshadowed Promise construction, static factories, aggregation, chaining, and await syntax only.",
+      "Request extraction covers fetch, WebSocket, node:http/node:https construction, direct option fields, and exact local response consumers.",
+      "Resource extraction covers built-in filesystem/network acquisition and exact local close/destroy/end handles.",
+      "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+      "Static paths and relationships may remain unresolved when expressions are dynamic or obfuscated.",
+      "The semantic graph contains static syntax observations and conservative relationship candidates; it does not claim runtime execution.",
+      "Timer extraction covers global or node:timers scheduling and exact local-handle cancellation.",
+      "Webpack/Rspack factories were recovered from AST literals; REA did not invoke push handlers or bundle bootstrap code."
+    ]
+  },
+  "build20_archive": {
+    "evidence_id": "ev_904e69fe4d5321a714791f0cecec376eca5d7ebe7de8391e71847d8a030436e4",
+    "normalized_result": {
+      "inspection_id": "ai_245b59ffd11ec59ef0c665649f6af718b83a2d23631f30fd98cbf6c8976a9937",
+      "subject": {
+        "manifest_id": "agm_ab3e9a7b5f5fbde41fcab7063b354e4fe7d5c23896d2f10ad9c1238d78eb0d2f",
+        "root_artifact_id": "art_c7ae96efdbf96fb428efabe669c308438c65f34a0c76c170c5c3d1cc6390f2f8",
+        "root_sha256": "65d4fe0afb8fb025439dbce9f042eb73c9b26bfc6c8c40c4f084f3279247adee",
+        "root_format": "ipa"
+      },
+      "substeps": [
+        {
+          "substep_id": "ais_3c3ba057c1c6cf4f3c4425ffc6810fdc50d18b27a71254ebddda8f14f647ca44",
+          "operation": "inventory_artifact",
+          "status": "completed",
+          "evidence_id": "ev_302fd0330be454c3ac89385820e0542992d626d9d604edce458c8fa56e17f9fb",
+          "evidence": {
+            "evidence_id": "ev_302fd0330be454c3ac89385820e0542992d626d9d604edce458c8fa56e17f9fb",
+            "subject": {
+              "name": "music-dl-ios-native-unsigned.ipa",
+              "digest": {
+                "sha256": "65d4fe0afb8fb025439dbce9f042eb73c9b26bfc6c8c40c4f084f3279247adee"
+              },
+              "format": "ipa",
+              "architecture": null,
+              "local_path": "C:/Users/Administrator/Documents/ChatGPT/apple music/outputs/ios-release-build/build20/music-dl-ios-native-unsigned.ipa"
+            },
+            "provider": {
+              "id": "rea-artifact-graph",
+              "name": "REA safe artifact graph provider",
+              "version": "1"
+            },
+            "analysis_profile": null,
+            "predicate_type": "rea.analysis",
+            "operation": "inventory_artifact",
+            "parameters": {
+              "integrity_policy": "fail"
+            },
+            "raw_result": null,
+            "normalized_result": {
+              "manifest": {
+                "manifest_id": "agm_ab3e9a7b5f5fbde41fcab7063b354e4fe7d5c23896d2f10ad9c1238d78eb0d2f",
+                "root_artifact_id": "art_c7ae96efdbf96fb428efabe669c308438c65f34a0c76c170c5c3d1cc6390f2f8",
+                "root_sha256": "65d4fe0afb8fb025439dbce9f042eb73c9b26bfc6c8c40c4f084f3279247adee",
+                "root_format": "ipa",
+                "graph_sha256": "5d89ec3acbf97776326eed840802a9c57a93a79c0aef652b47a93d5137b10d77",
+                "node_count": 13,
+                "occurrence_count": 13,
+                "edge_count": 12
+              },
+              "nodes": [
+                {
+                  "artifact_id": "art_061aaacec002ebd8aad9473b72c08b19a18288b2bd24dd2c8a3808b2d5c53ea6",
+                  "format": "plist",
+                  "sha256": "704ec51990fa477c39bfa24b70961f4568c3e7767ffa9ecb5acca40729b078c1",
+                  "size": 1643,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_0ad3667f224c7ba36a11044a37b6292c3c095145563abac4468c5d7fa690f7b0",
+                  "format": "file",
+                  "sha256": "92aabda7c755ac876d048eca83679fa139342f8ba6c41634d9c1b672cf001b0c",
+                  "size": 136453,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_3c5c80cab064b7ba3dd99ae5e601c875ada5a849026c75f5d263e45364d0c1f8",
+                  "format": "file",
+                  "sha256": "f1c5d96e3e7d421b99146ce8449210d65f3509d88bec2851cbb3a1855f33a7ac",
+                  "size": 6059,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_42e620e681b786d96e056a13bd5ed8d7eb97203ad197cfc8b3488ad8d1543167",
+                  "format": "file",
+                  "sha256": "b7268bfc57a05cfeb419789ae4ab526f443360def5014f51e4426509bccaca5c",
+                  "size": 4060,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_563faf35cdcaa7906abb23090e06300f9b57e682367f37f073b024a7ae5eb8f4",
+                  "format": "directory",
+                  "sha256": "17dd9c09cd46e11b848a3dd45cbf2b303a33075ac0677639ccc47cf791ba0190",
+                  "size": 0,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "virtual",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "format": "directory",
+                  "sha256": "36871ee1be3c504717d451b8121622814598ae507ac817821fd04126af99150d",
+                  "size": 0,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "virtual",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_846a15d5a5c118ae6502d8981a98119dde16406eeca8def9a79f3872be8bb9a4",
+                  "format": "file",
+                  "sha256": "c299fed7076349ad7b67cb506faa09d83ec658591956ee1cded9da3be04b6131",
+                  "size": 6213,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_90b46e7d6c31509f1d5cb815e7f787c47890c40daafe3f7fa1fe8e7728b00b1a",
+                  "format": "file",
+                  "sha256": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+                  "size": 34522,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_ab73a1cda8c3578849adbfcec51e05a4571b1b5fcae742804390e30a98d9c8b7",
+                  "format": "mach-o",
+                  "sha256": "102ff2ed95e9420aeece8830d51774f09499156ea9c584fdd62c82d54493c6ab",
+                  "size": 39683856,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_b940447ab51d58d373b8e7dc9ba960092dbf681a0ae102af0912528739c73a1e",
+                  "format": "file",
+                  "sha256": "3184bc771d6a08d4eaa9528da27a30537e31780fff346dd255272b498d264dbe",
+                  "size": 938136,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_c7ae96efdbf96fb428efabe669c308438c65f34a0c76c170c5c3d1cc6390f2f8",
+                  "format": "zip",
+                  "sha256": "65d4fe0afb8fb025439dbce9f042eb73c9b26bfc6c8c40c4f084f3279247adee",
+                  "size": 14325073,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "materialized",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_e52e1b3efba181b767945914d47f8247565a832cb1b1ea85640bcba4a65cb176",
+                  "format": "file",
+                  "sha256": "71718f62d1533122272e7f8e2c29b073a216a098ddb16fbe83eb143ccf8d1ada",
+                  "size": 979,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                },
+                {
+                  "artifact_id": "art_f62821860178cb98f4ebd6a586afb5f637766861bb2b71d908180f5228589837",
+                  "format": "file",
+                  "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0",
+                  "size": 8,
+                  "media_type": null,
+                  "architecture": null,
+                  "content_state": "embedded",
+                  "limitations": []
+                }
+              ],
+              "occurrences": [
+                {
+                  "occurrence_id": "occ_4429721c366ad120229d84d5ba7569ff0fc26a65a096c7e511f17a392f55056b",
+                  "artifact_id": "art_c7ae96efdbf96fb428efabe669c308438c65f34a0c76c170c5c3d1cc6390f2f8",
+                  "parent_occurrence_id": null,
+                  "logical_path": ".",
+                  "entry_kind": "file",
+                  "artifact_kind": "container",
+                  "artifact_format": "ipa",
+                  "declared_size": 14325073,
+                  "compressed_size": null,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_d61521613aa38d742652810797ad8a3b56562341f42833da05eab17acca2a96d",
+                  "artifact_id": "art_563faf35cdcaa7906abb23090e06300f9b57e682367f37f073b024a7ae5eb8f4",
+                  "parent_occurrence_id": "occ_4429721c366ad120229d84d5ba7569ff0fc26a65a096c7e511f17a392f55056b",
+                  "logical_path": "Payload",
+                  "entry_kind": "directory",
+                  "artifact_kind": "container",
+                  "artifact_format": "directory",
+                  "declared_size": null,
+                  "compressed_size": null,
+                  "executable": true,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "parent_occurrence_id": "occ_d61521613aa38d742652810797ad8a3b56562341f42833da05eab17acca2a96d",
+                  "logical_path": "Payload/MusicDL.app",
+                  "entry_kind": "directory",
+                  "artifact_kind": "container",
+                  "artifact_format": "directory",
+                  "declared_size": null,
+                  "compressed_size": null,
+                  "executable": true,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_a90719cfc21d0c94435918efab51f466d3f3fa5d5d59bbe8095ffa4692bb18a6",
+                  "artifact_id": "art_42e620e681b786d96e056a13bd5ed8d7eb97203ad197cfc8b3488ad8d1543167",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/AppIcon60x60@2x.png",
+                  "entry_kind": "file",
+                  "artifact_kind": "resource",
+                  "artifact_format": "file",
+                  "declared_size": 4060,
+                  "compressed_size": 4036,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_c3adfbc4ff3cf9f47a7df52e981df756972acf214ea864d45728e391cea1f7af",
+                  "artifact_id": "art_846a15d5a5c118ae6502d8981a98119dde16406eeca8def9a79f3872be8bb9a4",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/AppIcon76x76@2x~ipad.png",
+                  "entry_kind": "file",
+                  "artifact_kind": "resource",
+                  "artifact_format": "file",
+                  "declared_size": 6213,
+                  "compressed_size": 6188,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_8446213ed5ad76f3fabb4f0ef4ab15eb3308670211fd3d58c36521e530352a15",
+                  "artifact_id": "art_b940447ab51d58d373b8e7dc9ba960092dbf681a0ae102af0912528739c73a1e",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/Assets.car",
+                  "entry_kind": "file",
+                  "artifact_kind": "resource",
+                  "artifact_format": "file",
+                  "declared_size": 938136,
+                  "compressed_size": 844144,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_3570e5504488e489383a28fdf85d85597775dac3432845a41ada3fa627cd85e5",
+                  "artifact_id": "art_061aaacec002ebd8aad9473b72c08b19a18288b2bd24dd2c8a3808b2d5c53ea6",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/Info.plist",
+                  "entry_kind": "file",
+                  "artifact_kind": "plist",
+                  "artifact_format": "plist",
+                  "declared_size": 1643,
+                  "compressed_size": 1122,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_bf35c05397443e50df43353ee13724cf6cbcc703a7d40ea279f1e7d23a148ceb",
+                  "artifact_id": "art_90b46e7d6c31509f1d5cb815e7f787c47890c40daafe3f7fa1fe8e7728b00b1a",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/LICENSE",
+                  "entry_kind": "file",
+                  "artifact_kind": "resource",
+                  "artifact_format": "file",
+                  "declared_size": 34522,
+                  "compressed_size": 11760,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_9b3f24ede2270a4022fcfd115df1e70d6fc22d594d02c89a02f5783cc73e734b",
+                  "artifact_id": "art_ab73a1cda8c3578849adbfcec51e05a4571b1b5fcae742804390e30a98d9c8b7",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/MusicDL",
+                  "entry_kind": "file",
+                  "artifact_kind": "executable",
+                  "artifact_format": "mach-o",
+                  "declared_size": 39683856,
+                  "compressed_size": 13425743,
+                  "executable": true,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_addbcd8c1e3cbabaf273733474f5e6a1208b0a027f67159d9ed24991d1dd70bc",
+                  "artifact_id": "art_e52e1b3efba181b767945914d47f8247565a832cb1b1ea85640bcba4a65cb176",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/NOTICE.md",
+                  "entry_kind": "file",
+                  "artifact_kind": "resource",
+                  "artifact_format": "file",
+                  "declared_size": 979,
+                  "compressed_size": 684,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_527a8ffd8e0ca103f8dae1a2dcd4301351b4f89688fa18cc650acae5697e5909",
+                  "artifact_id": "art_f62821860178cb98f4ebd6a586afb5f637766861bb2b71d908180f5228589837",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/PkgInfo",
+                  "entry_kind": "file",
+                  "artifact_kind": "resource",
+                  "artifact_format": "file",
+                  "declared_size": 8,
+                  "compressed_size": 8,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_db609e1b093115b400a3ae882eb78c6cdf1fae5c6ce72a96aaec95a435cca3bc",
+                  "artifact_id": "art_0ad3667f224c7ba36a11044a37b6292c3c095145563abac4468c5d7fa690f7b0",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/ThirdPartyNotices.txt",
+                  "entry_kind": "file",
+                  "artifact_kind": "resource",
+                  "artifact_format": "file",
+                  "declared_size": 136453,
+                  "compressed_size": 27030,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                },
+                {
+                  "occurrence_id": "occ_81a5b67d22f0e8f326b6cac77dac336822b9c16b6598fbc8f31efa9749f1f163",
+                  "artifact_id": "art_3c5c80cab064b7ba3dd99ae5e601c875ada5a849026c75f5d263e45364d0c1f8",
+                  "parent_occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "logical_path": "Payload/MusicDL.app/native-audio.js",
+                  "entry_kind": "file",
+                  "artifact_kind": "javascript",
+                  "artifact_format": "javascript-bundle",
+                  "declared_size": 6059,
+                  "compressed_size": 2086,
+                  "executable": false,
+                  "encrypted": false,
+                  "hash_status": "verified",
+                  "source_location": null,
+                  "limitations": []
+                }
+              ],
+              "edges": [
+                {
+                  "edge_id": "edge_1ae13e0096f25cf683a883b4c07055065698b22fe46dabe02d56ba240426098f",
+                  "ordinal": 0,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_81a5b67d22f0e8f326b6cac77dac336822b9c16b6598fbc8f31efa9749f1f163",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_4b08c4a5404248c4196a673a704817f6ff533f13a152de68d58a96d11c8ba5df",
+                  "ordinal": 1,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_8446213ed5ad76f3fabb4f0ef4ab15eb3308670211fd3d58c36521e530352a15",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_6df4dd14f8c150f2328b771b57e2ea9066e43d50bd9393e7bab500c4999d9c7c",
+                  "ordinal": 2,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_3570e5504488e489383a28fdf85d85597775dac3432845a41ada3fa627cd85e5",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_80816688068797921d6ce00eb863140c85beacf50fa7784e05f4e58f182277d6",
+                  "ordinal": 3,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_527a8ffd8e0ca103f8dae1a2dcd4301351b4f89688fa18cc650acae5697e5909",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_8c821713c40110784afb49208236c188a8aba3c6929830e09b70bb2cec0c212e",
+                  "ordinal": 4,
+                  "parent_artifact_id": "art_c7ae96efdbf96fb428efabe669c308438c65f34a0c76c170c5c3d1cc6390f2f8",
+                  "relation": "contains",
+                  "occurrence_id": "occ_d61521613aa38d742652810797ad8a3b56562341f42833da05eab17acca2a96d",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_90c37634f1d95ebb0b4a67e6079295f1a030cffc561f4c180d68dd73b5970560",
+                  "ordinal": 5,
+                  "parent_artifact_id": "art_563faf35cdcaa7906abb23090e06300f9b57e682367f37f073b024a7ae5eb8f4",
+                  "relation": "contains",
+                  "occurrence_id": "occ_2ff51ff0e312fe41fa8d27dd37777d5d5a9719250ad5d31359c2d1becd992421",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_aa23b4c26712d395ee49bb568712c593ac8ae7a0b11837bf5c61450babb5bb2c",
+                  "ordinal": 6,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_db609e1b093115b400a3ae882eb78c6cdf1fae5c6ce72a96aaec95a435cca3bc",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_ab8d05cf366cf31ba5accb495c942039b7a5c1869c357da829d80e86d26be47a",
+                  "ordinal": 7,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_c3adfbc4ff3cf9f47a7df52e981df756972acf214ea864d45728e391cea1f7af",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_c4481f7d90e04b425ce28e9f5344d0ad65589f61fbd83ba510d3c89f612bfd1c",
+                  "ordinal": 8,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_bf35c05397443e50df43353ee13724cf6cbcc703a7d40ea279f1e7d23a148ceb",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_df2e24f8406e0ffcb5eb4c97d088f597786709342d8d6f52008886b792f41a30",
+                  "ordinal": 9,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_9b3f24ede2270a4022fcfd115df1e70d6fc22d594d02c89a02f5783cc73e734b",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_edb9bea15387ee2a80e2f9b24ee4bcac554acb6d7b533d1a6704beec0b931418",
+                  "ordinal": 10,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_a90719cfc21d0c94435918efab51f466d3f3fa5d5d59bbe8095ffa4692bb18a6",
+                  "producer": null
+                },
+                {
+                  "edge_id": "edge_fd10a08f53ec55ee48cbb5daf735497ce4c12003d6c1707df163dd98bd717d60",
+                  "ordinal": 11,
+                  "parent_artifact_id": "art_736119057c5072926d02bd5688f5353e2898bd7814b775aa714391b330d0a245",
+                  "relation": "contains",
+                  "occurrence_id": "occ_addbcd8c1e3cbabaf273733474f5e6a1208b0a027f67159d9ed24991d1dd70bc",
+                  "producer": null
+                }
+              ],
+              "provenance": [],
+              "integrity_contradictions": [],
+              "limitations": [
+                "ZIP inventory lists central-directory entries only. Bytes after the central directory, including an APK Signing Block or a ZIP comment, are not occurrences."
+              ]
+            },
+            "confidence": "observed",
+            "authority": "shipped-artifact",
+            "environment": null,
+            "limitations": [
+              "ZIP inventory lists central-directory entries only. Bytes after the central directory, including an APK Signing Block or a ZIP comment, are not occurrences."
+            ],
+            "locations": [],
+            "evidence_links": []
+          }
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "aio_05848573db46d578c9e978516b1786b5af183bd12068f31fa02da6459aab2063",
+          "kind": "root-manifest",
+          "subject": "art_c7ae96efdbf96fb428efabe669c308438c65f34a0c76c170c5c3d1cc6390f2f8",
+          "value": {
+            "manifest_id": "agm_ab3e9a7b5f5fbde41fcab7063b354e4fe7d5c23896d2f10ad9c1238d78eb0d2f",
+            "root_artifact_id": "art_c7ae96efdbf96fb428efabe669c308438c65f34a0c76c170c5c3d1cc6390f2f8",
+            "root_sha256": "65d4fe0afb8fb025439dbce9f042eb73c9b26bfc6c8c40c4f084f3279247adee",
+            "root_format": "ipa",
+            "graph_sha256": "5d89ec3acbf97776326eed840802a9c57a93a79c0aef652b47a93d5137b10d77",
+            "node_count": 13,
+            "occurrence_count": 13,
+            "edge_count": 12
+          },
+          "evidence_id": "ev_302fd0330be454c3ac89385820e0542992d626d9d604edce458c8fa56e17f9fb"
+        }
+      ],
+      "hypotheses": [],
+      "contradictions": [],
+      "unexplored_branches": [],
+      "next_probes": [],
+      "coverage": {
+        "status": "complete-within-substeps",
+        "substeps_completed": 1,
+        "observations_retained": 1,
+        "observations_omitted": 0,
+        "hypotheses_retained": 0,
+        "hypotheses_omitted": 0,
+        "unexplored_branches_retained": 0,
+        "unexplored_branches_omitted": 0,
+        "next_probes_retained": 0,
+        "next_probes_omitted": 0
+      },
+      "evidence_links": [
+        "ev_302fd0330be454c3ac89385820e0542992d626d9d604edce458c8fa56e17f9fb"
+      ],
+      "limitations": [
+        "Inspection derives bounded static hypotheses and next probes; it does not execute the artifact or claim format-specific semantics.",
+        "ZIP inventory lists central-directory entries only. Bytes after the central directory, including an APK Signing Block or a ZIP comment, are not occurrences."
+      ]
+    }
+  },
+  "upstream_javascript": {
+    "evidence_id": "ev_d31bc192683fd3417a06e25bbe237594734a17468aea7723faf53b24ff634a17",
+    "parent": "ev_d4124aa8fd6d962cd2c7cf1509a24ac10b31b3059a0fccf0c9a0cf251c8b1d51",
+    "summary": {
+      "input_path": "C:\\Users\\Administrator\\Documents\\ChatGPT\\apple music\\outputs\\rea-upstream-search",
+      "format": "directory",
+      "root_artifact_sha256": "9fcd1a4b2bf001c94053394afce61c000d02215c0581633582d899b991b3ee49",
+      "statistics": {
+        "relevant_files": 1,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 341775,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 1,
+        "visited_ast_nodes": 47468,
+        "findings": 25,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "electron": {
+        "browser_windows": 0,
+        "explicit_web_preferences": 0,
+        "preload_entrypoints": 0,
+        "context_bridge_apis": 0,
+        "exposed_api_members": 0,
+        "ipc": {
+          "operations": 0,
+          "literal_channels": 0,
+          "dynamic_channel_operations": 0,
+          "renderer_transmissions": 0,
+          "renderer_listeners": 0,
+          "main_handlers": 0,
+          "paired_renderer_transmissions": 0,
+          "ambiguous_renderer_transmissions": 0,
+          "unpaired_literal_renderer_transmissions": 0
+        },
+        "sender_validation_observations": 0,
+        "utility_processes": 0,
+        "resolved_utility_entrypoints": 0,
+        "native_addon_bindings": 0,
+        "resolved_native_addon_bindings": 0
+      },
+      "coverage": {
+        "application": {
+          "status": "complete",
+          "truncated": false,
+          "omitted_count": 0,
+          "limits": []
+        },
+        "semantic": {
+          "status": "partial",
+          "truncated": true,
+          "omitted_nodes": null,
+          "omitted_relations": null,
+          "limits": [
+            {
+              "name": "semantic_graph_node_ceiling",
+              "value": 100000,
+              "unit": "items"
+            }
+          ],
+          "families": [
+            {
+              "family": "boundary",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_count": 0
+            },
+            {
+              "family": "call-flow",
+              "status": "partial",
+              "retained_relations": 2847,
+              "omitted_relations": null,
+              "unknown_count": 2539
+            },
+            {
+              "family": "child-process",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_count": 0
+            },
+            {
+              "family": "closure",
+              "status": "partial",
+              "retained_relations": 2392,
+              "omitted_relations": null,
+              "unknown_count": 0
+            },
+            {
+              "family": "configuration",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_count": 0
+            },
+            {
+              "family": "data-flow",
+              "status": "partial",
+              "retained_relations": 12595,
+              "omitted_relations": null,
+              "unknown_count": 2461
+            },
+            {
+              "family": "event",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_count": 0
+            },
+            {
+              "family": "object-flow",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_count": 4828
+            },
+            {
+              "family": "promise-ownership",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_count": 0
+            },
+            {
+              "family": "request",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_count": 0
+            },
+            {
+              "family": "resource-lifecycle",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_count": 0
+            },
+            {
+              "family": "timer",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_count": 1
+            }
+          ]
+        },
+        "application_unknowns": 0,
+        "semantic_unknowns": 9829
+      },
+      "limitation_count": 5
+    },
+    "limitations": [
+      "Boundary extraction covers unshadowed JSON/global coercions plus parse and validation method candidates.",
+      "Child-process extraction covers asynchronous node:child_process creation, literal argv/env/stdio options, exit/error listeners, and kill signals.",
+      "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+      "Configuration extraction covers process.env, process.argv, node:fs reads, and direct logical defaults.",
+      "Event extraction covers EventEmitter-style literal registrations, removals, and dispatch candidates; dynamic names remain unknown.",
+      "Function fingerprints are static candidates; equal digests can remain ambiguous and do not prove behavioral equivalence.",
+      "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+      "Local data flow does not claim control-flow-sensitive reaching definitions or arbitrary dynamic property resolution.",
+      "Promise ownership covers explicit unshadowed Promise construction, static factories, aggregation, chaining, and await syntax only.",
+      "Request extraction covers fetch, WebSocket, node:http/node:https construction, direct option fields, and exact local response consumers.",
+      "Resource extraction covers built-in filesystem/network acquisition and exact local close/destroy/end handles.",
+      "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+      "Static paths and relationships may remain unresolved when expressions are dynamic or obfuscated.",
+      "The semantic graph contains static syntax observations and conservative relationship candidates; it does not claim runtime execution.",
+      "Timer extraction covers global or node:timers scheduling and exact local-handle cancellation.",
+      "Webpack/Rspack factories were recovered from AST literals; REA did not invoke push handlers or bundle bootstrap code."
+    ]
+  },
+  "upstream_module_view": {
+    "evidence_id": "ev_1d1b21e5bd05d6cd5d71d047c47452daeec69ed7b7d40097f802fb461c925631",
+    "path": "internal/web/templates/static/js/app.js"
+  },
+  "scope_note": "REA inspected JavaScript syntax and archive inventory only. Swift/Go findings are source review plus controlled execution tests, not REA decompilation or iPhone runtime evidence."
+}
