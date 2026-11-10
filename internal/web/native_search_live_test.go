@@ -18,6 +18,9 @@ func TestNativeSearchLive(t *testing.T) {
 		t.Skip("set MUSICDL_SEARCH_AUDIT to an output JSON path for real provider requests")
 	}
 	initCollectionDBForTest(t)
+	if os.Getenv("MUSICDL_SEARCH_TRACE") == "1" {
+		enableNativeDiagnostics()
+	}
 	type observation struct {
 		Query        string   `json:"query"`
 		Kind         string   `json:"kind"`

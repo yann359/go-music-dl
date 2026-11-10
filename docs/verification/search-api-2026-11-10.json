@@ -1,0 +1,2510 @@
+{
+  "matrix": {
+    "at": "2026-11-10T02:51:36.9223885Z",
+    "credentials": "isolated test database; no personal account credentials loaded",
+    "first_result_ms": 391,
+    "parallel": 3,
+    "switch_source": {
+      "audio_probes": [
+        {
+          "milliseconds": 244,
+          "name": "晴天",
+          "source": "joox",
+          "verified": false
+        },
+        {
+          "milliseconds": 160,
+          "name": "晴天",
+          "source": "kuwo",
+          "verified": true
+        },
+        {
+          "milliseconds": 730,
+          "name": "晴天",
+          "source": "migu",
+          "verified": true
+        }
+      ],
+      "candidate_search_failed": false,
+      "candidates": 3,
+      "original_artist": "周杰伦",
+      "original_name": "晴天",
+      "original_source": "kugou"
+    },
+    "total_ms": 46545,
+    "rows": [
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "qq",
+        "milliseconds": 259,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "netease",
+        "milliseconds": 305,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "kugou",
+        "milliseconds": 84,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "kuwo",
+        "milliseconds": 172,
+        "songs": 8,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "migu",
+        "milliseconds": 687,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "soda",
+        "milliseconds": 993,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "fivesing",
+        "milliseconds": 141,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "joox",
+        "milliseconds": 302,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "qianqian",
+        "milliseconds": 101,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "jamendo",
+        "milliseconds": 888,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "local",
+        "milliseconds": 1,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "apple",
+        "milliseconds": 2324,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "netease",
+        "milliseconds": 122,
+        "songs": 0,
+        "collections": 10,
+        "detail_songs": 13,
+        "detail_ms": 147,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "qq",
+        "milliseconds": 237,
+        "songs": 0,
+        "collections": 10,
+        "detail_songs": 13,
+        "detail_ms": 222,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "bilibili",
+        "milliseconds": 1129,
+        "songs": 17,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "kugou",
+        "milliseconds": 675,
+        "songs": 0,
+        "collections": 10,
+        "detail_songs": 11,
+        "detail_ms": 240,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "kuwo",
+        "milliseconds": 180,
+        "songs": 0,
+        "collections": 10,
+        "detail_songs": 13,
+        "detail_ms": 64,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "soda",
+        "milliseconds": 817,
+        "songs": 0,
+        "collections": 20,
+        "detail_songs": 10,
+        "detail_ms": 437,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "fivesing",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "migu",
+        "milliseconds": 218,
+        "songs": 0,
+        "collections": 20,
+        "detail_ms": 223,
+        "detail_failed": true,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "apple",
+        "milliseconds": 2319,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "jamendo",
+        "milliseconds": 525,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "bilibili",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "qianqian",
+        "milliseconds": 80,
+        "songs": 0,
+        "collections": 1,
+        "detail_songs": 1,
+        "detail_ms": 134,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "netease",
+        "milliseconds": 161,
+        "songs": 0,
+        "collections": 10,
+        "detail_songs": 144,
+        "detail_ms": 384,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "album",
+        "source": "joox",
+        "milliseconds": 92,
+        "songs": 0,
+        "collections": 3,
+        "detail_songs": 13,
+        "detail_ms": 1784,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "qq",
+        "milliseconds": 809,
+        "songs": 0,
+        "collections": 19,
+        "detail_songs": 223,
+        "detail_ms": 649,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "kugou",
+        "milliseconds": 184,
+        "songs": 0,
+        "collections": 10,
+        "detail_songs": 194,
+        "detail_ms": 457,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "kuwo",
+        "milliseconds": 32,
+        "songs": 0,
+        "collections": 10,
+        "detail_songs": 177,
+        "detail_ms": 286,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "apple",
+        "milliseconds": 2957,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "fivesing",
+        "milliseconds": 398,
+        "songs": 0,
+        "collections": 15,
+        "detail_ms": 49,
+        "detail_failed": true,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "migu",
+        "milliseconds": 383,
+        "songs": 0,
+        "collections": 20,
+        "detail_songs": 100,
+        "detail_ms": 327,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "soda",
+        "milliseconds": 655,
+        "songs": 0,
+        "collections": 20,
+        "detail_songs": 52,
+        "detail_ms": 1307,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "qianqian",
+        "milliseconds": 41,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "jamendo",
+        "milliseconds": 608,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "local",
+        "milliseconds": 1,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "netease",
+        "milliseconds": 198,
+        "songs": 5,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "bilibili",
+        "milliseconds": 1034,
+        "songs": 0,
+        "collections": 14,
+        "detail_songs": 100,
+        "detail_ms": 45,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "qq",
+        "milliseconds": 177,
+        "songs": 1,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "soda",
+        "milliseconds": 928,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "kugou",
+        "milliseconds": 180,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "playlist",
+        "source": "joox",
+        "milliseconds": 92,
+        "songs": 0,
+        "collections": 3,
+        "detail_songs": 30,
+        "detail_ms": 3972,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "kuwo",
+        "milliseconds": 1815,
+        "songs": 4,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "migu",
+        "milliseconds": 309,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "fivesing",
+        "milliseconds": 114,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "joox",
+        "milliseconds": 409,
+        "songs": 15,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "jamendo",
+        "milliseconds": 427,
+        "songs": 1,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "qianqian",
+        "milliseconds": 111,
+        "songs": 4,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "local",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "apple",
+        "milliseconds": 4238,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "netease",
+        "milliseconds": 130,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "qq",
+        "milliseconds": 329,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "song",
+        "source": "bilibili",
+        "milliseconds": 1106,
+        "songs": 19,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "kugou",
+        "milliseconds": 161,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "soda",
+        "milliseconds": 803,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "kuwo",
+        "milliseconds": 165,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "fivesing",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "migu",
+        "milliseconds": 155,
+        "songs": 0,
+        "collections": 1,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "joox",
+        "milliseconds": 54,
+        "songs": 0,
+        "collections": 3,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "qianqian",
+        "milliseconds": 79,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "bilibili",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "netease",
+        "milliseconds": 199,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "jamendo",
+        "milliseconds": 593,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "qq",
+        "milliseconds": 103,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "soda",
+        "milliseconds": 828,
+        "songs": 0,
+        "collections": 19,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "kugou",
+        "milliseconds": 380,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "kuwo",
+        "milliseconds": 251,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "migu",
+        "milliseconds": 342,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "fivesing",
+        "milliseconds": 297,
+        "songs": 0,
+        "collections": 15,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "jamendo",
+        "milliseconds": 524,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "joox",
+        "milliseconds": 57,
+        "songs": 0,
+        "collections": 3,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "qianqian",
+        "milliseconds": 43,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "apple",
+        "milliseconds": 3853,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "local",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "album",
+        "source": "apple",
+        "milliseconds": 5667,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦 晴天",
+        "kind": "playlist",
+        "source": "bilibili",
+        "milliseconds": 1120,
+        "songs": 0,
+        "collections": 5,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "netease",
+        "milliseconds": 319,
+        "songs": 2,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "qq",
+        "milliseconds": 229,
+        "songs": 7,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "kugou",
+        "milliseconds": 60,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "kuwo",
+        "milliseconds": 261,
+        "songs": 3,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "migu",
+        "milliseconds": 274,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "soda",
+        "milliseconds": 837,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "fivesing",
+        "milliseconds": 112,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "joox",
+        "milliseconds": 491,
+        "songs": 11,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "qianqian",
+        "milliseconds": 76,
+        "songs": 4,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "jamendo",
+        "milliseconds": 720,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "local",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "netease",
+        "milliseconds": 172,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "bilibili",
+        "milliseconds": 1307,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "qq",
+        "milliseconds": 267,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "soda",
+        "milliseconds": 1034,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "kugou",
+        "milliseconds": 171,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "kuwo",
+        "milliseconds": 59,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "song",
+        "source": "apple",
+        "milliseconds": 4688,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "fivesing",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "migu",
+        "milliseconds": 326,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "joox",
+        "milliseconds": 92,
+        "songs": 0,
+        "collections": 3,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "qianqian",
+        "milliseconds": 147,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "bilibili",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "netease",
+        "milliseconds": 178,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "apple",
+        "milliseconds": 3525,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "album",
+        "source": "jamendo",
+        "milliseconds": 880,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "qq",
+        "milliseconds": 839,
+        "songs": 0,
+        "collections": 18,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "soda",
+        "milliseconds": 720,
+        "songs": 0,
+        "collections": 19,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "kuwo",
+        "milliseconds": 82,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "kugou",
+        "milliseconds": 407,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "migu",
+        "milliseconds": 451,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "fivesing",
+        "milliseconds": 308,
+        "songs": 0,
+        "collections": 15,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "joox",
+        "milliseconds": 90,
+        "songs": 0,
+        "collections": 4,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "qianqian",
+        "milliseconds": 41,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "jamendo",
+        "milliseconds": 527,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "local",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "netease",
+        "milliseconds": 180,
+        "songs": 1,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "bilibili",
+        "milliseconds": 1294,
+        "songs": 0,
+        "collections": 11,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "qq",
+        "milliseconds": 197,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "soda",
+        "milliseconds": 696,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "kugou",
+        "milliseconds": 114,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "kuwo",
+        "milliseconds": 71,
+        "songs": 8,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "migu",
+        "milliseconds": 372,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "fivesing",
+        "milliseconds": 98,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "Mine Mine",
+        "kind": "playlist",
+        "source": "apple",
+        "milliseconds": 5083,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "jamendo",
+        "milliseconds": 549,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "qianqian",
+        "milliseconds": 80,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "joox",
+        "milliseconds": 592,
+        "songs": 41,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "local",
+        "milliseconds": 1,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "netease",
+        "milliseconds": 116,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "bilibili",
+        "milliseconds": 1309,
+        "songs": 19,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "qq",
+        "milliseconds": 225,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "song",
+        "source": "apple",
+        "milliseconds": 5224,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "soda",
+        "milliseconds": 667,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "kuwo",
+        "milliseconds": 84,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "migu",
+        "milliseconds": 193,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "fivesing",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "kugou",
+        "milliseconds": 408,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "joox",
+        "milliseconds": 113,
+        "songs": 0,
+        "collections": 3,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "qianqian",
+        "milliseconds": 109,
+        "songs": 0,
+        "collections": 3,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "bilibili",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "netease",
+        "milliseconds": 201,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "jamendo",
+        "milliseconds": 547,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "qq",
+        "milliseconds": 682,
+        "songs": 0,
+        "collections": 18,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "soda",
+        "milliseconds": 575,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "kugou",
+        "milliseconds": 368,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "kuwo",
+        "milliseconds": 74,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "migu",
+        "milliseconds": 283,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "fivesing",
+        "milliseconds": 318,
+        "songs": 0,
+        "collections": 15,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "album",
+        "source": "apple",
+        "milliseconds": 5015,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "joox",
+        "milliseconds": 92,
+        "songs": 0,
+        "collections": 4,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "qianqian",
+        "milliseconds": 40,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "jamendo",
+        "milliseconds": 578,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "local",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "netease",
+        "milliseconds": 625,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "bilibili",
+        "milliseconds": 1291,
+        "songs": 0,
+        "collections": 15,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "qq",
+        "milliseconds": 122,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "soda",
+        "milliseconds": 1387,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "kugou",
+        "milliseconds": 188,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "kuwo",
+        "milliseconds": 156,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "陈奕迅",
+        "kind": "playlist",
+        "source": "apple",
+        "milliseconds": 5732,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "fivesing",
+        "milliseconds": 92,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "migu",
+        "milliseconds": 384,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "jamendo",
+        "milliseconds": 569,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "joox",
+        "milliseconds": 289,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "qianqian",
+        "milliseconds": 102,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "local",
+        "milliseconds": 1,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "netease",
+        "milliseconds": 226,
+        "songs": 0,
+        "collections": 5,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "bilibili",
+        "milliseconds": 1340,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "qq",
+        "milliseconds": 201,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "song",
+        "source": "apple",
+        "milliseconds": 5304,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "kugou",
+        "milliseconds": 198,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "kuwo",
+        "milliseconds": 68,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "migu",
+        "milliseconds": 174,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "fivesing",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "soda",
+        "milliseconds": 1477,
+        "songs": 0,
+        "collections": 9,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "joox",
+        "milliseconds": 47,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "qianqian",
+        "milliseconds": 76,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "bilibili",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "netease",
+        "milliseconds": 143,
+        "songs": 0,
+        "collections": 10,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "jamendo",
+        "milliseconds": 572,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "qq",
+        "milliseconds": 132,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "soda",
+        "milliseconds": 663,
+        "songs": 0,
+        "collections": 20,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "kugou",
+        "milliseconds": 134,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "kuwo",
+        "milliseconds": 50,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "migu",
+        "milliseconds": 120,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "fivesing",
+        "milliseconds": 89,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "jamendo",
+        "milliseconds": 593,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "joox",
+        "milliseconds": 58,
+        "songs": 0,
+        "collections": 3,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "qianqian",
+        "milliseconds": 42,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "bilibili",
+        "milliseconds": 1161,
+        "songs": 0,
+        "collections": 9,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "local",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "playlist",
+        "source": "apple",
+        "milliseconds": 4270,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "zzMusicDLNoMatch9f473a21",
+        "kind": "album",
+        "source": "apple",
+        "milliseconds": 7251,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      }
+    ]
+  },
+  "baseline": {
+    "at": "2026-11-10T02:39:35.2431956Z",
+    "credentials": "isolated test database; no personal account credentials loaded",
+    "first_result_ms": 402,
+    "parallel": 3,
+    "total_ms": 3151,
+    "rows": [
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "qq",
+        "milliseconds": 269,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "netease",
+        "milliseconds": 287,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "kugou",
+        "milliseconds": 115,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "kuwo",
+        "milliseconds": 166,
+        "songs": 8,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "migu",
+        "milliseconds": 512,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "apple",
+        "milliseconds": 1123,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "soda",
+        "milliseconds": 965,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "fivesing",
+        "milliseconds": 176,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "qianqian",
+        "milliseconds": 176,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "joox",
+        "milliseconds": 638,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "local",
+        "milliseconds": 1,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "bilibili",
+        "milliseconds": 1068,
+        "songs": 17,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "jamendo",
+        "milliseconds": 2028,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      }
+    ]
+  },
+  "after-baseline": {
+    "at": "2026-11-10T02:49:47.9498538Z",
+    "credentials": "isolated test database; no personal account credentials loaded",
+    "first_result_ms": 276,
+    "parallel": 3,
+    "total_ms": 2873,
+    "rows": [
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "qq",
+        "milliseconds": 254,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "netease",
+        "milliseconds": 276,
+        "songs": 1,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "kugou",
+        "milliseconds": 108,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "kuwo",
+        "milliseconds": 148,
+        "songs": 8,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "migu",
+        "milliseconds": 468,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "soda",
+        "milliseconds": 903,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "fivesing",
+        "milliseconds": 221,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "joox",
+        "milliseconds": 271,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "qianqian",
+        "milliseconds": 193,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "apple",
+        "milliseconds": 2038,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "local",
+        "milliseconds": 2,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "jamendo",
+        "milliseconds": 1149,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "bilibili",
+        "milliseconds": 1184,
+        "songs": 17,
+        "collections": 0,
+        "error_count": 0
+      }
+    ]
+  },
+  "aggregate": [
+    {
+      "collections": 0,
+      "error_count": 2,
+      "kind": "song",
+      "milliseconds": 3797,
+      "songs": 105,
+      "sources": [
+        "netease",
+        "apple",
+        "qq",
+        "soda",
+        "kugou",
+        "spotify",
+        "kuwo",
+        "migu",
+        "fivesing",
+        "jamendo",
+        "joox",
+        "qianqian",
+        "bilibili",
+        "local"
+      ]
+    },
+    {
+      "collections": 84,
+      "error_count": 3,
+      "kind": "album",
+      "milliseconds": 2640,
+      "songs": 0,
+      "sources": [
+        "netease",
+        "qq",
+        "kugou",
+        "kuwo",
+        "migu",
+        "jamendo",
+        "joox",
+        "qianqian",
+        "soda",
+        "apple",
+        "spotify"
+      ]
+    },
+    {
+      "collections": 121,
+      "error_count": 2,
+      "kind": "playlist",
+      "milliseconds": 2726,
+      "songs": 0,
+      "sources": [
+        "netease",
+        "apple",
+        "qq",
+        "soda",
+        "kugou",
+        "spotify",
+        "kuwo",
+        "migu",
+        "fivesing",
+        "jamendo",
+        "joox",
+        "qianqian",
+        "bilibili",
+        "local"
+      ]
+    }
+  ],
+  "diagnostics_regression": {
+    "body_eof": "original EOF preserved; passed TestNativeDiagnosticBodyPreservesEOF",
+    "slow_log_sink": "original healthy request blocked beyond 1 second; bounded async logging and EOF fix passed TestNativeHTTPDiagnosticsCannotBlockNetworkOnSlowLogSink",
+    "normal_go_regression": {
+      "passed": 360,
+      "skipped": 15,
+      "failed": 0
+    },
+    "ci_history": {
+      "build17": "55 unit tests passed; real single-source UI timed out with HTTP tracing",
+      "build18": "55 unit tests passed; real aggregate UI timed out with HTTP tracing",
+      "next": "Build20 full validation succeeded, including explicit tracing and Spotify-origin metadata authorization regression",
+      "build19": {
+        "run_id": 42754321892,
+        "source": "6962314e09a33b7418ef6219a853bba2b9dca013",
+        "swift_pass": 55,
+        "ui_pass": 7,
+        "traced_real_keyboard": "passed 38.447 seconds",
+        "real_api_cold_first_ms": 388,
+        "real_api_cold_total_ms": 1133,
+        "real_api_warm_ms_integer": 0,
+        "real_api_songs": 34
+      }
+    }
+  },
+  "traced_after_eof": {
+    "at": "2026-11-10T04:18:40.3353029Z",
+    "credentials": "isolated test database; no personal account credentials loaded",
+    "first_result_ms": 630,
+    "parallel": 3,
+    "total_ms": 4892,
+    "rows": [
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "qq",
+        "milliseconds": 258,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "netease",
+        "milliseconds": 327,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "kugou",
+        "milliseconds": 96,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "spotify",
+        "milliseconds": 0,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "kuwo",
+        "milliseconds": 205,
+        "songs": 8,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "migu",
+        "milliseconds": 375,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "soda",
+        "milliseconds": 902,
+        "songs": 20,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "fivesing",
+        "milliseconds": 183,
+        "songs": 10,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "joox",
+        "milliseconds": 270,
+        "songs": 19,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "qianqian",
+        "milliseconds": 212,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "apple",
+        "milliseconds": 2157,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 1
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "local",
+        "milliseconds": 1,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "bilibili",
+        "milliseconds": 1681,
+        "songs": 17,
+        "collections": 0,
+        "error_count": 0
+      },
+      {
+        "query": "周杰伦",
+        "kind": "song",
+        "source": "jamendo",
+        "milliseconds": 3731,
+        "songs": 0,
+        "collections": 0,
+        "error_count": 0
+      }
+    ]
+  },
+  "final_build": {
+    "run_id": 42756768725,
+    "source_sha": "65dbda79373ab13c6b947e4dabf8684cd148cfee",
+    "swift_pass": 56,
+    "ui_pass": 7,
+    "traced_keyboard_seconds": 41.97,
+    "real_api_first_ms": 562,
+    "real_api_total_ms": 1058,
+    "real_api_warm_ms_integer": 0,
+    "real_api_songs": 34,
+    "verification": {
+      "run_id": 42756768725,
+      "run_number": 20,
+      "source_sha": "65dbda79373ab13c6b947e4dabf8684cd148cfee",
+      "run_url": "https://github.com/yann359/go-music-dl/actions/runs/42756768725",
+      "artifact_id": 13736807222,
+      "artifact_url": "https://github.com/yann359/go-music-dl/actions/runs/42756768725/artifacts/13736807222",
+      "artifact_zip_sha256": "72c108084caec89be1b45f1bbeae0c20445517834eff9ff934921e63570b8fdf",
+      "artifact_digest_matches": true,
+      "ipa_checksum_matches": true,
+      "source_commit_matches": true,
+      "ci_local_package_verification_matches": true,
+      "ipa_path": "C:\\Users\\Administrator\\Documents\\ChatGPT\\apple music\\outputs\\ios-release-build\\build20\\music-dl-ios-native-unsigned.ipa",
+      "package": {
+        "sha256": "65d4fe0afb8fb025439dbce9f042eb73c9b26bfc6c8c40c4f084f3279247adee",
+        "size_bytes": 14325073,
+        "bundle_id": "com.guohuiyuan.musicdl.nativedesign",
+        "build": "20",
+        "version": "1.0.0",
+        "minimum_ios": "18.0",
+        "background_modes": [
+          "audio"
+        ],
+        "signed": false,
+        "executable": {
+          "architecture": "arm64",
+          "file_type": 2,
+          "libraries": [
+            "/usr/lib/libresolv.9.dylib",
+            "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+            "/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer",
+            "/System/Library/Frameworks/Security.framework/Security",
+            "/System/Library/Frameworks/MusicKit.framework/MusicKit",
+            "/System/Library/Frameworks/AuthenticationServices.framework/AuthenticationServices",
+            "/System/Library/Frameworks/Network.framework/Network",
+            "/System/Library/Frameworks/Foundation.framework/Foundation",
+            "/usr/lib/libobjc.A.dylib",
+            "/usr/lib/libSystem.B.dylib",
+            "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+            "/System/Library/Frameworks/AVKit.framework/AVKit",
+            "/System/Library/Frameworks/Combine.framework/Combine",
+            "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+            "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+            "/System/Library/Frameworks/CoreImage.framework/CoreImage",
+            "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+            "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+            "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+            "/System/Library/Frameworks/UIKit.framework/UIKit",
+            "/usr/lib/swift/libswiftAVFoundation.dylib",
+            "/usr/lib/swift/libswiftCore.dylib",
+            "/usr/lib/swift/libswiftCoreAudio.dylib",
+            "/usr/lib/swift/libswiftCoreFoundation.dylib",
+            "/usr/lib/swift/libswiftCoreImage.dylib",
+            "/usr/lib/swift/libswiftCoreMIDI.dylib",
+            "/usr/lib/swift/libswiftCoreMedia.dylib",
+            "/usr/lib/swift/libswiftDispatch.dylib",
+            "/usr/lib/swift/libswiftMetal.dylib",
+            "/usr/lib/swift/libswiftOSLog.dylib",
+            "/usr/lib/swift/libswiftObjectiveC.dylib",
+            "/usr/lib/swift/libswiftQuartzCore.dylib",
+            "/usr/lib/swift/libswiftSpatial.dylib",
+            "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+            "/usr/lib/swift/libswiftXPC.dylib",
+            "/usr/lib/swift/libswift_Builtin_float.dylib",
+            "/usr/lib/swift/libswift_Concurrency.dylib",
+            "/usr/lib/swift/libswiftos.dylib",
+            "/usr/lib/swift/libswiftsimd.dylib"
+          ],
+          "encrypted": false,
+          "signature_bytes": 0,
+          "platform": 2,
+          "minimum_ios": "18.0.0",
+          "sdk": "26.5.0"
+        },
+        "framework_files": [],
+        "resources_verified": [
+          "Assets.car",
+          "LICENSE",
+          "NOTICE.md",
+          "ThirdPartyNotices.txt"
+        ],
+        "device_installation_tested": false
+      }
+    }
+  }
+}
