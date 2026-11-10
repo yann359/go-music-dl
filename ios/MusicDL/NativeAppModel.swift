@@ -55,7 +55,10 @@ final class AppModel: ObservableObject {
             let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             #if DEBUG
-            _ = try await client.request("diagnostics.enable")
+            // Deep HTTP tracing is opt-in; normal runs follow Release networking.
+            if ProcessInfo.processInfo.arguments.contains("--native-network-trace") {
+                _ = try await client.request("diagnostics.enable")
+            }
             let serviceStart = Date()
             #endif
             let url = try await service.connect(root: root.path)

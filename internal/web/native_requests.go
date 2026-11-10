@@ -90,10 +90,40 @@ var nativeDiscoveryCalls = newNativeCallPool(3)
 var nativeLyricCalls = newNativeCallPool(3)
 var nativeDiagnostics atomic.Bool
 var nativeDiagnosticsOnce sync.Once
+var nativeDiagnosticLogOnce sync.Once
+var nativeDiagnosticMessages = make(chan string, 64)
+
+// Embedded/XCTest hosts can stop draining stderr. Network callbacks and source
+// completion must never wait for the log writer. Keep one bounded, lossy queue.
+func nativeDiagnosticLog(format string, values ...interface{}) {
+	if !nativeDiagnostics.Load() {
+		return
+	}
+	nativeDiagnosticLogOnce.Do(func() {
+		go func() {
+			for message := range nativeDiagnosticMessages {
+				log.Print(message)
+			}
+		}()
+	})
+	select {
+	case nativeDiagnosticMessages <- fmt.Sprintf(format, values...):
+	default: // Diagnostics may be dropped; music requests may not be blocked.
+	}
+}
 
 func nativeTiming(stage string, start time.Time, err error) {
 	if nativeDiagnostics.Load() {
-		log.Printf("[native-timing] %s elapsed=%s error=%v", stage, time.Since(start), err)
+		outcome := "ok"
+		if errors.Is(err, context.DeadlineExceeded) {
+			outcome = "deadline"
+		} else if errors.Is(err, context.Canceled) {
+			outcome = "cancelled"
+		} else if err != nil {
+			outcome = "failed"
+		}
+		// Never serialize an upstream error's possibly signed URL or credentials.
+		nativeDiagnosticLog("[native-timing] %s elapsed=%s outcome=%s", stage, time.Since(start), outcome)
 	}
 }
 
@@ -131,7 +161,7 @@ func (t nativeDiagnosticTransport) RoundTrip(req *http.Request) (*http.Response,
 		ConnectStart:      func(_, addr string) { begin("connect " + addr) },
 		ConnectDone:       func(_, addr string, err error) { end("connect "+addr, err) },
 		GotConn: func(v httptrace.GotConnInfo) {
-			log.Printf("[native-timing] %s reused=%t", req.URL.Hostname(), v.Reused)
+			nativeDiagnosticLog("[native-timing] %s reused=%t", req.URL.Hostname(), v.Reused)
 		},
 		GotFirstResponseByte: func() { nativeTiming(req.URL.Hostname()+" first-byte", start, nil) },
 	}
@@ -154,10 +184,13 @@ func (b *nativeDiagnosticBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	b.bytes += int64(n)
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			err = nil
+		traceErr := err
+		if errors.Is(traceErr, io.EOF) {
+			traceErr = nil
 		}
-		nativeTiming(fmt.Sprintf("%s body bytes=%d", b.host, b.bytes), b.start, err)
+		nativeTiming(fmt.Sprintf("%s body bytes=%d", b.host, b.bytes), b.start, traceErr)
 	}
+	// EOF is part of the Reader contract. Swallowing it traps io.ReadAll in an
+	// endless loop even after a healthy provider has sent its complete response.
 	return n, err
 }

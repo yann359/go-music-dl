@@ -27,6 +27,8 @@ final class NativeBridgeIntegrationTests: XCTestCase {
         // Real public provider responses through the exact Swift -> C ABI -> Go path.
         // No fixture transport participates in these timing measurements.
         var cold = NativeSearchResult(), warm = NativeSearchResult()
+        // Also exercise the opt-in Go HTTP tracing path with real providers.
+        _ = try await client.request("diagnostics.enable")
         let searchStart = Date()
         var firstMS: Int?
         try await client.searchProgressively(query: "周杰伦 晴天", type: "song", sources: ["kugou", "kuwo", "migu"], refresh: true) { value in

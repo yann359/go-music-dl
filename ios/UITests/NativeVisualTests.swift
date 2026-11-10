@@ -20,7 +20,7 @@ final class NativeVisualTests: XCTestCase {
 
     func testRealKeyboardSearchClearAndBackgroundReturn() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-native-startup", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launchArguments = ["--ui-native-startup", "--native-network-trace", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 35))
         app.tabBars.buttons["搜索"].tap()
