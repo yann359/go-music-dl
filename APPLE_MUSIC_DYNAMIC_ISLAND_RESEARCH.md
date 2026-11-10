@@ -79,9 +79,9 @@ App的inactive并不等于background：拉下控制中心、系统弹窗都可�
 
 系统媒体岛探测使用SpringBoard公开可访问性目标；如果模拟器不暴露可定位的媒体岛，将明确skip并保留桌面截图，**不会用app.activate或猜测坐标冒充岛点击通过**。无论该探测结果如何，SideStore重签iPhone17/iOS27.3的轻点/长按、锁屏/控制中心仍需真机验收。
 
-当前Windows没有Swift/iOS SDK；新增Swift代码尚待macOS真正编译/XCTest。Go/Node回归另记，不以其通过代替iOS测试。最终构建、日志与IPA核验完成后在本节追加。
+当前Windows没有Swift/iOS SDK；Swift及UI已在下述macOS工作流实际编译/执行。Go/Node回归另记，不以其通过代替iOS测试。
 
-阶段检查点：`1d5f2b52a3328768d33bedb93ca7b87f28937e9c`，[Build24实际运行](https://github.com/yann359/go-music-dl/actions/runs/42806577036)。Windows Go四包、Node6/6已通过，新增Swift/系统媒体探测以该运行终态为准，不把旧Build23当本轮包。
+首次检查点：`1d5f2b52a3328768d33bedb93ca7b87f28937e9c`，[Build24失败运行](https://github.com/yann359/go-music-dl/actions/runs/42806577036)，不是交付版本；最终代码与测试见Build26，不把旧Build23当本轮包。
 
 ### Build24失败及据证调整
 
@@ -99,3 +99,23 @@ App的inactive并不等于background：拉下控制中心、系统弹窗都可�
 ### Build25证据与数值契约修正
 
 [Build25](https://github.com/yann359/go-music-dl/actions/runs/42809023352) 执行62项原生测试，61通过、1失败、无上述KVO异常/测试进程重启。失败是暂停速率被`as? Float`读取为nil，不能据此推断整个Now Playing信息已清空；当前字段处于`[String: Any]`上下文，暂停分支字面量0与播放分支Float的动态类型可不同。将发布的0明确为Float，测试按MediaPlayer的数值契约读取NSNumber.floatValue，仍要求暂停速率为0、原生player.rate为0、停止清信息且命令禁用，未放宽或删除行为断言。该修订需要下一轮真实macOS验证；Build25无IPA。
+
+## Build26实际验证（最终代码候选）
+
+代码 `755451b00f741f68ad6d9b0261fd6ecb6e82aaee`，[macOS运行42811102169](https://github.com/yann359/go-music-dl/actions/runs/42811102169)成功。Xcode26.6 / SDK26.5、iPhone17 Pro Max / iOS26.5模拟器；不是用户iOS27.3真机。
+
+| 验证类型 | 实际结果 | 边界 |
+|---|---|---|
+| Windows及macOS后端/桥接 | Go四包、Node6/6通过 | 没有重做全平台网络审计 |
+| Swift单元/受控媒体回归 | 61通过，无失败 | 合成WAV、真实AVQueuePlayer；通知注入不是来电/AirPods实测 |
+| Swift→C ABI→Go集成 | 1通过，含真实三源搜索、SQLite/SSE | 30首、2来源缓存；首批945ms/总8021ms/热2896ms，不代表三源均成功 |
+| 非preview启动/键盘搜索UI | 2通过 | 真实嵌入后端/网络，含歌曲入队、Home返回恢复FullPlayer、收起后保留搜索结果 |
+| fixture UI | 5通过 | 页面/歌词/账号入口/播放生命周期；不冒充真实歌曲整曲播放 |
+| 系统媒体岛点击探测 | 1明确跳过，无失败 | SpringBoard未暴露可识别媒体岛目标；没有使用activate/猜坐标替代 |
+| iPhone17/iOS27.3新包 | 尚未执行 | 轻点/长按、锁屏/控制中心、SideStore签后身份与整曲后台播放仍待真机 |
+
+完整自动化为XCTest62/62、UI7通过/1跳过/0失败。[真实测试报告artifact](https://github.com/yann359/go-music-dl/actions/runs/42811102169/artifacts/13762608074)包含xcresult及桌面探测截图，不能将测试步骤绿色解释为8项UI都通过。Build24/25失败及修订记录保留在前文；本轮未改变Apple风格UI、搜索/来源业务或后台音频策略。IPA校验另见PROJECT_STATUS.md及交付JSON。
+
+**当前可证实的结论：** 已修复后台返回时不恢复当前播放器的源码缺口，并完成显式系统媒体会话整合和回归；尚未证实原用户C的系统激活层已在重签iPhone上消失。A/B不做强制呈现更改。下一次取证以新包实际build及scene-active事件为界，不重复进行无关审计。
+
+交付IPA已实际下载核验：[Build26安装包/匹配源码/许可](https://github.com/yann359/go-music-dl/actions/runs/42811102169/artifacts/13762827822)，14,350,298字节，SHA256 `6095d2aa8aa5dfd069becb8cc1f0a85bba45ea9168472811f3742bb7a4ab92a6`；纯英文MusicDL、原Bundle ID、iPhoneOS arm64、iOS18+、后台audio，未签名未加密，可供SideStore重签。构建source.txt等于上述测试提交，GitHub artifact digest、ZIP CRC、包资源/依赖、CI与本地Mach-O核验一致。详见 [交付记录](docs/verification/island-build26-delivery.json)。用户当前手机Build仍未知；不能把已核验的Build23或新Build26当作安装版本证明。

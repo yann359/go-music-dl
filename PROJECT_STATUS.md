@@ -1,6 +1,10 @@
-## 当前阶段：原生媒体岛交互专项（2026-11-10，修订后待macOS验证）
+## 当前阶段：原生媒体岛交互专项（2026-11-10，Build26自动化通过，真机待验）
 
-- Build25 `42809023352`：62项原生测试61通过/1失败；无Build24的KVO异常/进程重启。唯一失败是暂停元数据用`as? Float`读到nil；明确发布Float(0)，并按NSNumber读取数值，继续断言暂停为0、原生速率0、stop清理及命令禁用。原始日志 `outputs/island-build25.log`；UI/IPA跳过，没有本轮可交付包。下一步原工作流重验全部原生/UI测试。
+- 代码 `755451b00f741f68ad6d9b0261fd6ecb6e82aaee`，[Build26](https://github.com/yann359/go-music-dl/actions/runs/42811102169) **成功**：Go四包、Node6/6、iPhone设备/模拟器编译、Swift XCTest62/62（61单元/受控回归+1真实Go C ABI集成）；UI7通过/1跳过/0失败。实际媒体岛探测因模拟器未暴露可定位目标跳过，不能据此宣布iPhone轻点/长按已修复。
+- 三源真实C ABI搜索返回30首，首批945ms、全部8021ms、热请求2896ms、2来源命中缓存；这是本次网络样本，不表示三个来源都成功，也不作为iPhone延迟指标。2项非preview原生启动/搜索UI与5项fixture UI通过，未重复前轮205组来源矩阵。
+- [下载Build26 IPA/匹配源码/许可证](https://github.com/yann359/go-music-dl/actions/runs/42811102169/artifacts/13762827822)，云端有效至2026-12-10。本地 `../outputs/ios-release-build/build26/music-dl-ios-native-unsigned.ipa`，14,350,298字节；SHA256 `6095d2aa8aa5dfd069becb8cc1f0a85bba45ea9168472811f3742bb7a4ab92a6`。实际包：MusicDL、原Bundle ID、1.0.0/Build26、arm64 iPhoneOS、iOS18+、未签名/未加密、后台audio；ZIP/资源/依赖/Mach-O、附带hash/源码、GitHub artifact digest及本地/CI校验完全一致。旧IPA保留；完整 [交付JSON](docs/verification/island-build26-delivery.json)。
+- 真机验收仍待：SideStore覆盖重签、桌面轻点/长按、锁屏/控制中心、后台整曲。安装后“文件→我的iPhone→MusicDL→Diagnostics→media-session.jsonl”核对实际build/bundle/scene-active；没有真机激活日志，不将C宣告彻底修复。已修复可证实的页面恢复缺口并改进官方会话绑定；A/B保持系统呈现。
+- 历史Build25 `42809023352`：62项原生测试61通过/1失败；无Build24的KVO异常/进程重启。唯一失败是暂停元数据用`as? Float`读到nil；明确发布Float(0)，并按NSNumber读取数值，继续断言暂停为0、原生速率0、stop清理及命令禁用。原始日志及53,699,146字节完整报告保留在外层outputs，报告digest/ZIP CRC已核验；UI/IPA跳过，没有交付该失败包。修订在Build26通过。
 
 - 基线 `4e9e094`，独立分支 `codex/now-playing-island`；用户设备iPhone17/iOS27.3。只核查媒体会话、场景恢复与重签身份，未重复全项目审计。
 - 已读取实际Build23 IPA：build=23、MusicDL、原Bundle ID、后台audio与单场景；当前手机安装版本无法远程读取，不能声称一致。
@@ -8,8 +12,8 @@
 - A/B与系统呈现策略相容，保持原样；C分“未激活App”和“已激活但未恢复播放器”。已确认旧scene active只重连服务，没有恢复当前页；无真机日志，不宣称该导航缺口就是完全无法返回的唯一原因。
 - 代码：单一MPNowPlayingSession绑定AVQueuePlayer，使用同session信息/命令中心；播放器重建解绑旧会话；后台真实返回恢复FullPlayer但不自动播放/seek/重建；加入有界Files诊断日志，可核对手机实际build/bundle及系统激活时间。
 - 保留iOS18+与现有构建链，未混用iOS27 NowPlaying框架，未添加Live Activity、假岛、私有API或自我openURL。Swift新增媒体/场景测试与系统可定位媒体岛探测；探测无法定位时明确skip，不用app.activate冒充岛点击。
-- Windows Go四包与Node6/6通过，业务Go源码/搜索/音源未改；新增Swift/XCTest/UI尚未编译，下一步macOS现有工作流验证并打包，不用旧Build23冒充本轮修复包。
-- 代码检查点 `1d5f2b52a3328768d33bedb93ca7b87f28937e9c`，[Build24](https://github.com/yann359/go-music-dl/actions/runs/42806577036) 已通过Go/JS、设备Release及模拟器Go库构建；原生XCTest执行中，最终测试/包交付尚待终态。研究报告已补isActive不是全局归属证明的边界。
+- Windows Go四包与Node6/6通过，业务Go源码/搜索/音源未改；macOS实测结果见上，不用旧Build23冒充本轮修复包。
+- 首次代码检查点 `1d5f2b52a3328768d33bedb93ca7b87f28937e9c`，[Build24](https://github.com/yann359/go-music-dl/actions/runs/42806577036) 设备编译通过、测试失败，原因如下。研究报告已补isActive不是全局归属证明的边界。
 - Build24真实失败：退出/重建会话时出现 `Cannot remove an observer MPNowPlayingSession ... currentItem ... not registered` / NSRangeException，旧播放器用例也受影响，未上传IPA。日志 `outputs/island-build24.log`。已撤销“整会话销毁前逐个removePlayer”的重复观察者清理，改由会话生命周期释放其KVO；仍禁用旧命令并清理元数据。保留原用例与新会话回归，不捕获/吞掉NSException。另将活动会话请求限制在显式播放/资格变化，避免ticker反复请求；准备修订后重验。
 - 用户已补充同机Apple Music对照：iPhone17/iOS27.3轻点直接返回Apple Music，而MusicDL不能。C是相对原生参考的异常，不是“27.3全体音乐App正常语义”；这是用户提供的真机结果，非REA远程观察。具体失败层和手机安装Build仍待诊断；锁屏/控制中心结果未收到。
 
