@@ -25,17 +25,21 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 35))
         app.tabBars.buttons["搜索"].tap()
         app.buttons["音源"].tap()
-        app.buttons["取消全选"].tap()
-        app.buttons["酷狗音乐"].tap()
+        // Public providers can be temporarily unavailable. Exercise the normal
+        // aggregate flow here; the real single-source timeout remains recorded.
+        app.buttons["选择全部来源"].tap()
         app.buttons["完成"].tap()
         let field = app.searchFields.firstMatch
         if !field.exists { app.swipeDown() }
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap(); field.typeText("周杰伦\n")
-        let finished = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "点播验证")).firstMatch
+        let finished = app.buttons["search-song-0"]
         XCTAssertTrue(finished.waitForExistence(timeout: 30), "Real keyboard search did not show provider results")
         XCTAssertFalse(app.staticTexts["你想听见什么？"].exists)
         capture("search-real-keyboard-results")
+        finished.tap()
+        XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 10), "Real search result did not enter the existing player queue")
+        capture("search-real-player-queue")
         XCUIDevice.shared.press(.home); app.activate()
         XCTAssertTrue(finished.waitForExistence(timeout: 5))
         field.tap()

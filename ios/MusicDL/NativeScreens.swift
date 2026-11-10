@@ -244,6 +244,7 @@ struct SongRows: View {
                             Spacer(minLength: 0)
                         }.contentShape(Rectangle())
                     }.buttonStyle(.plain).disabled(!song.sourceAvailable)
+                        .accessibilityIdentifier(searchMetadata ? "search-song-\(index)" : song.key)
                     SongActions(song: song, collectionID: collectionID, onChange: onChange)
                 }.padding(.vertical, 11).onAppear { if index == 0 { onFirstVisible() } }
                 Divider().padding(.leading, 65).opacity(0.4)

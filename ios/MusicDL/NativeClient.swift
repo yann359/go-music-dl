@@ -494,6 +494,7 @@ final class NativeClient: ObservableObject {
         }
         guard !chosen.isEmpty else { throw NativeError.message("当前选中的来源不支持此搜索类型，请调整音源筛选。") }
         var parts: [NativeSearchResult] = []
+        let names = Dictionary(uniqueKeysWithValues: searchSources.map { ($0.id, $0.name) })
         var next = 0
         await withTaskGroup(of: NativeSearchResult.self) { group in
             func add(_ source: String) {
@@ -502,7 +503,7 @@ final class NativeClient: ObservableObject {
                         var value = try await cachedSearch(query: query, type: type, source: source, refresh: refresh)
                         value.successfulSources = 1; return value
                     } catch is CancellationError { return NativeSearchResult() }
-                    catch { return NativeSearchResult(errors: [source + "：" + error.localizedDescription]) }
+                    catch { return NativeSearchResult(errors: [(names[source] ?? source) + "：" + Self.searchFailure(error)]) }
                 }
             }
             for _ in 0..<min(3, chosen.count) { add(chosen[next]); next += 1 }
@@ -517,6 +518,13 @@ final class NativeClient: ObservableObject {
             }
         }
         try Task.checkCancellation()
+    }
+    private nonisolated static func searchFailure(_ error: Error) -> String {
+        if let account = error as? MusicAccountError { return account.localizedDescription }
+        let detail = error.localizedDescription.lowercased()
+        if detail.contains("deadline") || detail.contains("timed out") || detail.contains("超时") { return "连接超时，请重试或切换音源。" }
+        if let network = error as? URLError, [.notConnectedToInternet, .networkConnectionLost].contains(network.code) { return "网络连接中断，恢复网络后可重试。" }
+        return "暂时无法搜索，请重试或检查此音源的账号权限。"
     }
     func recommendations(sources: [String]) async throws -> NativeSearchResult {
         if isOfflinePreview { return NativeSearchResult(songs: previewSongs, playlists: collections) }
