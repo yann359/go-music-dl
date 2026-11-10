@@ -147,7 +147,7 @@ func NativeClientRequest(raw string) (output string, err error) {
 	defer func() {
 		if recover() != nil {
 			output = ""
-			err = errors.New("native operation failed; please retry")
+			err = nativePanicError("request", "dispatch")
 		}
 	}()
 	if len(raw) > 8<<20 {
@@ -272,7 +272,7 @@ func nativeSearch(params map[string]json.RawMessage) (nativeClientResults, error
 			defer func() {
 				if recover() != nil {
 					part := newNativeResults()
-					part.Errors = append(part.Errors, core.GetSourceDescription(source)+"：来源暂时不可用，请重试")
+					part.Errors = append(part.Errors, core.GetSourceDescription(source)+"："+nativePanicError("search", source).Error())
 					parts[index] = part
 				}
 			}()

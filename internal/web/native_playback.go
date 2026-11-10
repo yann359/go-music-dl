@@ -50,7 +50,13 @@ func decodeNativeSong(raw string) (*model.Song, error) {
 
 // NativePlaybackAsset resolves a single authorized source. Temporary decoded
 // files belong to the native host after this function succeeds.
-func NativePlaybackAsset(raw string, fallback bool) (string, error) {
+func NativePlaybackAsset(raw string, fallback bool) (output string, err error) {
+	defer func() {
+		if recover() != nil {
+			output = ""
+			err = nativePanicError("playback", "resolve")
+		}
+	}()
 	song, err := decodeNativeSong(raw)
 	if err != nil {
 		return "", err
@@ -73,7 +79,7 @@ func NativePlaybackAsset(raw string, fallback bool) (string, error) {
 		}
 		assetURL = (&url.URL{Scheme: "file", Path: track.absPath}).String()
 	} else {
-		resolved, temp, err := core.PreparePlaybackSource(song)
+		resolved, temp, err := nativePreparePlaybackSource(song)
 		if err != nil {
 			return "", err
 		}
@@ -103,3 +109,5 @@ func NativePlaybackAsset(raw string, fallback bool) (string, error) {
 		"temporary": temporary, "source": song.Source, "id": song.ID})
 	return string(result), err
 }
+
+var nativePreparePlaybackSource = core.PreparePlaybackSource

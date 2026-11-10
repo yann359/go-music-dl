@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import OSLog
 
 /// One owner for debounce, cancellation and the visible query generation.
 /// Go's bounded legacy I/O may finish later; it can never publish into a newer session.
@@ -14,6 +15,7 @@ final class SearchSession: ObservableObject {
     private var generation = 0
     private var activeKey = ""
     private var waitingForDebounce = false
+    private let diagnostics = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MusicDL", category: "search")
     var loading: Bool { phase == .searching || phase == .partial }
 
     func start(client: NativeClient, query: String, kind: String, sources: [String], debounce: Bool = false, refresh: Bool = false, completed: @escaping (String) -> Void = { _ in }) {
@@ -27,6 +29,7 @@ final class SearchSession: ObservableObject {
         guard !term.isEmpty else { phase = .idle; return }
         guard !sources.isEmpty else { phase = .failed; problem = "请选择至少一个支持此搜索类型的音乐来源。"; return }
         phase = .searching
+        diagnostics.info("event=search-start generation=\(token) type=\(kind, privacy: .public) sources=\(sources.count) debounce=\(debounce)")
         task = Task { [weak self] in
             guard let self else { return }
             let started = Date()
@@ -42,6 +45,7 @@ final class SearchSession: ObservableObject {
                         self.phase = .partial
                         if !firstResult {
                             firstResult = true
+                            self.diagnostics.info("event=first-result generation=\(token) songs=\(value.songs.count) collections=\(value.playlists.count)")
                             #if DEBUG
                             print("[native-search] first-result type=\(kind) sources=\(sources.count) ms=\(Int(Date().timeIntervalSince(started) * 1000))")
                             #endif
@@ -52,9 +56,10 @@ final class SearchSession: ObservableObject {
                 let value = result ?? NativeSearchResult()
                 result = value
                 if !value.songs.isEmpty || !value.playlists.isEmpty { phase = .complete }
-                else if value.successfulSources == 0 && !value.errors.isEmpty { phase = .failed; problem = value.errors.joined(separator: "\n") }
+                else if !value.errors.isEmpty { phase = .failed; problem = "部分来源搜索失败，其余来源未找到结果。\n" + value.errors.joined(separator: "\n") }
                 else { phase = .empty }
                 completed(term)
+                diagnostics.info("event=search-complete generation=\(token) songs=\(value.songs.count) collections=\(value.playlists.count) failures=\(value.errors.count) success=\(value.successfulSources)")
                 #if DEBUG
                 print("[native-search] complete type=\(kind) ms=\(Int(Date().timeIntervalSince(started) * 1000)) cached=\(value.cachedSources) failed=\(value.errors.count)")
                 #endif
@@ -62,6 +67,7 @@ final class SearchSession: ObservableObject {
             catch {
                 guard generation == token, !Task.isCancelled else { return }
                 phase = .failed; problem = error.localizedDescription
+                diagnostics.error("event=search-failed generation=\(token)")
             }
         }
     }
@@ -70,6 +76,7 @@ final class SearchSession: ObservableObject {
     func suspend() {
         guard loading else { return }
         task?.cancel(); generation += 1; activeKey = ""
+        diagnostics.info("event=search-suspend generation=\(self.generation)")
         phase = .idle
     }
 }

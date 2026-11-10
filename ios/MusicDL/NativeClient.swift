@@ -383,6 +383,7 @@ final class NativeClient: ObservableObject {
         let data: Data
         do { data = try await transport(input) }
         catch is CancellationError { throw CancellationError() }
+        catch let error as URLError { throw error }
         catch { throw NativeError.message("音乐服务暂时不可用：\(error.localizedDescription)") }
         try Task.checkCancellation()
         let envelope: JSONValue
@@ -528,6 +529,9 @@ final class NativeClient: ObservableObject {
         let detail = error.localizedDescription.lowercased()
         if detail.contains("deadline") || detail.contains("timed out") || detail.contains("超时") { return "连接超时，请重试或切换音源。" }
         if let network = error as? URLError, [.notConnectedToInternet, .networkConnectionLost].contains(network.code) { return "网络连接中断，恢复网络后可重试。" }
+        if detail.contains("无法识别") || detail.contains("可识别") || detail.contains("不完整") || error is DecodingError { return "搜索响应解析错误，请重试并检查诊断日志。" }
+        if detail.contains("音乐服务暂时不可用") || detail.contains("未返回结果") { return "应用内音乐服务不可用，请重新进入或重启 App。" }
+        if detail.contains("内部异常") { return "此音源发生内部异常，其他音源仍可继续搜索。" }
         return "暂时无法搜索，请重试或检查此音源的账号权限。"
     }
     func recommendations(sources: [String]) async throws -> NativeSearchResult {

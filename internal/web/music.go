@@ -1820,7 +1820,7 @@ func findBestSwitchSong(name string, artist string, current string, target strin
 		}
 
 		best := result.candidates[0]
-		if isHighConfidenceSwitchCandidate(best, origDuration) && switchValidatePlayable(&best.song) {
+		if isHighConfidenceSwitchCandidate(best, origDuration) && validateSwitchCandidate(best.song) {
 			tmp := best.song
 			return &tmp, best.score, nil
 		}
@@ -1885,23 +1885,13 @@ func isSwitchSourceAllowed(source string, current string) bool {
 }
 
 func searchSwitchSourceCandidates(source string, fn func(string) ([]model.Song, error), keyword string, name string, artist string, origDuration int) []switchCandidate {
-	type searchResponse struct {
-		songs []model.Song
-		err   error
-	}
-
 	callSearch := func(query string) ([]model.Song, error) {
-		done := make(chan searchResponse, 1)
-		go func() {
-			res, err := fn(query)
-			done <- searchResponse{songs: res, err: err}
-		}()
-		select {
-		case res := <-done:
-			return res.songs, res.err
-		case <-time.After(switchSourceSearchTimeout):
-			return nil, fmt.Errorf("search timeout")
-		}
+		return boundedSourceCall(source, "switch-auto-search", query, switchSourceSearchTimeout, func() ([]model.Song, error) {
+			if fn == nil {
+				return nil, errors.New("source does not support search")
+			}
+			return fn(query)
+		})
 	}
 
 	res, err := callSearch(keyword)
@@ -1938,6 +1928,17 @@ func searchSwitchSourceCandidates(source string, fn func(string) ([]model.Song, 
 	}
 
 	return candidates
+}
+
+func validateSwitchCandidate(song model.Song) bool {
+	identity, err := json.Marshal(song)
+	if err != nil {
+		return false
+	}
+	valid, err := boundedSourceCall(song.Source, "switch-auto-validate", string(identity), switchSourceSearchTimeout, func() (bool, error) {
+		return switchValidatePlayable(&song), nil
+	})
+	return err == nil && valid
 }
 
 func sortSwitchCandidates(candidates []switchCandidate) {
@@ -1987,7 +1988,7 @@ func validateSwitchCandidates(candidates []switchCandidate) (*model.Song, float6
 		go func() {
 			defer wg.Done()
 			for index := range jobs {
-				results <- validationResult{index: index, valid: switchValidatePlayable(&candidates[index].song)}
+				results <- validationResult{index: index, valid: validateSwitchCandidate(candidates[index].song)}
 			}
 		}()
 	}

@@ -107,6 +107,45 @@ final class SearchSessionTests: XCTestCase {
         catch { XCTAssertTrue(error.localizedDescription.contains("结果")) }
     }
 
+    func testEmptyLocalLibraryCannotHideOnlineSourceFailure() async throws {
+        let client = client { request in
+            if request["params"]["sources"].arrayValue == [.string("local")] {
+                return Data(#"{"data":{"songs":[],"playlists":[],"errors":[]}}"#.utf8)
+            }
+            return Data(#"{"data":{"songs":[],"playlists":[],"errors":["provider connection timed out"]}}"#.utf8)
+        }
+        try await client.loadBootstrap()
+        let session = SearchSession()
+        session.start(client: client, query: "晴天", kind: "song", sources: ["local", "qq"])
+        try await waitFor { !session.loading }
+        XCTAssertEqual(session.phase, .failed)
+        XCTAssertEqual(session.result?.successfulSources, 1)
+        XCTAssertTrue(session.problem?.contains("超时") == true)
+        XCTAssertTrue(session.problem?.contains("其余来源未找到结果") == true)
+    }
+
+    func testChangingSourceAndLeavingPageCannotPublishStaleResponse() async throws {
+        let client = client { request in
+            let source = request["params"]["sources"].arrayValue.first!.stringValue
+            try? await Task.sleep(nanoseconds: source == "qq" ? 180_000_000 : 10_000_000)
+            return Data("{\"data\":{\"songs\":[{\"id\":\"\(source)\",\"source\":\"\(source)\"}],\"playlists\":[],\"errors\":[]}}".utf8)
+        }
+        try await client.loadBootstrap()
+        let session = SearchSession()
+        session.start(client: client, query: "晴天", kind: "song", sources: ["qq"])
+        try await Task.sleep(nanoseconds: 20_000_000)
+        session.start(client: client, query: "晴天", kind: "song", sources: ["netease"])
+        try await waitFor { session.phase == .complete }
+        XCTAssertEqual(session.result?.songs.first?.source, "netease")
+        session.start(client: client, query: "离开", kind: "song", sources: ["qq"], refresh: true)
+        session.suspend()
+        try await Task.sleep(nanoseconds: 250_000_000)
+        XCTAssertEqual(session.phase, .idle)
+        session.start(client: client, query: "返回", kind: "song", sources: ["netease"])
+        try await waitFor { session.phase == .complete }
+        XCTAssertEqual(session.result?.songs.first?.source, "netease")
+    }
+
     func testAllRegisteredDefaultsPublishEvenWithEmptyLegacyDefaultList() async throws {
         var searched = Set<String>()
         let client = client { request in

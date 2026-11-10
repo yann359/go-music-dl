@@ -21,8 +21,15 @@ func nativeSourceCall[T any](source, operation, identity string, fn func() (T, e
 	if !core.IsMusicPlatform(source) {
 		return zero, fmt.Errorf("unsupported source: %s", source)
 	}
+	return boundedSourceCall(source, operation, identity, nativeSourceTimeout, fn)
+}
+
+// Also used by the legacy automatic-switch path. Its workers need the same
+// per-source limits and same-goroutine panic boundary as native searches.
+func boundedSourceCall[T any](source, operation, identity string, timeout time.Duration, fn func() (T, error)) (T, error) {
+	var zero T
 	pool := nativeSourcePool(source)
-	ctx, cancel := context.WithTimeout(context.Background(), nativeSourceTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	key := nativeProviderKey(operation, source) + fmt.Sprintf(":%x", sha256.Sum256([]byte(identity)))
 	value, err := pool.run(ctx, key, func() (interface{}, error) { return fn() })

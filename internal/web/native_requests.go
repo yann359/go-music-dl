@@ -10,6 +10,8 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptrace"
+	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -61,7 +63,7 @@ func (p *nativeCallPool) run(ctx context.Context, key string, fn func() (interfa
 				start := time.Now()
 				defer func() {
 					if r := recover(); r != nil {
-						c.err = fmt.Errorf("provider panic: %v", r)
+						c.err = nativePanicError("provider", key)
 					}
 					nativeTiming("provider "+key, start, c.err)
 					p.mu.Lock()
@@ -99,6 +101,10 @@ func nativeDiagnosticLog(format string, values ...interface{}) {
 	if !nativeDiagnostics.Load() {
 		return
 	}
+	nativeEnqueueDiagnostic(fmt.Sprintf(format, values...))
+}
+
+func nativeEnqueueDiagnostic(message string) {
 	nativeDiagnosticLogOnce.Do(func() {
 		go func() {
 			for message := range nativeDiagnosticMessages {
@@ -107,9 +113,28 @@ func nativeDiagnosticLog(format string, values ...interface{}) {
 		}()
 	})
 	select {
-	case nativeDiagnosticMessages <- fmt.Sprintf(format, values...):
+	case nativeDiagnosticMessages <- message:
 	default: // Diagnostics may be dropped; music requests may not be blocked.
 	}
+}
+
+// Panic values can contain signed URLs or credentials. Retain source/stage and
+// symbolized frames without formatting the panic value or function arguments.
+// Critical failures are logged even in Release; the queue cannot block I/O.
+func nativePanicError(stage, identity string) error {
+	pcs := make([]uintptr, 24)
+	n := runtime.Callers(2, pcs)
+	frames := runtime.CallersFrames(pcs[:n])
+	stack := ""
+	for {
+		frame, more := frames.Next()
+		stack += fmt.Sprintf(" %s(%s:%d)", frame.Function, filepath.Base(frame.File), frame.Line)
+		if !more {
+			break
+		}
+	}
+	nativeEnqueueDiagnostic(fmt.Sprintf("[native-failure] class=panic stage=%s identity=%s frames=%s", stage, identity, stack))
+	return fmt.Errorf("音乐服务内部异常（%s），请重试或选择其他音源", stage)
 }
 
 func nativeTiming(stage string, start time.Time, err error) {
