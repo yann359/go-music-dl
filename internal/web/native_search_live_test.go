@@ -29,9 +29,14 @@ func TestNativeSearchLive(t *testing.T) {
 		DetailSongs  int      `json:"detail_songs,omitempty"`
 		DetailMS     int64    `json:"detail_ms,omitempty"`
 		DetailFailed bool     `json:"detail_failed,omitempty"`
+		Samples      []string `json:"samples,omitempty"`
 	}
 	queries := []string{"周杰伦", "周杰伦 晴天", "Mine Mine", "陈奕迅", "zzMusicDLNoMatch9f473a21"}
 	kinds := []string{"song", "album", "playlist"}
+	if os.Getenv("MUSICDL_SEARCH_QUALITY") != "" {
+		queries = queries[2:]
+		kinds = kinds[:1]
+	}
 	if os.Getenv("MUSICDL_SEARCH_BASELINE") != "" {
 		queries = queries[:1]
 		kinds = kinds[:1]
@@ -56,6 +61,14 @@ func TestNativeSearchLive(t *testing.T) {
 				result, err := nativeSearch(params)
 				row.Milliseconds = time.Since(begin).Milliseconds()
 				row.Songs = len(result.Songs)
+				if os.Getenv("MUSICDL_SEARCH_QUALITY") != "" {
+					for i, song := range result.Songs {
+						if i >= 3 {
+							break
+						}
+						row.Samples = append(row.Samples, song.Name+" / "+song.Artist)
+					}
+				}
 				row.Collections = len(result.Playlists)
 				row.Errors = result.Errors
 				if err != nil {

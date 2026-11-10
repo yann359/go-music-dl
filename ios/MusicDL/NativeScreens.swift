@@ -82,7 +82,6 @@ struct DiscoverScreen: View {
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { model.selectedTab = 3 } label: { Image(systemName: "person.crop.circle").font(.title3) }.accessibilityLabel("我的账号") } }
             .refreshable { await client.loadDiscovery(force: true) }
             .task { await client.loadDiscovery() }
-            .onChange(of: client.networkAvailable) { _, available in if available && session.phase == .failed { search(refresh: true) } }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await client.loadDiscovery(onlyFailed: true) } }
             }
@@ -178,6 +177,7 @@ struct SearchScreen: View {
             .onChange(of: query) { _, _ in search(debounce: true) }
             .onChange(of: kind) { _, _ in search() }
             .onChange(of: client.sources) { _, _ in if !query.isEmpty { search(refresh: true) } }
+            .onChange(of: client.networkAvailable) { _, available in if available && session.phase == .failed { search(refresh: true) } }
             .onChange(of: scenePhase) { _, phase in if phase == .active && session.phase == .failed { search(refresh: true) } }
             .onAppear { if !query.isEmpty && session.phase == .idle { search() } }
             .onDisappear { session.suspend() }

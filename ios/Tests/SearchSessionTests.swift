@@ -106,4 +106,34 @@ final class SearchSessionTests: XCTestCase {
         do { _ = try await client.search(query: "周杰伦", sources: ["qq"]); XCTFail("Malformed payload accepted") }
         catch { XCTAssertTrue(error.localizedDescription.contains("结果")) }
     }
+
+    func testAllRegisteredDefaultsPublishEvenWithEmptyLegacyDefaultList() async throws {
+        var searched = Set<String>()
+        let client = client { request in
+            searched.formUnion(request["params"]["sources"].arrayValue.map(\.stringValue))
+            return Data(#"{"data":{"songs":[],"playlists":[],"errors":[]}}"#.utf8)
+        }
+        try await client.loadBootstrap()
+        var updates = 0
+        try await client.searchProgressively(query: "周杰伦", type: "song", sources: []) { _ in updates += 1 }
+        XCTAssertEqual(searched, ["netease", "qq", "local"])
+        XCTAssertEqual(updates, 3, "An empty legacy defaults array must never leave the page at its initial prompt")
+    }
+
+    func testAccountChangeInvalidatesSearchCacheAndLocalIsAlwaysLive() async throws {
+        var calls = 0
+        let client = client { request in
+            if request["action"] == .string("cookies.get") { return Data(#"{"data":{"qq":"changed-account"}}"#.utf8) }
+            calls += 1
+            return Data(#"{"data":{"songs":[{"id":"one","source":"qq"}],"playlists":[],"errors":[]}}"#.utf8)
+        }
+        try await client.loadBootstrap()
+        for _ in 0..<2 { try await client.searchProgressively(query: "晴天", type: "song", sources: ["qq"]) { _ in } }
+        XCTAssertEqual(calls, 1)
+        try await client.loadCookies()
+        try await client.searchProgressively(query: "晴天", type: "song", sources: ["qq"]) { _ in }
+        XCTAssertEqual(calls, 2)
+        for _ in 0..<2 { try await client.searchProgressively(query: "晴天", type: "song", sources: ["local"]) { _ in } }
+        XCTAssertEqual(calls, 4)
+    }
 }

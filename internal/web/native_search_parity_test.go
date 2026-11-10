@@ -5,12 +5,35 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/guohuiyuan/go-music-dl/core"
 	"github.com/guohuiyuan/music-lib/model"
 )
+
+func TestNativeLocalSearchCombinesArtistAndTitleAndEscapesWildcards(t *testing.T) {
+	initCollectionDBForTest(t)
+	directory := t.TempDir()
+	withLocalMusicDownloadDir(t, directory)
+	if err := os.WriteFile(filepath.Join(directory, "晴天.mp3"), []byte("local indexed test file"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := syncLocalMusicIndex(); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Model(&LocalMusicIndex{}).Where("name = ?", "晴天").Update("artist", "周杰伦").Error; err != nil {
+		t.Fatal(err)
+	}
+	if songs := localMusicSearchSongs("周杰伦 晴天", 50); len(songs) != 1 {
+		t.Fatalf("combined metadata search returned %d songs", len(songs))
+	}
+	if songs := localMusicSearchSongs("%", 50); len(songs) != 0 {
+		t.Fatalf("literal wildcard matched %d unrelated songs", len(songs))
+	}
+}
 
 func TestNativeSearchNormalizesAndKeepsVersionsAndQuality(t *testing.T) {
 	initCollectionDBForTest(t)

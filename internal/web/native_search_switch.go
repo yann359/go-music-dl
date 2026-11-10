@@ -191,7 +191,7 @@ func nativeValidateSwitch(params map[string]json.RawMessage) (interface{}, error
 		if err != nil {
 			return false, errors.New("音频连接失败，请重试")
 		}
-		defer response.Body.Close()
+		defer func() { _ = response.Body.Close() }()
 		if response.StatusCode != 200 && response.StatusCode != 206 {
 			return false, errors.New("音频服务器拒绝访问")
 		}

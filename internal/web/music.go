@@ -1921,8 +1921,8 @@ func searchSwitchSourceCandidates(source string, fn func(string) ([]model.Song, 
 	for i := 0; i < limit; i++ {
 		cand := res[i]
 		cand.Source = source
-		score := core.CalcSongSimilarity(name, artist, cand.Name, cand.Artist)
-		if score <= 0 {
+		score, matches := nativeSwitchMatch(&model.Song{Name: name, Artist: artist, Duration: origDuration}, &cand)
+		if !matches {
 			continue
 		}
 
