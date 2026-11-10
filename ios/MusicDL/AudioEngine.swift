@@ -47,6 +47,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     private var commands: [(MPRemoteCommand, Any)] = []
     private(set) var nowPlayingSession: MPNowPlayingSession?
     private var ownershipRequestPending = false
+    private var ownershipAttempted = false
     private var shuttingDown = false
     private let engineID = UUID().uuidString
     private var preparing = false
@@ -169,6 +170,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
 
     func play() {
         guard !songs.isEmpty else { return }
+        ownershipAttempted = false
         do {
             try activate()
             // A suspended app may receive began without a matching ended. A
@@ -195,6 +197,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         resumeAfterInterruption = false
         player.pause()
         publish()
+        recordMediaEvent("audio-paused")
     }
 
     func stop() {
@@ -207,6 +210,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         let token = revision
         Task { await files.prune(keeping: [], generation: token) }
         publish()
+        recordMediaEvent("audio-stopped")
     }
 
     func shutdown() {
@@ -504,9 +508,12 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         guard let session = nowPlayingSession else { return }
         session.delegate = nil
         session.nowPlayingInfoCenter.nowPlayingInfo = nil
-        for player in session.players { session.removePlayer(player) }
+        // This entire session is being retired, not edited in place. Let its
+        // lifetime own its KVO teardown. Removing every player first caused a
+        // reproducible duplicate currentItem-observer removal on iOS 26.5.
         nowPlayingSession = nil
         ownershipRequestPending = false
+        ownershipAttempted = false
     }
 
     func recordMediaEvent(_ event: String) {
@@ -528,8 +535,10 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
 
     private func claimNowPlayingSession() {
         guard !shuttingDown, wantsPlayback, !interrupted, player.currentItem != nil,
-              let session = nowPlayingSession, !session.isActive, session.canBecomeActive, !ownershipRequestPending else { return }
+              let session = nowPlayingSession, !session.isActive, session.canBecomeActive,
+              !ownershipRequestPending, !ownershipAttempted else { return }
         ownershipRequestPending = true
+        ownershipAttempted = true
         session.becomeActiveIfPossible { [weak self, weak session] accepted in
             Task { @MainActor in
                 guard let self, let session, self.nowPlayingSession === session else { return }
@@ -550,6 +559,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         Task { @MainActor [weak self] in
             guard let self, self.nowPlayingSession === session else { return }
             self.recordMediaEvent("eligibility-changed")
+            if session.canBecomeActive { self.ownershipAttempted = false }
             self.claimNowPlayingSession()
         }
     }

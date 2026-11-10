@@ -36,6 +36,8 @@ Dynamic Island的呈现、收起、并行活动及动画由系统管理。官方
 
 本项目已经使用AVQueuePlayer、AVAudioSession的playback/longFormAudio以及远程播放、暂停、切歌、进度命令，符合基础资格；**旧的全局MPNowPlayingInfoCenter路径本身是有效API，不得把“没有MPNowPlayingSession”宣称为已证实的C根因。** 本轮改成显式单会话，是把播放器归属、命令和元数据统一到同一可观测对象，降低歧义。[MPNowPlayingSession](https://developer.apple.com/documentation/mediaplayer/mpnowplayingsession)
 
+当前publish由前台同样运行的播放器观察/定时回调调用，未被background条件包围，不是“等到后台才注册媒体信息”。还必须区分：MPNowPlayingSession.isActive指该App的活动会话，不是可读取其他App的全局Now Playing身份接口，更不等于系统激活/签名验证成功。实际系统归属仍需系统日志与操作结果。
+
 ### 8. 切换、挂起、场景恢复
 
 App的inactive并不等于background：拉下控制中心、系统弹窗都可能只经历inactive。只有真实background→active返回，且仍有当前曲目时，才恢复现有FullPlayer。不重建AVPlayer、不seek、不调用play、不抢夺其他App音频。传统API无法识别本次激活来自媒体岛还是App图标，因此两者采用同一返回目的地；此行为明确说明，不伪装成已捕获媒体岛点击来源。
@@ -76,6 +78,14 @@ App的inactive并不等于background：拉下控制中心、系统弹窗都可�
 系统媒体岛探测使用SpringBoard公开可访问性目标；如果模拟器不暴露可定位的媒体岛，将明确skip并保留桌面截图，**不会用app.activate或猜测坐标冒充岛点击通过**。无论该探测结果如何，SideStore重签iPhone17/iOS27.3的轻点/长按、锁屏/控制中心仍需真机验收。
 
 当前Windows没有Swift/iOS SDK；新增Swift代码尚待macOS真正编译/XCTest。Go/Node回归另记，不以其通过代替iOS测试。最终构建、日志与IPA核验完成后在本节追加。
+
+阶段检查点：`1d5f2b52a3328768d33bedb93ca7b87f28937e9c`，[Build24实际运行](https://github.com/yann359/go-music-dl/actions/runs/42806577036)。Windows Go四包、Node6/6已通过，新增Swift/系统媒体探测以该运行终态为准，不把旧Build23当本轮包。
+
+### Build24失败及据证调整
+
+设备/模拟器编译成功，但原生运行失败，UI与IPA上传均未执行。真实错误为 `Cannot remove an observer ... MPNowPlayingSession ... currentItem ... not registered`（NSRangeException），包括原有播放器退出/重建用例。该问题来自本轮新增会话清理，不把它归为用户原有故障或简单归为模拟器不可用；原始日志在 `outputs/island-build24.log`，测试诊断artifact保留。
+
+调整：整会话退出时清空元数据、关闭命令、断开delegate并释放会话引用，由会话自身生命周期完成观察者清理，不先逐个removePlayer再销毁会话。测试若主动持有旧会话，其player仍随它存活，这是引用所有权的预期；必须断言旧命令失效及元数据清空，而非人为要求一个仍被持有的会话清空其数组。原有失败用例全部保留，不用异常捕获、空catch或忽略KVO错误来通过。活动请求也限制到显式播放/资格变化，暂停和停止均记录实际状态事件。修订版需重新运行整个既有macOS验收。
 
 ## 真机取证步骤（不要求Apple密码或私钥）
 

@@ -7,6 +7,8 @@
 - 代码：单一MPNowPlayingSession绑定AVQueuePlayer，使用同session信息/命令中心；播放器重建解绑旧会话；后台真实返回恢复FullPlayer但不自动播放/seek/重建；加入有界Files诊断日志，可核对手机实际build/bundle及系统激活时间。
 - 保留iOS18+与现有构建链，未混用iOS27 NowPlaying框架，未添加Live Activity、假岛、私有API或自我openURL。Swift新增媒体/场景测试与系统可定位媒体岛探测；探测无法定位时明确skip，不用app.activate冒充岛点击。
 - Windows Go四包与Node6/6通过，业务Go源码/搜索/音源未改；新增Swift/XCTest/UI尚未编译，下一步macOS现有工作流验证并打包，不用旧Build23冒充本轮修复包。
+- 代码检查点 `1d5f2b52a3328768d33bedb93ca7b87f28937e9c`，[Build24](https://github.com/yann359/go-music-dl/actions/runs/42806577036) 已通过Go/JS、设备Release及模拟器Go库构建；原生XCTest执行中，最终测试/包交付尚待终态。研究报告已补isActive不是全局归属证明的边界。
+- Build24真实失败：退出/重建会话时出现 `Cannot remove an observer MPNowPlayingSession ... currentItem ... not registered` / NSRangeException，旧播放器用例也受影响，未上传IPA。日志 `outputs/island-build24.log`。已撤销“整会话销毁前逐个removePlayer”的重复观察者清理，改由会话生命周期释放其KVO；仍禁用旧命令并清理元数据。保留原用例与新会话回归，不捕获/吞掉NSException。另将活动会话请求限制在显式播放/资格变化，避免ticker反复请求；准备修订后重验。
 
 ## 上阶段：REA 审计、故障修复与 Build23 IPA 已交付（真机待验）
 

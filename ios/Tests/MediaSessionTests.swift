@@ -52,7 +52,7 @@ final class MediaSessionTests: XCTestCase {
         XCTAssertFalse(session.remoteCommandCenter.playCommand.isEnabled)
     }
 
-    func testMediaResetRebindsSessionAndReleasesOldPlayer() async throws {
+    func testMediaResetRebindsSessionAndRetiresOldControls() async throws {
         let engine = try engine(); defer { engine.shutdown() }
         let old = try XCTUnwrap(engine.nowPlayingSession)
         let oldPlayer = engine.player
@@ -61,12 +61,15 @@ final class MediaSessionTests: XCTestCase {
         let next = try XCTUnwrap(engine.nowPlayingSession)
         XCTAssertFalse(old === next)
         XCTAssertFalse(oldPlayer === engine.player)
-        XCTAssertTrue(old.players.isEmpty)
+        // This test deliberately retains the old session. Its player lifetime
+        // belongs to that session, while metadata and controls must be retired.
+        XCTAssertNil(old.nowPlayingInfoCenter.nowPlayingInfo)
+        XCTAssertFalse(old.remoteCommandCenter.playCommand.isEnabled)
         XCTAssertEqual(next.players.count, 1)
         XCTAssertTrue(next.players.first === engine.player)
         engine.shutdown()
         XCTAssertNil(engine.nowPlayingSession)
-        XCTAssertTrue(next.players.isEmpty)
+        XCTAssertNil(next.nowPlayingInfoCenter.nowPlayingInfo)
         XCTAssertFalse(next.remoteCommandCenter.playCommand.isEnabled)
     }
 
