@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,7 @@ type nativeClientResults struct {
 	Songs     []nativeClientSong `json:"songs"`
 	Playlists []model.Playlist   `json:"playlists"`
 	Errors    []string           `json:"errors"`
+	Kind      string             `json:"kind,omitempty"`
 }
 
 func nativeSongs(songs []model.Song) []nativeClientSong {
@@ -174,6 +176,10 @@ func NativeClientRequest(raw string) (output string, err error) {
 		data = nativeSourceCatalog()
 	case "search":
 		data, err = nativeSearch(request.Params)
+	case "switch_source.candidates":
+		data, err = nativeSwitchCandidates(request.Params)
+	case "switch_source.validate":
+		data, err = nativeValidateSwitch(request.Params)
 	case "recommend", "user_playlists", "category_playlists":
 		data, err = nativePlaylists(request.Action, request.Params)
 	case "toplists":
@@ -247,14 +253,22 @@ func nativeSearch(params map[string]json.RawMessage) (nativeClientResults, error
 	if strings.HasPrefix(query, "https://") || strings.HasPrefix(query, "http://") || strings.HasPrefix(query, "spotify:") {
 		return nativeParseLink(query, kind)
 	}
+	query = core.NormalizeSearchQuery(query)
+	if query == "" {
+		return result, nil
+	}
+	result.Kind = kind
 	sources := nativeSelectedSources(params, defaultSourcesForSearchType(kind))
 	settings := core.GetWebSettings()
 	parts := make([]nativeClientResults, len(sources))
 	var group sync.WaitGroup
+	slots := make(chan struct{}, 3)
 	for i, source := range sources {
 		group.Add(1)
 		go func(index int, source string) {
 			defer group.Done()
+			slots <- struct{}{}
+			defer func() { <-slots }()
 			defer func() {
 				if recover() != nil {
 					part := newNativeResults()
@@ -306,15 +320,34 @@ func nativeSearch(params map[string]json.RawMessage) (nativeClientResults, error
 			if artist := nativeString(params, "exact_artist"); artist != "" {
 				songs = filterSongsByExactArtist(songs, artist)
 			}
+			// Stable relevance ordering only: variants and platforms stay visible.
+			sort.SliceStable(songs, func(i, j int) bool {
+				return nativeSearchRelevance(songs[i], query) > nativeSearchRelevance(songs[j], query)
+			})
 			part.Songs = nativeSongs(songs)
 			part.Playlists = append(part.Playlists, playlists...)
 			parts[index] = part
 		}(i, source)
 	}
 	group.Wait()
+	songKeys := make(map[string]bool)
+	collectionKeys := make(map[string]bool)
 	for _, part := range parts {
-		result.Songs = append(result.Songs, part.Songs...)
-		result.Playlists = append(result.Playlists, part.Playlists...)
+		for _, song := range part.Songs {
+			// Keep different platforms, versions and quality/authorization metadata.
+			key := song.Source + "\x00" + song.ID + "\x00" + song.Extra
+			if !songKeys[key] {
+				songKeys[key] = true
+				result.Songs = append(result.Songs, song)
+			}
+		}
+		for _, collection := range part.Playlists {
+			key := collection.Source + "\x00" + collection.ID
+			if !collectionKeys[key] {
+				collectionKeys[key] = true
+				result.Playlists = append(result.Playlists, collection)
+			}
+		}
 		result.Errors = append(result.Errors, part.Errors...)
 	}
 	return result, nil
@@ -336,6 +369,7 @@ func nativeParseLinkDirect(link, kind string) (nativeClientResults, error) {
 			if song, err := fn(link); err == nil && song != nil {
 				song.Source = source
 				result.Songs = nativeSongs([]model.Song{*song})
+				result.Kind = "song"
 				return result, nil
 			}
 		}
@@ -350,6 +384,7 @@ func nativeParseLinkDirect(link, kind string) (nativeClientResults, error) {
 				songs[i].Source = source
 			}
 			result.Songs = nativeSongs(songs)
+			result.Kind = "playlist"
 			return result, nil
 		}
 	}
@@ -363,6 +398,7 @@ func nativeParseLinkDirect(link, kind string) (nativeClientResults, error) {
 				songs[i].Source = source
 			}
 			result.Songs = nativeSongs(songs)
+			result.Kind = "album"
 			return result, nil
 		}
 	}

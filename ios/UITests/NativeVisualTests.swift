@@ -18,6 +18,34 @@ final class NativeVisualTests: XCTestCase {
         app.terminate()
     }
 
+    func testRealKeyboardSearchClearAndBackgroundReturn() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-native-startup", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 35))
+        app.tabBars.buttons["搜索"].tap()
+        app.buttons["音源"].tap()
+        app.buttons["取消全选"].tap()
+        app.buttons["酷狗音乐"].tap()
+        app.buttons["完成"].tap()
+        let field = app.searchFields.firstMatch
+        if !field.exists { app.swipeDown() }
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap(); field.typeText("周杰伦\n")
+        let finished = app.staticTexts["已显示真实返回结果 · 可继续调整关键词或来源"]
+        XCTAssertTrue(finished.waitForExistence(timeout: 30), "Real keyboard search did not show provider results")
+        XCTAssertFalse(app.staticTexts["你想听见什么？"].exists)
+        capture("search-real-keyboard-results")
+        XCUIDevice.shared.press(.home); app.activate()
+        XCTAssertTrue(finished.waitForExistence(timeout: 5))
+        field.tap()
+        if field.buttons.firstMatch.exists { field.buttons.firstMatch.tap() }
+        else { field.press(forDuration: 1); app.menuItems["全选"].tap(); field.typeText(XCUIKeyboardKey.delete.rawValue) }
+        XCTAssertTrue(app.staticTexts["你想听见什么？"].waitForExistence(timeout: 5))
+        capture("search-real-cleared")
+        app.terminate()
+    }
+
     private func open(_ style: String, emptyPlayer: Bool = false, extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-music.appearance", style]

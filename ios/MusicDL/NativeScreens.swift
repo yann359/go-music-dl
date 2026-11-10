@@ -82,6 +82,7 @@ struct DiscoverScreen: View {
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { model.selectedTab = 3 } label: { Image(systemName: "person.crop.circle").font(.title3) }.accessibilityLabel("我的账号") } }
             .refreshable { await client.loadDiscovery(force: true) }
             .task { await client.loadDiscovery() }
+            .onChange(of: client.networkAvailable) { _, available in if available && session.phase == .failed { search(refresh: true) } }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await client.loadDiscovery(onlyFailed: true) } }
             }
@@ -106,56 +107,64 @@ struct CollectionCard: View {
 
 struct SearchScreen: View {
     @EnvironmentObject private var client: NativeClient
-    @EnvironmentObject private var model: AppModel
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var session = SearchSession()
     @State private var query = ""
     @State private var kind = "song"
-    @State private var selected = Set<String>()
-    @State private var result: NativeSearchResult?
-    @State private var loading = false
-    @State private var problem: String?
     @State private var sourceSheet = false
-    @State private var revision = 0
+    @AppStorage("music.search.sources") private var sourcesJSON = ""
     @AppStorage("music.search.recent") private var recentJSON = "[]"
     private var recent: [String] { (try? JSONDecoder().decode([String].self, from: Data(recentJSON.utf8))) ?? [] }
+    private var selected: Set<String> {
+        sourcesJSON.isEmpty ? Set(client.searchSources.map(\.id)) : Set((try? JSONDecoder().decode([String].self, from: Data(sourcesJSON.utf8))) ?? [])
+    }
+    private var eligible: [NativeSource] { client.searchSources.filter { kind == "song" ? $0.search : (kind == "album" ? $0.album : $0.playlist) } }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 Picker("搜索类型", selection: $kind) {
                     Text("歌曲").tag("song"); Text("专辑").tag("album"); Text("歌单").tag("playlist")
-                }.pickerStyle(.segmented).onChange(of: kind) { _, _ in if !query.isEmpty { Task { await search() } } }
+                }.pickerStyle(.segmented)
                 HStack {
-                    Text(selected.isEmpty ? "全部默认来源" : "已选 \(selected.count) 个来源").font(.caption).foregroundStyle(.secondary)
+                    Text(sourcesJSON.isEmpty ? "全部可用来源 · 包含本地" : "已选 \(selected.intersection(Set(eligible.map(\.id))).count) 个支持的来源").font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     Button { sourceSheet = true } label: { Label("音源", systemImage: "line.3.horizontal.decrease") }.font(.subheadline)
                 }
-                if loading { ProgressView("正在搜索…").frame(maxWidth: .infinity).padding(.vertical, 32) }
-                if let problem { NativeEmptyState(symbol: "wifi.exclamationmark", title: "搜索遇到了一点问题", detail: problem); Button("重试") { Task { await search() } } }
-                if let result {
-                    if !result.songs.isEmpty { SongRows(songs: result.songs) }
+                if session.loading { ProgressView(session.phase == .partial ? "已有结果，其他来源继续搜索…" : "正在搜索…").frame(maxWidth: .infinity).padding(.vertical, 16).accessibilityIdentifier("search-loading") }
+                if let problem = session.problem {
+                    NativeEmptyState(symbol: "wifi.exclamationmark", title: "搜索遇到了一点问题", detail: problem)
+                    Button("重试") { search(refresh: true) }
+                }
+                if let result = session.result {
+                    if !result.songs.isEmpty { SongRows(songs: Array(result.songs.prefix(session.visibleCount)), searchMetadata: true) }
                     if !result.playlists.isEmpty {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 24) {
-                            ForEach(result.playlists, id: \.identityKey) { collection in
-                                NavigationLink { CollectionDetailScreen(collection: collection, kind: kind) } label: {
+                            ForEach(Array(result.playlists.prefix(session.visibleCount)), id: \.identityKey) { collection in
+                                NavigationLink { CollectionDetailScreen(collection: collection, kind: collection.source == "local" ? "collection" : collection.contentType) } label: {
                                     VStack(alignment: .leading, spacing: 10) {
                                         CoverArt(url: collection.cover, title: collection.name, radius: 20).aspectRatio(1, contentMode: .fit)
                                         Text(collection.name).font(.subheadline.weight(.semibold)).lineLimit(2)
-                                        Text(collection.creator).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                        Text([collection.creator, collection.source.uppercased()].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                     }
                                 }.buttonStyle(.plain)
                             }
                         }
                     }
-                    if result.songs.isEmpty && result.playlists.isEmpty && !loading {
+                    if max(result.songs.count, result.playlists.count) > session.visibleCount {
+                        Button("显示更多结果") { session.showMore() }.frame(maxWidth: .infinity)
+                    }
+                    if session.phase == .empty {
                         NativeEmptyState(symbol: "magnifyingglass", title: "没有找到这段旋律", detail: "试试歌名、歌手，或切换音乐来源。")
                     }
-                    if !result.errors.isEmpty { Text(result.errors.joined(separator: "\n")).font(.caption).foregroundStyle(.secondary) }
-                } else if !loading && problem == nil {
+                    if session.phase != .failed && !result.errors.isEmpty { Text(result.errors.joined(separator: "\n")).font(.caption).foregroundStyle(.secondary) }
+                    if session.phase == .complete { Text("已显示真实返回结果 · 可继续调整关键词或来源").font(.caption).foregroundStyle(.secondary) }
+                } else if session.phase == .idle {
                     NativeEmptyState(symbol: "waveform.path", title: "你想听见什么？", detail: "歌名、歌手、专辑，或一张珍藏的歌单。")
                     if !recent.isEmpty {
                         HStack { SectionHeading(title: "最近搜索"); Button("清空") { recentJSON = "[]" }.font(.caption) }
                         ForEach(recent, id: \.self) { term in
-                            Button { query = term; Task { await search() } } label: {
+                            Button { query = term; search() } label: {
                                 HStack { Image(systemName: "clock.arrow.circlepath"); Text(term); Spacer(); Image(systemName: "arrow.up.left") }.padding(.vertical, 10)
                             }.foregroundStyle(.secondary)
                         }
@@ -164,33 +173,47 @@ struct SearchScreen: View {
             }.padding(22)
         }.background(MusicDesign.canvas(scheme)).navigationTitle("搜索")
             .searchable(text: $query, prompt: "歌曲、歌手、专辑与歌单")
-            .onSubmit(of: .search) { Task { await search() } }
-            .sheet(isPresented: $sourceSheet) {
+            .submitLabel(.search)
+            .onSubmit(of: [.search, .text]) { search() }
+            .onChange(of: query) { _, _ in search(debounce: true) }
+            .onChange(of: kind) { _, _ in search() }
+            .onChange(of: client.sources) { _, _ in if !query.isEmpty { search(refresh: true) } }
+            .onChange(of: scenePhase) { _, phase in if phase == .active && session.phase == .failed { search(refresh: true) } }
+            .onAppear { if !query.isEmpty && session.phase == .idle { search() } }
+            .onDisappear { session.suspend() }
+            .sheet(isPresented: $sourceSheet, onDismiss: { if !query.isEmpty { search() } }) {
                 NavigationStack {
-                    List(client.sources.filter { $0.search }, id: \.id) { source in
-                        Button {
-                            if selected.contains(source.id) { selected.remove(source.id) } else { selected.insert(source.id) }
-                        } label: {
-                            HStack { Text(source.name).foregroundStyle(.primary); Spacer(); if selected.contains(source.id) { Image(systemName: "checkmark.circle.fill") } }
+                    List {
+                        Section {
+                            Button("选择全部来源") { sourcesJSON = "" }
+                            Button("取消全选") { sourcesJSON = "[]" }
+                        }
+                        Section {
+                            ForEach(client.searchSources, id: \.id) { source in
+                                let supported = eligible.contains { $0.id == source.id }
+                                Button {
+                                    var values = selected
+                                    if values.contains(source.id) { values.remove(source.id) } else { values.insert(source.id) }
+                                    sourcesJSON = String(decoding: (try? JSONEncoder().encode(values.sorted())) ?? Data("[]".utf8), as: UTF8.self)
+                                } label: {
+                                    HStack {
+                                        Text(source.name).foregroundStyle(supported ? .primary : .secondary)
+                                        Spacer()
+                                        if !supported { Text("不支持此类型").font(.caption).foregroundStyle(.secondary) }
+                                        else if selected.contains(source.id) { Image(systemName: "checkmark.circle.fill") }
+                                    }
+                                }.disabled(!supported)
+                            }
                         }
                     }.navigationTitle("选择音乐来源")
                         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { sourceSheet = false } } }
                 }.presentationDetents([.medium, .large])
             }
     }
-    private func search() async {
-        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        revision += 1; let token = revision
-        guard !term.isEmpty else { result = nil; loading = false; return }
-        loading = true; problem = nil; result = nil
-        do {
-            try await client.searchProgressively(query: term, type: kind, sources: selected.sorted()) { value in
-                guard revision == token else { return }; result = value
-            }
-            guard revision == token else { return }
+    private func search(debounce: Bool = false, refresh: Bool = false) {
+        session.start(client: client, query: query, kind: kind, sources: eligible.map(\.id).filter { selected.contains($0) }, debounce: debounce, refresh: refresh) { term in
             recentJSON = String(decoding: (try? JSONEncoder().encode(Array(([term] + recent.filter { $0 != term }).prefix(8)))) ?? Data("[]".utf8), as: UTF8.self)
-        } catch { if revision == token { problem = error.localizedDescription } }
-        if revision == token { loading = false }
+        }
     }
 }
 
@@ -199,6 +222,7 @@ struct SongRows: View {
     var collectionID: String? = nil
     var onChange: () -> Void = {}
     var onFirstVisible: () -> Void = {}
+    var searchMetadata = false
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var audio: AudioEngine
     var body: some View {
@@ -212,6 +236,10 @@ struct SongRows: View {
                                 Text(song.name).font(.body.weight(.medium)).foregroundStyle(audio.currentSong?.key == song.key ? MusicDesign.coral : .primary).lineLimit(1)
                                 Text([song.artist, song.sourceAvailable ? song.source.uppercased() : "来源已移除 · 记录保留"].filter { !$0.isEmpty }.joined(separator: " · "))
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                if searchMetadata {
+                                    Text([song.album, song.duration > 0 ? String(format: "%d:%02d", song.duration / 60, song.duration % 60) : "", song.isVIP == true ? "可能需要会员 · 点播验证" : "点播验证可用性"].filter { !$0.isEmpty }.joined(separator: " · "))
+                                        .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                                }
                             }
                             Spacer(minLength: 0)
                         }.contentShape(Rectangle())
@@ -233,6 +261,7 @@ struct SongActions: View {
     @EnvironmentObject private var client: NativeClient
     @State private var deleteFile = false
     @State private var showAlbum = false
+    @State private var showSourceSwitch = false
     var body: some View {
         Menu {
             Button("接下来播放", systemImage: "text.line.first.and.arrowtriangle.forward") { audio.append(song, playNext: true); model.notify("已加入下一首") }.disabled(!song.sourceAvailable)
@@ -246,16 +275,7 @@ struct SongActions: View {
                 }
             }
             Button("下载原音质", systemImage: "arrow.down.circle") { model.perform { try await client.enqueueDownload([song]); model.notify("已加入下载任务") } }.disabled(!song.sourceAvailable)
-            Button("尝试其他音源", systemImage: "arrow.triangle.2.circlepath") {
-                let expected = audio.currentSong?.key
-                model.perform {
-                    let replacement = try await client.switchSource(song)
-                    guard audio.currentSong?.key == expected else { return }
-                    if expected == song.key { audio.replaceCurrentSource(replacement, expectedKey: song.key) }
-                    else { model.play([replacement]) }
-                    model.notify("已切换至 \(replacement.source)")
-                }
-            }
+            Button("尝试其他音源", systemImage: "arrow.triangle.2.circlepath") { showSourceSwitch = true }
             if let albumID = song.albumID, !albumID.isEmpty { Button("查看专辑", systemImage: "square.stack") { showAlbum = true } }
             if !song.album.isEmpty { Text("专辑：\(song.album)") }
             if let collectionID {
@@ -269,6 +289,7 @@ struct SongActions: View {
         } label: {
             Image(systemName: "ellipsis").font(.headline).frame(width: 44, height: 44).contentShape(Rectangle())
         }.accessibilityLabel("\(song.name)的更多操作").foregroundStyle(.secondary)
+            .sheet(isPresented: $showSourceSwitch) { NavigationStack { SourceSwitchScreen(original: song) } }
             .sheet(isPresented: $showAlbum) { NavigationStack { SongDetailScreen(title: song.album, kind: "album", id: song.albumID ?? "", source: song.source, cover: song.cover) } }
             .confirmationDialog("删除本地文件“\(song.name)”？此操作无法撤销。", isPresented: $deleteFile, titleVisibility: .visible) {
                 Button("删除音频文件", role: .destructive) { model.perform { if audio.currentSong?.key == song.key { audio.stop() }; try await client.deleteLocalSong(id: song.id); onChange(); model.notify("本地文件已删除") } }

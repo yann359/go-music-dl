@@ -464,9 +464,14 @@ func localMusicSearchSongs(keyword string, limit int) []model.Song {
 		limit = 200
 	}
 
-	like := "%" + keyword + "%"
+	search := db
+	for _, token := range strings.Fields(keyword) {
+		// Each word may match a different metadata field (artist + title).
+		like := "%" + strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(token) + "%"
+		search = search.Where("(name LIKE ? ESCAPE '\\' OR artist LIKE ? ESCAPE '\\' OR album LIKE ? ESCAPE '\\')", like, like, like)
+	}
 	var rows []LocalMusicIndex
-	if err := db.Where("name LIKE ? OR artist LIKE ? OR album LIKE ?", like, like, like).
+	if err := search.
 		Order("mod_time DESC").
 		Limit(limit).
 		Find(&rows).Error; err != nil {

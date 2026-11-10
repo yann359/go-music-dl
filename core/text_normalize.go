@@ -44,6 +44,15 @@ func normalizeVariantText(value string) string {
 	return converted
 }
 
+// NormalizeSearchQuery folds width, invisible characters and Chinese variants,
+// while retaining spaces and punctuation meaningful to provider search APIs.
+func NormalizeSearchQuery(value string) string {
+	return strings.Join(strings.Fields(normalizeVariantText(value)), " ")
+}
+
+// SearchMatchText is for metadata comparison, never provider IDs or signed URLs.
+func SearchMatchText(value string) string { return NormalizeText(normalizeVariantText(value)) }
+
 // NormalizeSongForDownload returns a copy with normalized display metadata for
 // filename templates. Lookup IDs and source-specific extra data stay untouched.
 func NormalizeSongForDownload(song *model.Song) *model.Song {

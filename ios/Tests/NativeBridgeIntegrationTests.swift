@@ -24,6 +24,24 @@ final class NativeBridgeIntegrationTests: XCTestCase {
         try await client.deleteCollection(id: collection.id)
         XCTAssertFalse(client.collections.contains { $0.id == collection.id })
 
+        // Real public provider responses through the exact Swift -> C ABI -> Go path.
+        // No fixture transport participates in these timing measurements.
+        var cold = NativeSearchResult(), warm = NativeSearchResult()
+        let searchStart = Date()
+        var firstMS: Int?
+        try await client.searchProgressively(query: "周杰伦 晴天", type: "song", sources: ["kugou", "kuwo", "migu"], refresh: true) { value in
+            cold = value
+            if firstMS == nil && !value.songs.isEmpty { firstMS = Int(Date().timeIntervalSince(searchStart) * 1000) }
+        }
+        let coldMS = Int(Date().timeIntervalSince(searchStart) * 1000)
+        XCTAssertFalse(cold.songs.isEmpty, "Real providers returned no songs; inspect network/source errors")
+        let warmStart = Date()
+        try await client.searchProgressively(query: "周杰伦 晴天", type: "song", sources: ["kugou", "kuwo", "migu"]) { warm = $0 }
+        let warmMS = Int(Date().timeIntervalSince(warmStart) * 1000)
+        XCTAssertGreaterThan(warm.cachedSources, 0)
+        XCTAssertEqual(Set(cold.songs.map(\.key)), Set(warm.songs.map(\.key)))
+        print("[search-real-api] first_ms=\(firstMS ?? -1) cold_ms=\(coldMS) warm_ms=\(warmMS) songs=\(cold.songs.count) cached_sources=\(warm.cachedSources)")
+
         let engine = AudioEngine()
         let connection = NativeAIConnection(baseURL: baseURL, audio: engine)
         defer { connection.stop(); engine.shutdown() }

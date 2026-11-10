@@ -196,10 +196,12 @@ private struct NativeSongPayload: Decodable {
     }
 }
 
-struct NativeSearchResult {
+struct NativeSearchResult: Codable {
     var songs: [Song] = []
     var playlists: [NativeCollection] = []
     var errors: [String] = []
+    var successfulSources = 0
+    var cachedSources = 0
 }
 
 struct NativeDownloadTask: Decodable, Identifiable {
@@ -255,6 +257,7 @@ final class NativeClient: ObservableObject {
     @Published var settings: [String: JSONValue] = [:]
     @Published var cookies: [String: String] = [:]
     @Published private(set) var downloads: [NativeDownloadTask] = []
+    @Published private(set) var networkAvailable = true
     @Published private(set) var isLoading = false
     @Published var error: String?
     @Published private(set) var isOfflinePreview = false
@@ -288,7 +291,9 @@ final class NativeClient: ObservableObject {
         }
         if transport == nil {
             networkMonitor.pathUpdateHandler = { [weak self] path in
-                if path.status == .satisfied {
+                let connected = path.status == .satisfied
+                Task { @MainActor [weak self] in self?.networkAvailable = connected }
+                if connected {
                     Task { @MainActor [weak self] in
                         guard let self else { return }
                         while self.discoveryLoading {
@@ -421,6 +426,7 @@ final class NativeClient: ObservableObject {
     }
 
     private func results(_ value: JSONValue) throws -> NativeSearchResult {
+        guard value["songs"] != .null || value["playlists"] != .null else { throw NativeError.message("搜索服务未返回可识别的结果，请重试。") }
         let result = NativeSearchResult(songs: try decodeSongs(value["songs"]),
                            playlists: value["playlists"] == .null ? [] : try value["playlists"].decoded([NativeCollection].self),
                            errors: (try? value["errors"].decoded([String].self)) ?? [])
@@ -438,31 +444,75 @@ final class NativeClient: ObservableObject {
         if empty && !warnings.isEmpty { throw NativeError.message(warnings.joined(separator: "\n")) }
     }
 
+    /// All real capabilities, with local music kept outside online account settings.
+    var searchSources: [NativeSource] {
+        sources.filter { $0.search } + [NativeSource(id: "local", name: "本地音乐", album: false)]
+    }
+    private struct SearchCacheEntry {
+        let saved: Date
+        let value: NativeSearchResult
+    }
+    private var searchCache: [String: SearchCacheEntry] = [:]
+
     func search(query: String, type: String = "song", sources: [String]) async throws -> NativeSearchResult {
         if isOfflinePreview { return NativeSearchResult(songs: type == "song" ? previewSongs : [], playlists: type == "song" ? [] : collections) }
-        return try results(await request("search", params: ["q": .string(query), "type": .string(type), "sources": .array(sources.map(JSONValue.string))]))
+        let data = try await request("search", params: ["q": .string(query), "type": .string(type), "sources": .array(sources.map(JSONValue.string))])
+        var value = try results(data)
+        let collectionKind = data["kind"].stringValue.isEmpty ? (type == "album" ? "album" : "playlist") : data["kind"].stringValue
+        for index in value.playlists.indices { value.playlists[index].contentType = collectionKind }
+        return value
     }
-    func searchProgressively(query: String, type: String, sources selected: [String], update: @escaping (NativeSearchResult) -> Void) async throws {
-        if isOfflinePreview || query.hasPrefix("http://") || query.hasPrefix("https://") || query.hasPrefix("spotify:") {
-            update(try await search(query: query, type: type, sources: selected)); return
+    private func cachedSearch(query: String, type: String, source: String, refresh: Bool) async throws -> NativeSearchResult {
+        let key = type + "\n" + source + "\n" + query
+        // Local library mutations and private Spotify data must always be read live.
+        let cacheable = source != "local" && source != "spotify"
+        if cacheable, !refresh, let entry = searchCache[key], Date().timeIntervalSince(entry.saved) < 120 {
+            var value = entry.value; value.cachedSources = 1; return value
         }
-        let defaults = type == "song" ? defaultSources : sources.filter { type == "album" ? $0.album : $0.playlist }.map(\.id)
-        let chosen = selected.isEmpty ? defaults : selected
-        var parts: [String: NativeSearchResult] = [:]
+        let epoch = discoveryGeneration
+        let value = try await search(query: query, type: type, sources: [source])
+        try Task.checkCancellation()
+        if cacheable && epoch == discoveryGeneration && ((try? JSONEncoder().encode(value).count) ?? Int.max) <= 128 * 1024 && value.errors.isEmpty && (!value.songs.isEmpty || !value.playlists.isEmpty) {
+            searchCache = searchCache.filter { Date().timeIntervalSince($0.value.saved) < 120 }
+            if searchCache.count >= 48, let oldest = searchCache.min(by: { $0.value.saved < $1.value.saved })?.key { searchCache.removeValue(forKey: oldest) }
+            // Bound both entry count and individual response size.
+            var bounded = value
+            bounded.songs = Array(value.songs.prefix(500)); bounded.playlists = Array(value.playlists.prefix(200))
+            searchCache[key] = SearchCacheEntry(saved: Date(), value: bounded)
+        }
+        return value
+    }
+    func searchProgressively(query: String, type: String, sources selected: [String], refresh: Bool = false, update: @escaping (NativeSearchResult) -> Void) async throws {
+        if isOfflinePreview || query.hasPrefix("http://") || query.hasPrefix("https://") || query.hasPrefix("spotify:") {
+            var value = try await search(query: query, type: type, sources: selected)
+            value.successfulSources = 1; update(value); return
+        }
+        if sources.isEmpty { try await loadBootstrap() }
+        let available = searchSources.filter { type == "song" ? $0.search : (type == "album" ? $0.album : $0.playlist) }.map(\.id)
+        let chosen = Array(Set(selected.isEmpty ? available : selected.filter { available.contains($0) })).sorted { a, b in
+            if a == b { return false }; if a == "local" { return true }; if b == "local" { return false }; return a < b
+        }
+        guard !chosen.isEmpty else { throw NativeError.message("当前选中的来源不支持此搜索类型，请调整音源筛选。") }
+        var parts: [NativeSearchResult] = []
         var next = 0
-        await withTaskGroup(of: (String, NativeSearchResult).self) { group in
+        await withTaskGroup(of: NativeSearchResult.self) { group in
             func add(_ source: String) {
                 group.addTask { [self] in
-                    do { return (source, try await search(query: query, type: type, sources: [source])) }
-                    catch { return (source, NativeSearchResult(errors: [source + "：连接暂不可用，请重试。"])) }
+                    do {
+                        var value = try await cachedSearch(query: query, type: type, source: source, refresh: refresh)
+                        value.successfulSources = 1; return value
+                    } catch is CancellationError { return NativeSearchResult() }
+                    catch { return NativeSearchResult(errors: [source + "：" + error.localizedDescription]) }
                 }
             }
             for _ in 0..<min(3, chosen.count) { add(chosen[next]); next += 1 }
-            for await (source, part) in group {
+            for await part in group {
                 guard !Task.isCancelled else { group.cancelAll(); break }
-                parts[source] = part
-                let ordered = chosen.compactMap { parts[$0] }
-                update(NativeSearchResult(songs: ordered.flatMap(\.songs), playlists: ordered.flatMap(\.playlists), errors: ordered.flatMap(\.errors)))
+                parts.append(part)
+                var songIDs = Set<String>(), collectionIDs = Set<String>()
+                let songs = parts.flatMap(\.songs).filter { songIDs.insert($0.key).inserted }
+                let collections = parts.flatMap(\.playlists).filter { collectionIDs.insert($0.identityKey).inserted }
+                update(NativeSearchResult(songs: songs, playlists: collections, errors: parts.flatMap(\.errors), successfulSources: parts.reduce(0) { $0 + $1.successfulSources }, cachedSources: parts.reduce(0) { $0 + $1.cachedSources }))
                 if next < chosen.count { add(chosen[next]); next += 1 }
             }
         }
@@ -566,6 +616,7 @@ final class NativeClient: ObservableObject {
         let combined = settings.merging(patch) { _, new in new }
         let result = try await request("settings.save", params: ["settings": .object(combined)])
         settings = result.objectValue
+        invalidateDiscovery()
     }
     func loadCookies() async throws {
         guard !isOfflinePreview else { return }
@@ -579,11 +630,24 @@ final class NativeClient: ObservableObject {
         try await loadCookies()
     }
     private func invalidateDiscovery() {
+        searchCache.removeAll()
         detailStore.invalidate()
         discoveryGeneration += 1
         discoveryCache = [:]; discoveryValues = [:]
         discoveryPlaylists = []; discoveryCharts = []; discoverySongs = []
         if let url = discoveryCacheURL { try? FileManager.default.removeItem(at: url) }
+    }
+    func sourceCandidates(for song: Song) async throws -> (options: [NativeSwitchOption], errors: [String]) {
+        let value = try await request("switch_source.candidates", params: ["song": try .encoded(song)])
+        let options = try value["candidates"].arrayValue.map { value in
+            NativeSwitchOption(song: try value["song"].decoded(NativeSongPayload.self).song, score: value["score"].numberValue, durationDifference: Int(value["duration_difference"].numberValue))
+        }
+        return (options, value["errors"].arrayValue.map(\.stringValue))
+    }
+    func validateSource(_ candidate: Song, original: Song) async throws -> Song {
+        let value = try await request("switch_source.validate", params: ["song": try .encoded(candidate), "original": try .encoded(original)])
+        guard value["verified"].boolValue else { throw NativeError.message("此候选尚未通过音频验证") }
+        return try value["song"].decoded(NativeSongPayload.self).song
     }
     func switchSource(_ song: Song, target: String = "") async throws -> Song {
         let value = try await request("switch_source", params: ["song": try .encoded(song), "target": .string(target)])
