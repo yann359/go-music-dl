@@ -77,21 +77,57 @@ Spotify差异如实保留：新上游可经匿名Web Player搜索，其实现包
 | 歌曲搜索 | 39组真实适配器调用 | 205组矩阵中的歌曲调用，含12个返回歌曲的在线平台 | Apple已恢复；Spotify限制见上 |
 | 多源搜索 | 原 `/search` 多来源并发 | 全源歌曲125首，专辑104张，歌单119张；分别有1/2/1个错误 | 真实聚合与失败来源分离，不代表所有接口成功 |
 | 音源切换 | 复用原搜索/解析适配器 | 修复自动worker崩溃，保留手动候选 | 3真实候选；酷我/咪咕音频Range探测成功，JOOX失败；不等于整曲播放 |
-| 搜索结果展示 | 服务器HTML渲染 | 原生列表、部分先显示、错误/空状态区分 | Go结果与Swift状态自动测试；本轮UI结果待CI写入 |
-| 点歌/解析 | 原下载URL解析 | 原C ABI和播放器保留，解析panic返回错误 | 本轮模拟器/真实UI结果待CI写入；真机发声未验 |
+| 搜索结果展示 | 服务器HTML渲染 | 原生列表、部分先显示、错误/空状态区分 | Go结果、Swift状态及真实键盘UI回归通过；真机待验 |
+| 点歌/解析 | 原下载URL解析 | 原C ABI和播放器保留，解析panic返回错误 | 模拟器真实搜索点击进入播放器通过；真机整曲发声未验 |
 | 歌单和本地 | SQLite/文件功能 | 数据模型、收藏、路径校验和原生路由未改 | Go既有回归保留；真机旧数据与权限待验 |
 
 真实脱敏逐项结果：[当前/上游对比JSON](verification/rea-live-comparison-2026-11-10.json)。本轮没有宣称“所有音源全部修复”。
 
-## 测试与构建进度
+## 测试与构建结果
 
 - Windows：依赖对齐后Go六包364通过、15条件跳过、0失败；Node桥接6/6；go vet、后端构建通过。条件跳过的联网审计已另外显式执行，不能把skip计为pass。
 - 受控故障：两个真实panic子进程修复前失败、修复后通过；原生解析panic返回明确错误；已有EOF、来源初始化、并发/超时与服务启动回归仍通过。
-- Swift新增：本地空掩盖在线失败、搜索中切源及离页/返回旧状态隔离、网络/服务/解析/来源异常分类。必须等macOS真正编译执行后才报告通过。
+- Swift新增：本地空掩盖在线失败、搜索中切源及离页/返回旧状态隔离、网络/服务/解析/来源异常分类。本轮最终macOS XCTest 59/59通过，其中58项为单元/受控回归，1项为真实C ABI集成；不将模拟传输视为真实音乐API。
 - 真实网络：上游39组、当前205组加3组聚合已执行。启用旧故障相关的HTTP追踪仍完成，不使用Mock冒充真实音源。
 - 真机：**未执行**。无Xcode本机、无已连接iPhone、无真机ips/崩溃栈/内存诊断。模拟器与构建结果另行列出。
 
 首个CI运行：[Build21](https://github.com/yann359/go-music-dl/actions/runs/42788448454)，源码 `5c34f8f`。它不含后续依赖对齐，不能交付为最终包。使用仓库既有 `ios-native.yml` 的macos-26/Xcode、设备arm64 Release及XCTest/UI流程，最终运行和IPA完成后补充到此。
+
+### 云端真实失败与调整
+
+Build21被更新版本运行按同分支并发规则取消。包含依赖对齐的 [Build22](https://github.com/yann359/go-music-dl/actions/runs/42789761149) 已完成Go/JS和设备/模拟器编译，但原生测试步骤在10分钟时超时，UI及IPA上传跳过；不能记为XCTest通过，也不能交付这个运行的IPA。
+
+下载的真实诊断 `scheduling.log` 显示09:27:41接收worker、09:37:18才完成bootstrap。运行日志09:37:03已报告步骤超时；Session日志到09:37:18才发出开始执行测试指令，没有本轮断言失败或完整套件结果。原始证据为 `outputs/rea-build22.log`、`rea-build22-test-report.zip`。因此先将模拟器boot/bootstatus与服务可用性检查拆成独立步骤并保存日志，不删除测试，不放宽断言或原有单用例时限。
+
+最终构建源码为 `c1f965733aaf973ff6ffb1797e454cdb12a1c98b`，[Build23](https://github.com/yann359/go-music-dl/actions/runs/42792576244) 全部成功。独立启动步骤最多15分钟，原生测试仍10分钟、UI仍12分钟，断言与单用例时限保留；启动日志实际显示长时间等待Data Migration，提前准备后本次完整执行成功。macOS26/Xcode26.6/iPhoneOS SDK26.5/Go1.26.1，iPhone17 Pro Max/iOS26.5模拟器。本轮Windows没有CGO编译器，未执行Go race；模拟器XCTest也不能替代真机或全局线程安全证明。
+
+原生59项在14.234秒内完成，0失败；UI7项在287.800秒内完成，0失败。UI包括2项无preview的真实启动/键盘搜索，另5项使用明确的界面fixture（含合成音频），不把后者当作音源成功。真实键盘搜索/清空/Home返回/点歌进入队列用例56.433秒通过。原始日志 `outputs/rea-build23.log`、测试结果/截图在 [测试产物](https://github.com/yann359/go-music-dl/actions/runs/42792576244/artifacts/13754280382)。
+
+### 用户要求的12项场景及证据类型
+
+| 场景 | 已具备的覆盖 | 不能据此声称的内容 |
+|---|---|---|
+| 1.进入搜索不退出 | 原生真实启动UI用例、页面导航回归；Build23通过 | 尚无iPhone操作结果 |
+| 2.正常歌曲返回结果 | 原生Go真实矩阵、聚合；键盘搜索真实UI用例 | API有数据不等于所有真机UI均正常 |
+| 3.中文/英文/歌手 | 当前五词205组、上游三词39组真实接口 | 未实测用户iPhone中文输入法 |
+| 4.快速重复提交 | `testSubmitFlushesDebounceAndCachesSuccessfulSourceOnly`、快速改词代次回归 | 未执行真机连续快速触屏 |
+| 5.搜索中切源 | `testChangingSourceAndLeavingPageCannotPublishStaleResponse`，受控旧响应不能覆盖新来源 | 不冒充真实弱网触屏验收 |
+| 6.所有已注册来源 | 13来源逐项真实检查，Spotify未配置等状态明确保留 | 不是13来源每个能力都成功 |
+| 7.真正空结果 | `testEmptyFailureAndNoSelectionAreDifferentFromIdle`、独立空本地库 | 随机词在某些平台会返回推荐，不能强称为空 |
+| 8.超时/断网 | 有界请求池截止回归、Swift URLError分类与恢复回归 | 未执行iPhone飞行模式/蜂窝切换 |
+| 9.后端故障不退出 | 真实初始化失败重试/端口占用回归、两个panic子进程及解析边界测试 | 不涵盖OOM、fatal error或未知第三方子协程panic |
+| 10.搜索后点歌 | 真实UI用例进入现有队列；真实换源音频片段探测 | 不等于iPhone整曲发声/解码完成 |
+| 11.反复退出与返回 | Swift离页取消、返回重搜/旧状态隔离回归 | 尚未进行真机长时间循环操作 |
+| 12.桌面返回 | 真实键盘UI用例包含Home/activate；Build23通过 | 未验真实锁屏、来电、蓝牙和后台长期播放 |
+
+## 最终IPA交付与完整性
+
+- [Build23实际运行](https://github.com/yann359/go-music-dl/actions/runs/42792576244)；[下载IPA、源码与许可](https://github.com/yann359/go-music-dl/actions/runs/42792576244/artifacts/13754860083)，有效期至2026-12-10。本地副本为 `../outputs/ios-release-build/build23/music-dl-ios-native-unsigned.ipa`。
+- 实际IPA为14,337,073字节，SHA256 `7e8efc21c734c6083ea305f9407372d9fd358e2dc2a69f09fe85b10a89b8a169`。GitHub artifact ZIP的SHA256 `d72f261d1123ebbfb28c2773c5999797589397c8f9797e34bca5f3af1011ab98` 与GitHub digest一致；附带源码标识精确为 `c1f965733aaf973ff6ffb1797e454cdb12a1c98b`。
+- 本地重新执行 `ios/scripts/verify-ipa.py`，结果与CI JSON完全一致：Payload结构及CRC、arm64/iPhoneOS Mach-O、未加密、signature_bytes=0、系统动态库依赖、执行文件、Assets及许可资源均核验；无旧签名目录或embedded.mobileprovision。保留后台audio，不依赖Windows服务。
+- Bundle ID `com.guohuiyuan.musicdl.nativedesign`；版本1.0.0/Build23；iOS18+。实际 `CFBundleName` 与 `CFBundleDisplayName` 均为纯英文 `MusicDL`，避免此前SideStore App ID名称中文注册错误。没有操作Apple开发者后台或用户手机，不能声称SideStore注册/签名已实测。
+- **这是未签名IPA**：下载GitHub artifact ZIP后先解压，再把其中IPA导入SideStore重签。沿用同一签名身份和Bundle ID覆盖原App以保留数据，不主动卸载旧版。不将artifact ZIP直接改后缀为IPA。
+- [交付核验JSON](verification/rea-build23-delivery.json)记录包元数据、哈希、签名状态、源码、有效期及本地/CI一致性。后续文档记录提交不改变上述已构建业务代码，无需为文档重复打包。旧Build20及其他旧IPA完整保留。
 
 ## 风险与iPhone验收
 

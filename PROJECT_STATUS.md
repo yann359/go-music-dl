@@ -1,4 +1,16 @@
-## 当前阶段：REA 搜索/换源回归审计（2026-11-10，进行中）
+## 当前阶段：REA 审计、故障修复与 Build23 IPA 已交付（2026-11-10，真机待验）
+
+- 分支 `codex/rea-search-crash-audit`；最终构建源码 `c1f965733aaf973ff6ffb1797e454cdb12a1c98b`。修复提交 `5c34f8f`、`351eabd`、CI准备修复 `c1f9657`；保留全部历史、13在线来源+本地、当前UI/播放器/数据库与旧IPA。
+- 根因：旧自动换源搜索/验证worker的panic跨协程逃逸（修复前真实子进程退出码2、修复后通过）；播放解析ABI缺保护；本地空成功掩盖在线失败；旧music-lib导致Apple新版页面解析失败。已修复并加入回归、脱敏异常栈及Release搜索阶段日志。
+- REA 6.4.0真实调用的JS/IPA/上游静态证据已存档；Windows不支持其iOS运行时，Ghidra未配置。Swift/Go根因由源码及受控执行交叉验证，不冒充REA反编译或真机结果。
+- Windows Go六包 **364通过 / 15条件跳过 / 0失败**；Node **6/6**，vet和后端构建通过。上游39组真实搜索、当前205组后端检查+3组全源聚合另行完成；12在线平台返回歌曲，Spotify仍受官方OAuth配置限制。真实换源3候选，酷我/咪咕片段通过，JOOX失败。
+- [最终Build23](https://github.com/yann359/go-music-dl/actions/runs/42792576244) **全部成功**：Swift XCTest **59/59**（58项单元/受控回归+1项真实C ABI集成），UI **7/7**（2项真实原生启动/搜索+5项界面fixture回归）。真实键盘搜索、点击进入播放器、Home返回与清空用例通过，未将fixture或模拟器当作iPhone实测。
+- [下载新IPA及对应源码/许可证](https://github.com/yann359/go-music-dl/actions/runs/42792576244/artifacts/13754860083)。本地 `../outputs/ios-release-build/build23/music-dl-ios-native-unsigned.ipa`，**14,337,073字节**；SHA256 `7e8efc21c734c6083ea305f9407372d9fd358e2dc2a69f09fe85b10a89b8a169`。arm64、iPhoneOS、iOS18+、版本1.0.0/Build23、未签名/未加密；纯英文名称MusicDL，Bundle ID仍为 `com.guohuiyuan.musicdl.nativedesign`，后台audio保留。ZIP、Mach-O、资源、动态依赖、源码、CI/本地校验及GitHub artifact digest一致。云端有效期至2026-12-10，本地副本保留。
+- Build21被新运行取消；Build22因模拟器测试进程bootstrap耗尽步骤10分钟而失败，未上传IPA。真实日志后将冷启动/bootstatus拆为独立准备步骤，Build23全部重验通过；未删除测试或放宽断言。日志/失败诊断及最终报告在外层 `outputs/rea-*`。
+- 尚未进行iPhone重签/安装/整曲/真实断网/锁屏中断验证，未获取用户ips或Jetsam。Spotify匿名Web Player/TOTP路径未接入现有OAuth边界；咪咕部分专辑、5sing歌单及JOOX探测限制如实保留。下载ZIP后解压IPA交给SideStore重签，沿用原身份及Bundle ID覆盖安装，不主动卸载旧App。
+- 逐文件根因、REA证据、全部来源差异、12场景证据类型和真机日志步骤见 [本轮完整报告](docs/ios-rea-search-crash-audit-2026-11-10.md)；[交付核验JSON](docs/verification/rea-build23-delivery.json)。
+
+## 本轮过程记录：REA 搜索/换源回归审计
 
 - 干净起点 `8eac5d4`，独立分支 `codex/rea-search-crash-audit`；上游已重新 fetch，仍为 `c445ddd`。本轮停止功能/UI扩展，所有13在线来源和本地、现有UI/播放器/数据库均保留。
 - REA 6.4.0 已真实调用：当前JS静态分析、Build20 IPA归档核查、上游app.js静态分析；完整证据在外层 `outputs/rea-regression-audit-2026-11-10.json` 和 `rea-upstream-evidence-2026-11-10.json`。Windows不能执行REA iOS运行时，Ghidra未配置；不宣称REA审过Swift/Go执行栈或完成真机验证。
