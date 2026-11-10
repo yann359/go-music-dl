@@ -1,0 +1,42 @@
+{
+  "scope": "MusicDL media ownership and activation only; no Apple Music private source or iPhone runtime observation",
+  "rea": {
+    "version": "6.4.0",
+    "archive_evidence_id": "ev_87e450f88ec37fb80066d1b4d332248bbd5eacaa6130dbd0de9db5ce2eaf9fb3",
+    "coverage": {
+      "status": "complete-within-substeps",
+      "substeps_completed": 1,
+      "observations_retained": 1,
+      "observations_omitted": 0,
+      "hypotheses_retained": 0,
+      "hypotheses_omitted": 0,
+      "unexplored_branches_retained": 0,
+      "unexplored_branches_omitted": 0,
+      "next_probes_retained": 0,
+      "next_probes_omitted": 0
+    },
+    "limitations": [
+      "Inspection derives bounded static hypotheses and next probes; it does not execute the artifact or claim format-specific semantics.",
+      "ZIP inventory lists central-directory entries only. Bytes after the central directory, including an APK Signing Block or a ZIP comment, are not occurrences."
+    ],
+    "native_runtime": "Windows unsupported; Ghidra not configured"
+  },
+  "user_reported_device": {
+    "model": "iPhone 17",
+    "os": "iOS 27.3",
+    "installed_build_verified": false
+  },
+  "inspected_ipa": {
+    "build": 23,
+    "sha256": "7e8efc21c734c6083ea305f9407372d9fd358e2dc2a69f09fe85b10a89b8a169",
+    "bundle": "com.guohuiyuan.musicdl.nativedesign",
+    "signed": false
+  },
+  "api_decision": {
+    "MPNowPlayingSession_first_ios": "16.0",
+    "NowPlaying_first_ios": "27.0",
+    "compiled_sdk_in_previous_delivery": "26.5",
+    "foreground_island_timing_forced": false,
+    "custom_live_activity": false
+  }
+}

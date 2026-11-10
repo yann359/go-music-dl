@@ -617,7 +617,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
                 MPMediaItemPropertyTitle: song.name, MPMediaItemPropertyArtist: song.artist,
                 MPMediaItemPropertyAlbumTitle: song.album, MPMediaItemPropertyPlaybackDuration: length,
                 MPNowPlayingInfoPropertyElapsedPlaybackTime: position,
-                MPNowPlayingInfoPropertyPlaybackRate: playing ? speed : 0,
+                MPNowPlayingInfoPropertyPlaybackRate: playing ? speed : Float(0),
                 MPNowPlayingInfoPropertyDefaultPlaybackRate: speed,
                 MPNowPlayingInfoPropertyPlaybackQueueIndex: index,
                 MPNowPlayingInfoPropertyPlaybackQueueCount: songs.count

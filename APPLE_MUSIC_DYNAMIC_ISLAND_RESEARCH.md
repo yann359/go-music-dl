@@ -2,6 +2,8 @@
 
 日期：2026-11-10。范围仅限系统媒体会话、场景恢复、重签身份及回归。干净基线 `4e9e094`，分支 `codex/now-playing-island`。用户真机为 **iPhone 17 / iOS 27.3**；已核验的上次交付IPA为 **Build23**，不是项目默认构建号1。尚未读取手机实际安装版本，不宣称两者一致。
 
+**同机用户对照已收到：Apple Music播放时，轻点桌面媒体岛直接返回Apple Music；MusicDL的相同操作不能正常返回。** 这是用户提供的真机观测，不是Codex/REA远程操作结果。由此C不能被解释为“该iOS版本所有音乐App的正常单击语义”；异常属于MusicDL/其安装环境路径，具体激活失败层仍待日志。锁屏和控制中心对照结果尚待用户补充。
+
 ## 结论先行：A/B保持系统行为，C分层修复与验证
 
 | 用户真实场景 | 当前判断 | 本轮处理 |
@@ -12,7 +14,7 @@
 
 Apple公开资料说明Now Playing是系统媒体界面的一种来源，ActivityKit是自定义Live Activity的另一路径；普通音频无需创建Live Activity。[Apple：Live Activities团队问答](https://developer.apple.com/news/?id=qpqf1gru)
 
-**没有读取Apple Music私有源码，也未对Apple Music真机运行做录屏/实测。** 下述是官方公开机制、用户观测、项目代码证据三者的对照，不能称为已证实Apple Music所有版本每一帧行为。Apple资料未承诺“播放App在前台时永远显示/永远不显示媒体岛”；所以不将A/B武断改成强制显示。其他第三方音乐App同样应使用公开媒体会话；本轮没有虚构Spotify等App的同机对照结果。
+**没有读取Apple Music私有源码，Codex/REA也未亲自操作Apple Music真机或录屏。** 下述是官方公开机制、用户观测、项目代码证据三者的对照，不能称为已证实Apple Music所有版本每一帧行为。Apple资料未承诺“播放App在前台时永远显示/永远不显示媒体岛”；所以不将A/B武断改成强制显示。其他第三方音乐App同样应使用公开媒体会话；本轮没有虚构Spotify等App的同机对照结果。
 
 ## 十个研究问题
 
@@ -93,3 +95,7 @@ App的inactive并不等于background：拉下控制中心、系统弹窗都可�
 2. 播放同一曲目，记下Home、轻点媒体岛、长按、控制中心点封面、图标返回的时间。日志对照scene-background / ownership-* / scene-active / player-restored。
 3. 若点击没有scene-active而图标返回有，继续获取同时间SpringBoard/FrontBoard/RunningBoard/mediaremoted的系统Console或sysdiagnose，查看激活目标与拒绝原因。若已有scene-active则查UI导航；不要把签名猜测当结论。
 4. 同机用Apple Music重复A/B/C，记录声音路由、是否有其他活动占岛。测试暂停恢复、前后台切歌、锁屏进度、长按控制及原搜索/换源；本轮没有强行改变A/B的显示规则。
+
+### Build25证据与数值契约修正
+
+[Build25](https://github.com/yann359/go-music-dl/actions/runs/42809023352) 执行62项原生测试，61通过、1失败、无上述KVO异常/测试进程重启。失败是暂停速率被`as? Float`读取为nil，不能据此推断整个Now Playing信息已清空；当前字段处于`[String: Any]`上下文，暂停分支字面量0与播放分支Float的动态类型可不同。将发布的0明确为Float，测试按MediaPlayer的数值契约读取NSNumber.floatValue，仍要求暂停速率为0、原生player.rate为0、停止清信息且命令禁用，未放宽或删除行为断言。该修订需要下一轮真实macOS验证；Build25无IPA。
