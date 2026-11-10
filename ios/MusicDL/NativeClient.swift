@@ -359,12 +359,16 @@ final class NativeClient: ObservableObject {
     func request(_ action: String, params: [String: JSONValue] = [:], retrySpotify: Bool = true) async throws -> JSONValue {
         guard !isOfflinePreview else { throw NativeError.message("当前为界面演示模式，不会执行联网、播放或数据修改。请正常启动后使用。") }
         try Task.checkCancellation()
-        let spotify = params["source"] == .string("spotify") || params["target"] == .string("spotify") || params["song"]?["source"] == .string("spotify") || params["sources"]?.arrayValue.contains(.string("spotify")) == true
+        // Matching alternatives only reads the original song's metadata. An
+        // expired original account must not prevent searching other platforms.
+        let metadataSwitch = ["switch_source", "switch_source.candidates"].contains(action)
+        let requiresSpotify = params["source"] == .string("spotify") || params["target"] == .string("spotify") || (!metadataSwitch && params["song"]?["source"] == .string("spotify"))
+        let spotify = requiresSpotify || params["sources"]?.arrayValue.contains(.string("spotify")) == true
         if let prepare = spotifyAuthorization, spotify {
             do { try await prepare(false) }
             catch {
                 let remaining = (params["sources"]?.arrayValue ?? []).filter { $0 != .string("spotify") }
-                guard !remaining.isEmpty else { throw error }
+                guard !requiresSpotify, !remaining.isEmpty else { throw error }
                 var subset = params; subset["sources"] = .array(remaining)
                 var available = try await request(action, params: subset, retrySpotify: false)
                 available["errors"] = .array(available["errors"].arrayValue + [.string("Spotify 待配置或尚未连接，其他来源已继续加载。")])

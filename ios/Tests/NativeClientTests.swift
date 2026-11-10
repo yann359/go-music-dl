@@ -18,6 +18,21 @@ final class NativeClientTests: XCTestCase {
         XCTAssertEqual(result.errors, ["QQ 音乐暂时不可用"])
     }
 
+    func testSwitchingFromUnconfiguredSpotifyUsesMetadataWithoutOriginalAuthorization() async throws {
+        let client = NativeClient(spotifyAuthorization: { _ in
+            XCTFail("Original Spotify authorization must not gate other-source matching")
+            throw MusicAccountError.configuration
+        }) { data in
+            let request = try JSONDecoder().decode(JSONValue.self, from: data)
+            XCTAssertEqual(request["action"].stringValue, "switch_source.candidates")
+            XCTAssertEqual(request["params"]["song"]["source"].stringValue, "spotify")
+            return Data(#"{"data":{"candidates":[],"errors":[]}}"#.utf8)
+        }
+        let original = Song(id: "saved-spotify-track", source: "spotify", name: "晴天", artist: "周杰伦", album: "", cover: "", duration: 269, extra: "{}")
+        let result = try await client.sourceCandidates(for: original)
+        XCTAssertTrue(result.options.isEmpty)
+    }
+
     func testSettingsPatchKeepsUnknownOriginalFields() async throws {
         let client = NativeClient { data in
             let request = try JSONDecoder().decode(JSONValue.self, from: data)
