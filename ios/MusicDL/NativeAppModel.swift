@@ -14,10 +14,12 @@ final class AppModel: ObservableObject {
     @Published var selectedTab = 0
     private var starting = false
     private var ai: NativeAIConnection?
+    private var restorePlayerOnForeground = false
     let isUITesting = ProcessInfo.processInfo.arguments.contains("--ui-testing")
 
-    init() {
-        if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+    init(audio: AudioEngine? = nil) {
+        if let audio { self.audio = audio }
+        else if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("musicdl-ui-fixture.wav")
             let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!
             if let file = try? AVAudioFile(forWriting: url, settings: format.settings),
@@ -26,10 +28,10 @@ final class AppModel: ObservableObject {
                 memset(buffer.floatChannelData![0], 0, Int(buffer.frameLength) * MemoryLayout<Float>.size)
                 try? file.write(from: buffer)
             }
-            audio = AudioEngine(files: AudioFiles { song, _ in
+            self.audio = AudioEngine(files: AudioFiles { song, _ in
                 AssetDescriptor(url: url, headers: [:], temporary: "", source: song.source, id: song.id)
             })
-        } else { audio = AudioEngine() }
+        } else { self.audio = AudioEngine() }
     }
 
     func start() async {
@@ -109,6 +111,24 @@ final class AppModel: ObservableObject {
             _ = try await service.connect(root: root.path)
             ai?.stop(); ai?.start()
         } catch { notify("本地功能暂时不可用，请稍后重新打开 App 重试；已缓存音频仍可播放。") }
+    }
+
+    func sceneEnteredBackground() {
+        restorePlayerOnForeground = audio.currentSong != nil
+        audio.recordMediaEvent("scene-background")
+    }
+
+    func sceneBecameActive() {
+        audio.recordMediaEvent("scene-active")
+        defer { restorePlayerOnForeground = false }
+        // Legacy MediaPlayer does not identify whether activation came from
+        // Now Playing or the app icon. Use the same playback destination for
+        // a genuine background return, never for Control Center's inactive phase.
+        if isReady && restorePlayerOnForeground && audio.currentSong != nil {
+            showPlayer = true
+            audio.recordMediaEvent("player-restored")
+        }
+        // Navigation must not recreate the player, seek, or resume paused audio.
     }
 }
 

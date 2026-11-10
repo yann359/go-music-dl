@@ -41,6 +41,8 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 10), "Real search result did not enter the existing player queue")
         capture("search-real-player-queue")
         XCUIDevice.shared.press(.home); app.activate()
+        XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
+        app.buttons["收起播放器"].tap()
         XCTAssertTrue(finished.waitForExistence(timeout: 5))
         field.tap()
         if field.buttons.firstMatch.exists { field.buttons.firstMatch.tap() }
@@ -105,6 +107,8 @@ final class NativeVisualTests: XCTestCase {
             app.buttons["暂停"].tap()
             XCTAssertTrue(app.buttons["展开播放器"].exists)
             XCUIDevice.shared.press(.home); app.activate()
+            XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
+            app.buttons["收起播放器"].tap()
             XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 8))
             app.buttons["展开播放器"].tap()
             XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
@@ -128,6 +132,30 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "编曲：林迈可")).count, 1)
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "重复副歌")).count, 2)
         capture("deduplicated-credits-preserved-chorus")
+    }
+
+    func testSystemMediaIslandTapWhenExposedBySimulator() throws {
+        let app = open("light", emptyPlayer: true)
+        defer { app.terminate() }
+        app.tabBars.buttons["音乐库"].tap()
+        app.buttons["本地音乐"].tap()
+        let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
+        XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
+        XCTAssertTrue(app.buttons["暂停"].waitForExistence(timeout: 8))
+        XCUIDevice.shared.press(.home)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let systemShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        systemShot.name = "system-media-home-probe"; systemShot.lifetime = .keepAlways; add(systemShot)
+        // Use a real system accessibility target. Never equate app.activate()
+        // or a guessed coordinate with a successful Dynamic Island tap.
+        let media = springboard.buttons.matching(NSPredicate(format: "label CONTAINS %@ OR label CONTAINS %@", "第一缕晨光", "MusicDL")).firstMatch
+        guard media.waitForExistence(timeout: 8) else {
+            throw XCTSkip("Simulator does not expose an identifiable system media island; iPhone tap/long-press remains unverified.")
+        }
+        media.tap()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 8), "System media tap did not activate MusicDL")
+        XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
+        capture("system-media-tap-restored-player")
     }
 
     func testAllAccountsAndOfficialAuthorizationEntrypoints() {

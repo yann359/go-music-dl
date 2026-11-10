@@ -1,4 +1,14 @@
-## 当前阶段：REA 审计、故障修复与 Build23 IPA 已交付（2026-11-10，真机待验）
+## 当前阶段：原生媒体岛交互专项（2026-11-10，代码待macOS验证）
+
+- 基线 `4e9e094`，独立分支 `codex/now-playing-island`；用户设备iPhone17/iOS27.3。只核查媒体会话、场景恢复与重签身份，未重复全项目审计。
+- 已读取实际Build23 IPA：build=23、MusicDL、原Bundle ID、后台audio与单场景；当前手机安装版本无法远程读取，不能声称一致。
+- REA 6.4.0真实调用并审查Build23归档，证据 `ev_87e450f88ec37fb80066d1b4d332248bbd5eacaa6130dbd0de9db5ce2eaf9fb3`。Windows原生运行时不可用，不假称观察Apple Music或iPhone。官方资料/10问题/证据边界见 [研究报告](APPLE_MUSIC_DYNAMIC_ISLAND_RESEARCH.md)。
+- A/B与系统呈现策略相容，保持原样；C分“未激活App”和“已激活但未恢复播放器”。已确认旧scene active只重连服务，没有恢复当前页；无真机日志，不宣称该导航缺口就是完全无法返回的唯一原因。
+- 代码：单一MPNowPlayingSession绑定AVQueuePlayer，使用同session信息/命令中心；播放器重建解绑旧会话；后台真实返回恢复FullPlayer但不自动播放/seek/重建；加入有界Files诊断日志，可核对手机实际build/bundle及系统激活时间。
+- 保留iOS18+与现有构建链，未混用iOS27 NowPlaying框架，未添加Live Activity、假岛、私有API或自我openURL。Swift新增媒体/场景测试与系统可定位媒体岛探测；探测无法定位时明确skip，不用app.activate冒充岛点击。
+- Windows Go四包与Node6/6通过，业务Go源码/搜索/音源未改；新增Swift/XCTest/UI尚未编译，下一步macOS现有工作流验证并打包，不用旧Build23冒充本轮修复包。
+
+## 上阶段：REA 审计、故障修复与 Build23 IPA 已交付（真机待验）
 
 - 分支 `codex/rea-search-crash-audit`；最终构建源码 `c1f965733aaf973ff6ffb1797e454cdb12a1c98b`。修复提交 `5c34f8f`、`351eabd`、CI准备修复 `c1f9657`；保留全部历史、13在线来源+本地、当前UI/播放器/数据库与旧IPA。
 - 根因：旧自动换源搜索/验证worker的panic跨协程逃逸（修复前真实子进程退出码2、修复后通过）；播放解析ABI缺保护；本地空成功掩盖在线失败；旧music-lib导致Apple新版页面解析失败。已修复并加入回归、脱敏异常栈及Release搜索阶段日志。

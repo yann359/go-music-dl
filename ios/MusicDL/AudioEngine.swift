@@ -7,7 +7,7 @@ import SwiftUI
 /// The only playback owner. No WebView, JavaScript timer, or HTTP loopback
 /// connection is used by the queue, remote controls, or interruption recovery.
 @MainActor
-final class AudioEngine: NSObject, ObservableObject {
+final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate {
     enum PlaybackState: String { case idle, preparing, ready, playing, paused, buffering, interrupted, recovering, error }
     @Published private(set) var playbackState: PlaybackState = .idle
     private var playbackError: String?
@@ -45,6 +45,10 @@ final class AudioEngine: NSObject, ObservableObject {
     private var itemObservation: NSKeyValueObservation?
     private var notifications: [NSObjectProtocol] = []
     private var commands: [(MPRemoteCommand, Any)] = []
+    private(set) var nowPlayingSession: MPNowPlayingSession?
+    private var ownershipRequestPending = false
+    private var shuttingDown = false
+    private let engineID = UUID().uuidString
     private var preparing = false
     private var artwork: MPMediaItemArtwork?
     private var artworkKey = ""
@@ -61,7 +65,7 @@ final class AudioEngine: NSObject, ObservableObject {
         observe(AVAudioSession.mediaServicesWereResetNotification) { [weak self] _ in self?.resetMediaServices() }
         observe(UIApplication.didBecomeActiveNotification) { [weak self] _ in self?.foregrounded() }
         observe(.AVPlayerItemDidPlayToEndTime) { [weak self] note in self?.didEnd(note) }
-        configureRemoteCommands()
+        installNowPlayingSession()
     }
 
     private func installPlayerObservers() {
@@ -120,6 +124,7 @@ final class AudioEngine: NSObject, ObservableObject {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .default, policy: .longFormAudio)
         try session.setActive(true)
+        recordMediaEvent("audio-activated")
     }
 
     func playSongs(_ items: [Song], at selected: Int = 0) {
@@ -197,7 +202,7 @@ final class AudioEngine: NSObject, ObservableObject {
         player.removeAllItems(); itemIndices.removeAll(); itemSources.removeAll()
         songs = []; sequence = []; index = 0; savedPosition = 0; playbackError = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo = nil
         artworkTask?.cancel(); artwork = nil; artworkKey = ""
         let token = revision
         Task { await files.prune(keeping: [], generation: token) }
@@ -205,13 +210,14 @@ final class AudioEngine: NSObject, ObservableObject {
     }
 
     func shutdown() {
+        guard !shuttingDown else { return }
         stop()
+        shuttingDown = true
         if let ticker { player.removeTimeObserver(ticker); self.ticker = nil }
         observations.removeAll(); itemObservation = nil
         for token in notifications { NotificationCenter.default.removeObserver(token) }
         notifications.removeAll()
-        for (command, target) in commands { command.removeTarget(target) }
-        commands.removeAll()
+        removeNowPlayingSession()
         stateDidChange = nil
     }
 
@@ -432,7 +438,9 @@ final class AudioEngine: NSObject, ObservableObject {
         if let ticker { player.removeTimeObserver(ticker); self.ticker = nil }
         observations.removeAll(); itemObservation = nil
         player.pause()
+        removeNowPlayingSession()
         player = AVQueuePlayer()
+        installNowPlayingSession()
         installPlayerObservers()
         rebuild(keepingCurrent: false, position: savedPosition)
     }
@@ -479,12 +487,83 @@ final class AudioEngine: NSObject, ObservableObject {
         }
     }
 
-    private func configureRemoteCommands() {
-        let center = MPRemoteCommandCenter.shared()
+    private func installNowPlayingSession() {
+        let session = MPNowPlayingSession(players: [player])
+        // Keep the existing player-derived metadata path as the sole author.
+        // Do not combine automatic publishing with manual global-center writes.
+        session.automaticallyPublishesNowPlayingInfo = false
+        session.delegate = self
+        nowPlayingSession = session
+        configureRemoteCommands(session.remoteCommandCenter)
+        recordMediaEvent("session-created")
+    }
+
+    private func removeNowPlayingSession() {
+        for (command, target) in commands { command.removeTarget(target); command.isEnabled = false }
+        commands.removeAll()
+        guard let session = nowPlayingSession else { return }
+        session.delegate = nil
+        session.nowPlayingInfoCenter.nowPlayingInfo = nil
+        for player in session.players { session.removePlayer(player) }
+        nowPlayingSession = nil
+        ownershipRequestPending = false
+    }
+
+    func recordMediaEvent(_ event: String) {
+        let session = AVAudioSession.sharedInstance()
+        MediaSessionDiagnostics.record(event, fields: [
+            "engine": engineID,
+            "session_active": String(nowPlayingSession?.isActive ?? false),
+            "can_become_active": String(nowPlayingSession?.canBecomeActive ?? false),
+            "session_players": String(nowPlayingSession?.players.count ?? 0),
+            "registered_commands": String(commands.count),
+            "queue_count": String(songs.count),
+            "state": playbackState.rawValue,
+            "rate": String(player.rate),
+            "category": session.category.rawValue,
+            "mixing": String(session.categoryOptions.contains(.mixWithOthers)),
+            "app_state": String(UIApplication.shared.applicationState.rawValue)
+        ])
+    }
+
+    private func claimNowPlayingSession() {
+        guard !shuttingDown, wantsPlayback, !interrupted, player.currentItem != nil,
+              let session = nowPlayingSession, !session.isActive, session.canBecomeActive, !ownershipRequestPending else { return }
+        ownershipRequestPending = true
+        session.becomeActiveIfPossible { [weak self, weak session] accepted in
+            Task { @MainActor in
+                guard let self, let session, self.nowPlayingSession === session else { return }
+                self.ownershipRequestPending = false
+                self.recordMediaEvent(accepted ? "ownership-accepted" : "ownership-declined")
+            }
+        }
+    }
+
+    nonisolated func nowPlayingSessionDidChangeActive(_ session: MPNowPlayingSession) {
+        Task { @MainActor [weak self] in
+            guard let self, self.nowPlayingSession === session else { return }
+            self.recordMediaEvent("ownership-changed")
+        }
+    }
+
+    nonisolated func nowPlayingSessionDidChangeCanBecomeActive(_ session: MPNowPlayingSession) {
+        Task { @MainActor [weak self] in
+            guard let self, self.nowPlayingSession === session else { return }
+            self.recordMediaEvent("eligibility-changed")
+            self.claimNowPlayingSession()
+        }
+    }
+
+    private func configureRemoteCommands(_ center: MPRemoteCommandCenter) {
         func bind(_ command: MPRemoteCommand, _ action: @escaping @MainActor () -> Void) {
-            command.isEnabled = true
-            let token = command.addTarget { _ in
-                Task { @MainActor in action() }
+            command.isEnabled = false
+            let token = command.addTarget { [weak self] _ in
+                guard self != nil else { return .commandFailed }
+                Task { @MainActor [weak self] in
+                    guard let self, self.currentSong != nil, !self.shuttingDown else { return }
+                    self.recordMediaEvent("remote-command")
+                    action()
+                }
                 return .success
             }
             commands.append((command, token))
@@ -501,11 +580,12 @@ final class AudioEngine: NSObject, ObservableObject {
             Task { @MainActor in self?.seek(event.positionTime) }
             return .success
         }
-        center.changePlaybackPositionCommand.isEnabled = true
+        center.changePlaybackPositionCommand.isEnabled = false
         commands.append((center.changePlaybackPositionCommand, token))
     }
 
     func publish(includeQueue: Bool = false) {
+        guard !shuttingDown else { return }
         let elapsed = player.currentTime().seconds
         let duration = player.currentItem?.duration.seconds ?? 0
         let position = elapsed.isFinite ? max(0, elapsed) : savedPosition
@@ -532,9 +612,14 @@ final class AudioEngine: NSObject, ObservableObject {
                 MPNowPlayingInfoPropertyPlaybackQueueIndex: index,
                 MPNowPlayingInfoPropertyPlaybackQueueCount: songs.count
             ]
+            information[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
+            information[MPNowPlayingInfoPropertyIsLiveStream] = false
+            information[MPNowPlayingInfoPropertyExternalContentIdentifier] = song.source + ":" + song.id
             if let artwork { information[MPMediaItemPropertyArtwork] = artwork }
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = information
+            nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo = information
         }
+        for (command, _) in commands { command.isEnabled = currentSong != nil }
+        if playing { claimNowPlayingSession() }
         var state: [String: Any] = ["index": index, "position": position, "duration": length,
                          "playing": playing, "waiting": wantsPlayback && !playing && !interrupted,
                          "rate": speed, "message": message, "readyCount": player.items().count,

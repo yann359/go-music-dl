@@ -47,7 +47,11 @@ struct NativeRoot: View {
         }
         .background(MusicDesign.canvas(scheme))
         .onChange(of: phase) { _, value in
-            if value == .active { Task { await model.resumeConnections() } }
+            if value == .background { model.sceneEnteredBackground() }
+            if value == .active {
+                model.sceneBecameActive()
+                Task { await model.resumeConnections() }
+            }
         }
         .preferredColorScheme(appearance == "system" ? nil : appearance == "dark" ? .dark : .light)
         .sheet(isPresented: $model.showPlayer) {
