@@ -237,7 +237,7 @@ struct SongRows: View {
                                 Text([song.artist, song.sourceAvailable ? song.source.uppercased() : "来源已移除 · 记录保留"].filter { !$0.isEmpty }.joined(separator: " · "))
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                 if searchMetadata {
-                                    Text([song.album, song.duration > 0 ? String(format: "%d:%02d", song.duration / 60, song.duration % 60) : "", song.isVIP == true ? "可能需要会员 · 点播验证" : "点播验证可用性"].filter { !$0.isEmpty }.joined(separator: " · "))
+                                    Text([song.album, song.duration > 0 ? String(format: "%d:%02d", song.duration / 60, song.duration % 60) : "", searchPlaybackStatus(song)].filter { !$0.isEmpty }.joined(separator: " · "))
                                         .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                                 }
                             }
@@ -250,6 +250,20 @@ struct SongRows: View {
             }
         }
     }
+    private func searchPlaybackStatus(_ song: Song) -> String {
+        guard song.sourceAvailable else { return "来源不可用 · 可尝试换源" }
+        guard audio.currentSong?.key == song.key else { return song.isVIP == true ? "可能需要会员 · 点播验证" : "点播验证可用性" }
+        switch audio.playbackState {
+        case .playing: return "正在播放"
+        case .paused: return "已暂停"
+        case .error: return "播放失败 · 可尝试换源"
+        case .preparing, .buffering, .recovering: return "正在连接音频…"
+        case .interrupted: return "播放暂时中断"
+        case .ready: return "音频已就绪"
+        case .idle: return "点播验证可用性"
+        }
+    }
+
 }
 
 struct SongActions: View {

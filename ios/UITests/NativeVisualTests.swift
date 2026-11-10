@@ -32,7 +32,7 @@ final class NativeVisualTests: XCTestCase {
         if !field.exists { app.swipeDown() }
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap(); field.typeText("周杰伦\n")
-        let finished = app.staticTexts["已显示真实返回结果 · 可继续调整关键词或来源"]
+        let finished = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "点播验证")).firstMatch
         XCTAssertTrue(finished.waitForExistence(timeout: 30), "Real keyboard search did not show provider results")
         XCTAssertFalse(app.staticTexts["你想听见什么？"].exists)
         capture("search-real-keyboard-results")

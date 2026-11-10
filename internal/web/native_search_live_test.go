@@ -148,3 +148,38 @@ func TestNativeSearchLive(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestNativeSearchAggregateLive(t *testing.T) {
+	output := os.Getenv("MUSICDL_SEARCH_AGGREGATE")
+	if output == "" {
+		t.Skip("set MUSICDL_SEARCH_AGGREGATE for real all-source aggregation")
+	}
+	initCollectionDBForTest(t)
+	var observations []map[string]interface{}
+	for _, kind := range []string{"song", "album", "playlist"} {
+		sources := core.GetAllSourceNames()
+		if kind == "album" {
+			sources = core.GetAlbumSourceNames()
+		}
+		params := map[string]json.RawMessage{}
+		for key, value := range map[string]interface{}{"q": "周杰伦", "type": kind, "sources": sources} {
+			params[key], _ = json.Marshal(value)
+		}
+		begin := time.Now()
+		result, err := nativeSearch(params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Songs)+len(result.Playlists) == 0 {
+			t.Errorf("real aggregate %s returned no results; inspect source availability", kind)
+		}
+		observations = append(observations, map[string]interface{}{"kind": kind, "sources": sources, "milliseconds": time.Since(begin).Milliseconds(), "songs": len(result.Songs), "collections": len(result.Playlists), "error_count": len(result.Errors)})
+	}
+	raw, err := json.MarshalIndent(observations, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(output, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -82,7 +82,14 @@ final class StabilityTests: XCTestCase {
     func testProgressiveSearchPublishesFastSourceBeforeFailure() async throws {
         let client = NativeClient { data in
             let request = try JSONDecoder().decode(JSONValue.self, from: data)
-            let source = request["params"]["sources"].arrayValue.first!.stringValue
+            switch request["action"].stringValue {
+            case "sources": return Data(#"{"data":{"sources":[{"id":"netease","search":true},{"id":"qq","search":true}],"defaults":[]}}"#.utf8)
+            case "collections.list": return Data(#"{"data":[]}"#.utf8)
+            case "settings.get": return Data(#"{"data":{}}"#.utf8)
+            default: break
+            }
+            guard let selected = request["params"]["sources"].arrayValue.first else { throw NativeError.message("Expected a per-source search request") }
+            let source = selected.stringValue
             if source == "qq" { try await Task.sleep(nanoseconds: 120_000_000); return Data(#"{"error":"offline"}"#.utf8) }
             return Data(#"{"data":{"songs":[{"id":"one","source":"netease"}],"errors":[]}}"#.utf8)
         }
