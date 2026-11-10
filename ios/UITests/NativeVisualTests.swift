@@ -148,7 +148,9 @@ final class NativeVisualTests: XCTestCase {
         systemShot.name = "system-media-home-probe"; systemShot.lifetime = .keepAlways; add(systemShot)
         // Use a real system accessibility target. Never equate app.activate()
         // or a guessed coordinate with a successful Dynamic Island tap.
-        let media = springboard.buttons.matching(NSPredicate(format: "label CONTAINS %@ OR label CONTAINS %@", "第一缕晨光", "MusicDL")).firstMatch
+        // Match track content, not the app name: a Home Screen app icon is
+        // not evidence of a system media-island interaction.
+        let media = springboard.buttons.matching(NSPredicate(format: "label CONTAINS %@", "第一缕晨光")).firstMatch
         guard media.waitForExistence(timeout: 8) else {
             throw XCTSkip("Simulator does not expose an identifiable system media island; iPhone tap/long-press remains unverified.")
         }
@@ -156,6 +158,40 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 8), "System media tap did not activate MusicDL")
         XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
         capture("system-media-tap-restored-player")
+    }
+
+    func testSystemMediaIslandLongPressControlsWhenExposedBySimulator() throws {
+        let app = open("light", emptyPlayer: true)
+        defer { app.terminate() }
+        app.tabBars.buttons["音乐库"].tap()
+        app.buttons["本地音乐"].tap()
+        let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
+        XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
+        XCTAssertTrue(app.buttons["暂停"].waitForExistence(timeout: 8))
+        XCUIDevice.shared.press(.home)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let media = springboard.buttons.matching(NSPredicate(format: "label CONTAINS %@", "第一缕晨光")).firstMatch
+        guard media.waitForExistence(timeout: 8) else {
+            throw XCTSkip("Simulator does not expose the track's media island; long-press requires iPhone verification.")
+        }
+        media.press(forDuration: 1)
+        let expanded = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        expanded.name = "system-media-long-press-probe"; expanded.lifetime = .keepAlways; add(expanded)
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5), "Long-press should expand system controls without opening the app")
+        let pause = springboard.buttons.matching(NSPredicate(format: "label IN %@", ["暂停", "Pause"])).firstMatch
+        guard pause.waitForExistence(timeout: 5) else {
+            throw XCTSkip("Expanded system controls are not accessible in this simulator; pause/resume remains unverified.")
+        }
+        pause.tap()
+        let play = springboard.buttons.matching(NSPredicate(format: "label IN %@", ["播放", "Play"])).firstMatch
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        play.tap()
+        XCTAssertTrue(pause.waitForExistence(timeout: 5))
+        // app.activate is only for verifying the resulting app state here;
+        // the separate tap test is the evidence for system-to-app activation.
+        app.activate()
+        XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["暂停"].waitForExistence(timeout: 5))
     }
 
     func testAllAccountsAndOfficialAuthorizationEntrypoints() {
