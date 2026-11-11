@@ -123,7 +123,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         case "seek": seek(request.value ?? 0)
         case "rate":
             speed = Float(min(3, max(0.25, request.value ?? 1)))
-            if player.timeControlStatus == .playing { player.rate = speed }
+            startPreparedPlayback()
             publish()
         case "volume": player.volume = Float(min(1, max(0, request.value ?? 1)))
         case "state": publish(includeQueue: true)
@@ -207,7 +207,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         // reactivate audio for each preloaded item during that same request.
         if player.rate != speed {
             do {
-                try activate()
+                if player.rate == 0 { try activate() }
                 player.playImmediately(atRate: speed)
             } catch { fail("暂时无法恢复音频，请稍后点击播放重试。"); return }
         }
@@ -590,7 +590,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
 
     func recordMediaEvent(_ event: String, command: String? = nil) {
         let session = AVAudioSession.sharedInstance()
-        var fields = [
+        var fields: [String: String] = [
             "engine": engineID,
             "session": sessionID,
             "session_active": String(nowPlayingSession?.isActive ?? false),
