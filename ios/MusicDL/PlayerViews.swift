@@ -27,8 +27,10 @@ struct MiniPlayer: View {
                     .accessibilityIdentifier("open-player")
                 Button { audio.isPlaying || audio.waiting ? audio.pause() : audio.play() } label: {
                     Image(systemName: audio.isPlaying || audio.waiting ? "pause.fill" : "play.fill").font(.title3).frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }.buttonStyle(.plain).foregroundStyle(accent).accessibilityLabel(audio.isPlaying || audio.waiting ? "暂停" : "播放")
                     .accessibilityValue(audio.isPlaying ? "正在播放" : audio.waiting ? "正在准备" : "已暂停")
+                    .accessibilityIdentifier("mini-player-play-pause")
                 Button { audio.skip(1) } label: { Image(systemName: "forward.end.fill").font(.title3).frame(width: 40, height: 44) }
                     .buttonStyle(.plain).accessibilityLabel("下一首")
             }.padding(.horizontal, 12).padding(.vertical, 6)

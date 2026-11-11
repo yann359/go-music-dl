@@ -286,7 +286,7 @@ final class NativeVisualTests: XCTestCase {
         app.tabBars.buttons["音乐库"].tap(); app.buttons["本地音乐"].tap()
         let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
         XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
-        let pause = app.buttons["暂停"]
+        let pause = app.buttons["mini-player-play-pause"]
         let playing = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "正在播放"), object: pause)
         XCTAssertEqual(XCTWaiter.wait(for: [playing], timeout: 8), .completed)
         app.tabBars.buttons["我的"].tap()
@@ -300,10 +300,16 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
         app.buttons["收起播放器"].tap()
         XCTAssertTrue(app.staticTexts["media-repair-summary"].waitForExistence(timeout: 5))
-        let stillPlaying = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "正在播放"), object: pause)
-        XCTAssertEqual(XCTWaiter.wait(for: [stillPlaying], timeout: 5), .completed)
+        // The sheet's underlying form can exist before its dismissal finishes.
+        // Resolve the actual mini-player button, not the SF Symbol's AX node,
+        // and wait for a real hit point instead of inserting a fixed delay.
+        let returnedControl = app.buttons["mini-player-play-pause"]
+        let stillPlaying = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            returnedControl.isHittable && returnedControl.value as? String == "正在播放"
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [stillPlaying], timeout: 8), .completed)
         capture("media-repair-home-return-still-playing")
-        pause.tap()
+        returnedControl.tap()
         app.swipeDown(); app.swipeDown()
         app.buttons["media-repair-start"].tap()
         XCTAssertTrue(app.staticTexts["media-repair-summary"].waitForExistence(timeout: 5))
