@@ -47,6 +47,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     private var commands: [(MPRemoteCommand, Any)] = []
     private(set) var nowPlayingSession: MPNowPlayingSession?
     private(set) var itemMetadataUpdateCount = 0
+    private(set) var audioActivationCount = 0
     private var sessionID = ""
     private var shuttingDown = false
     private let engineID = UUID().uuidString
@@ -131,6 +132,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .default, policy: .longFormAudio)
         try session.setActive(true)
+        audioActivationCount += 1
         recordMediaEvent("audio-activated")
     }
 
@@ -176,23 +178,20 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
 
     func play() {
         guard !songs.isEmpty else { return }
-        do {
-            try activate()
-            // A suspended app may receive began without a matching ended. A
-            // successful explicit activation is the authority to clear it.
-            interrupted = false; resumeAfterInterruption = false
-            playbackError = nil
-            wantsPlayback = true
-            let missingFile = (player.currentItem?.asset as? AVURLAsset).map { $0.url.isFileURL && !FileManager.default.fileExists(atPath: $0.url.path) } ?? false
-            if player.status == .failed || player.currentItem?.status == .failed || missingFile {
-                recreatePlayer()
-            } else if player.currentItem == nil && !preparing {
-                rebuild(keepingCurrent: false, position: savedPosition)
-            }
-            startPreparedPlayback()
-            publish()
-            recordMediaEvent("play-requested")
-        } catch { fail("暂时无法恢复音频，请稍后点击播放重试。") }
+        // Explicit intent supersedes an unmatched old interruption. Actual
+        // audio-session activation is checked below when media is ready.
+        interrupted = false; resumeAfterInterruption = false
+        playbackError = nil
+        wantsPlayback = true
+        let missingFile = (player.currentItem?.asset as? AVURLAsset).map { $0.url.isFileURL && !FileManager.default.fileExists(atPath: $0.url.path) } ?? false
+        if player.status == .failed || player.currentItem?.status == .failed || missingFile {
+            recreatePlayer()
+        } else if player.currentItem == nil && !preparing {
+            rebuild(keepingCurrent: false, position: savedPosition)
+        }
+        startPreparedPlayback()
+        publish()
+        recordMediaEvent("play-requested")
     }
 
     private func startPreparedPlayback() {
@@ -201,7 +200,10 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         guard wantsPlayback, !interrupted, pendingSeek == nil,
               player.currentItem?.status == .readyToPlay else { return }
         if player.timeControlStatus != .playing || player.rate != speed {
-            player.playImmediately(atRate: speed)
+            do {
+                try activate()
+                player.playImmediately(atRate: speed)
+            } catch { fail("暂时无法恢复音频，请稍后点击播放重试。"); return }
         }
         watchRecovery()
     }
@@ -562,6 +564,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             "enabled_commands": String(commands.filter { $0.0.isEnabled }.count),
             "metadata_mode": "player-auto",
             "item_metadata_updates": String(itemMetadataUpdateCount),
+            "audio_activations": String(audioActivationCount),
             "item_present": String(player.currentItem != nil),
             "item_status": String(player.currentItem?.status.rawValue ?? -1),
             "time_control_status": String(player.timeControlStatus.rawValue),
