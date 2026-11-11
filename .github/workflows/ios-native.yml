@@ -45,6 +45,7 @@ jobs:
         run: |
           go test ./internal/spotify ./internal/web ./internal/appshell ./core
           node --test ios/Tests/native-audio.test.cjs
+          python3 -m unittest discover -s ios/Tests -p 'test_ipa_*.py'
       - name: Build native unsigned IPA
         run: bash ios/scripts/package.sh
       - name: Build Go library for simulator

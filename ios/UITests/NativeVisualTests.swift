@@ -54,7 +54,7 @@ final class NativeVisualTests: XCTestCase {
 
     private func open(_ style: String, emptyPlayer: Bool = false, extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-music.appearance", style]
+        app.launchArguments = ["--ui-testing", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-music.appearance", style, "-music.themeColor", "appleRed"]
         if emptyPlayer { app.launchArguments.append("--ui-empty-player") }
         app.launchArguments += extra
         app.launch()
@@ -223,5 +223,81 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertTrue(app.textFields["spotify-client-id"].exists)
         XCTAssertEqual(app.secureTextFields.count, 0)
         capture("official-accounts-spotify-pending")
+    }
+
+    func testThemeColorsAcrossLightDarkAndSystemModes() {
+        let app = open("light")
+        defer { app.terminate() }
+        app.tabBars.buttons["我的"].tap()
+        app.buttons["appearance-settings"].tap()
+        let colors = ["appleRed", "oceanBlue", "mintGreen", "dreamPurple", "sunsetOrange", "cherryPink", "auroraCyan", "graphiteGray"]
+        for mode in ["light", "dark", "system"] {
+            app.swipeDown(); app.swipeDown()
+            let option = app.buttons["appearance-" + mode]
+            XCTAssertTrue(option.waitForExistence(timeout: 5)); option.tap()
+            XCTAssertEqual(option.value as? String, "已选中")
+            for color in colors {
+                let card = app.buttons["theme-" + color]
+                for _ in 0..<3 { if card.isHittable { break }; app.swipeUp() }
+                XCTAssertTrue(card.isHittable, "Theme card inaccessible: \(color) / \(mode)")
+                card.tap()
+                XCTAssertEqual(card.value as? String, "已选中")
+                XCTAssertGreaterThanOrEqual(card.frame.width, 44)
+                XCTAssertLessThanOrEqual(card.frame.maxX, app.frame.maxX)
+            }
+            capture("appearance-eight-colors-" + mode)
+        }
+    }
+
+    func testAppearancePersistsAfterRelaunchAndResetOnlyChangesAppearance() {
+        let app = open("light")
+        defer { app.terminate() }
+        app.tabBars.buttons["我的"].tap(); app.buttons["appearance-settings"].tap()
+        app.buttons["appearance-dark"].tap()
+        app.buttons["theme-oceanBlue"].tap()
+        app.terminate()
+        // Remove command-line defaults: verify the values written to storage.
+        app.launchArguments = ["--ui-testing", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 15))
+        app.tabBars.buttons["我的"].tap(); app.buttons["appearance-settings"].tap()
+        XCTAssertEqual(app.buttons["appearance-dark"].value as? String, "已选中")
+        XCTAssertEqual(app.buttons["theme-oceanBlue"].value as? String, "已选中")
+        for _ in 0..<3 { if app.buttons["theme-restore"].isHittable { break }; app.swipeUp() }
+        app.buttons["theme-restore"].tap()
+        app.buttons["恢复外观默认值"].tap()
+        app.swipeDown(); app.swipeDown()
+        XCTAssertEqual(app.buttons["appearance-system"].value as? String, "已选中")
+        XCTAssertEqual(app.buttons["theme-appleRed"].value as? String, "已选中")
+        app.tabBars.buttons["音乐库"].tap()
+        XCTAssertTrue(app.buttons["本地音乐"].waitForExistence(timeout: 5))
+        app.buttons["本地音乐"].tap()
+        XCTAssertTrue(app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch.waitForExistence(timeout: 5))
+        capture("appearance-restored-library-preserved")
+    }
+
+    func testMediaRepairRunsAndKeepsPlayingThenPausedState() {
+        let app = open("light", emptyPlayer: true)
+        defer { app.terminate() }
+        app.tabBars.buttons["音乐库"].tap(); app.buttons["本地音乐"].tap()
+        let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
+        XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
+        let pause = app.buttons["暂停"]
+        let playing = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "正在播放"), object: pause)
+        XCTAssertEqual(XCTWaiter.wait(for: [playing], timeout: 8), .completed)
+        app.tabBars.buttons["我的"].tap()
+        app.buttons["media-repair-settings"].tap()
+        app.buttons["media-repair-start"].tap()
+        XCTAssertTrue(app.staticTexts["media-repair-summary"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["检测未完成，请重新检测"].exists)
+        XCTAssertEqual(pause.value as? String, "正在播放")
+        capture("media-repair-playing-result")
+        pause.tap()
+        app.swipeDown(); app.swipeDown()
+        app.buttons["media-repair-start"].tap()
+        XCTAssertTrue(app.staticTexts["media-repair-summary"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["播放"].value as? String, "已暂停")
+        XCTAssertFalse(app.staticTexts["检测未完成，请重新检测"].exists)
+        capture("media-repair-paused-result")
     }
 }

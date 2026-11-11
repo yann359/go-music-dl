@@ -2,6 +2,7 @@ import SwiftUI
 import AVKit
 
 struct MiniPlayer: View {
+    @Environment(\.musicAccent) private var accent
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var audio: AudioEngine
     var body: some View {
@@ -26,7 +27,7 @@ struct MiniPlayer: View {
                     .accessibilityIdentifier("open-player")
                 Button { audio.isPlaying || audio.waiting ? audio.pause() : audio.play() } label: {
                     Image(systemName: audio.isPlaying || audio.waiting ? "pause.fill" : "play.fill").font(.title3).frame(width: 44, height: 44)
-                }.buttonStyle(.plain).accessibilityLabel(audio.isPlaying || audio.waiting ? "暂停" : "播放")
+                }.buttonStyle(.plain).foregroundStyle(accent).accessibilityLabel(audio.isPlaying || audio.waiting ? "暂停" : "播放")
                     .accessibilityValue(audio.isPlaying ? "正在播放" : audio.waiting ? "正在准备" : "已暂停")
                 Button { audio.skip(1) } label: { Image(systemName: "forward.end.fill").font(.title3).frame(width: 40, height: 44) }
                     .buttonStyle(.plain).accessibilityLabel("下一首")
@@ -36,6 +37,7 @@ struct MiniPlayer: View {
 }
 
 struct FullPlayer: View {
+    @Environment(\.musicAccent) private var accent
     @EnvironmentObject private var audio: AudioEngine
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var client: NativeClient
@@ -107,7 +109,7 @@ struct FullPlayer: View {
                             Button { audio.isPlaying || audio.waiting ? audio.pause() : audio.play() } label: {
                                 Image(systemName: audio.isPlaying || audio.waiting ? "pause.fill" : "play.fill")
                                     .font(.system(size: 36, weight: .medium)).frame(width: 78, height: 78)
-                            }.accessibilityLabel(audio.isPlaying || audio.waiting ? "暂停" : "播放")
+                            }.foregroundStyle(accent).accessibilityLabel(audio.isPlaying || audio.waiting ? "暂停" : "播放")
                             Button { audio.skip(1) } label: { Image(systemName: "forward.end.fill").font(.system(size: 26)).frame(width: 48, height: 60) }.accessibilityLabel("下一首")
                         }.buttonStyle(.plain).foregroundStyle(.primary)
                         controls
@@ -143,11 +145,11 @@ struct FullPlayer: View {
             HStack(spacing: 26) {
                 Button { withAnimation(reduceMotion ? nil : .smooth(duration: 0.25)) { page = page == 1 ? 0 : 1 } } label: {
                     Image(systemName: "quote.bubble").font(.title3).frame(width: 48, height: 46)
-                }.foregroundStyle(page == 1 ? MusicDesign.coral : .primary).accessibilityLabel("歌词")
+                }.foregroundStyle(page == 1 ? accent : .primary).accessibilityLabel("歌词")
                 RoutePicker().frame(width: 48, height: 46).accessibilityLabel("音频输出设备")
                 Button { withAnimation(reduceMotion ? nil : .smooth(duration: 0.25)) { page = page == 2 ? 0 : 2 } } label: {
                     Image(systemName: "list.bullet").font(.title3).frame(width: 48, height: 46)
-                }.foregroundStyle(page == 2 ? MusicDesign.coral : .primary).accessibilityLabel("播放队列")
+                }.foregroundStyle(page == 2 ? accent : .primary).accessibilityLabel("播放队列")
             }.padding(.horizontal, 14).padding(.vertical, 4).musicGlass().buttonStyle(.plain)
         }
     }
@@ -177,6 +179,7 @@ struct FullPlayer: View {
 }
 
 struct QueuePane: View {
+    @Environment(\.musicAccent) private var accent
     @EnvironmentObject private var audio: AudioEngine
     @State private var clear = false
     var body: some View {
@@ -193,7 +196,7 @@ struct QueuePane: View {
                             CoverArt(url: song.cover, title: song.name, radius: 8).frame(width: 38, height: 38)
                             VStack(alignment: .leading, spacing: 4) { Text(song.name).font(.subheadline).lineLimit(1); Text(song.artist).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
                             Spacer()
-                            if index == audio.index { Image(systemName: "waveform").foregroundStyle(MusicDesign.coral) }
+                            if index == audio.index { Image(systemName: "waveform").foregroundStyle(accent) }
                         }
                     }.buttonStyle(.plain).listRowBackground(Color.clear)
                 }.onMove { audio.move(from: $0, to: $1) }.onDelete { audio.remove(at: $0) }
@@ -242,11 +245,12 @@ struct LyricsPane: View {
 }
 
 struct RoutePicker: UIViewRepresentable {
+    @Environment(\.musicAccent) private var accent
     func makeUIView(context: Context) -> AVRoutePickerView {
         let view = AVRoutePickerView()
-        view.activeTintColor = UIColor(MusicDesign.coral)
+        view.activeTintColor = UIColor(accent)
         view.tintColor = .label
         return view
     }
-    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) { uiView.activeTintColor = UIColor(accent) }
 }

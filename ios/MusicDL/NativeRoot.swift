@@ -3,11 +3,14 @@ import SwiftUI
 @main
 struct MusicDLApp: App {
     @StateObject private var model = AppModel()
+    @StateObject private var appearance = AppearanceSettings()
     var body: some Scene {
         WindowGroup {
             NativeRoot()
                 .environmentObject(model).environmentObject(model.client).environmentObject(model.audio).environmentObject(model.accounts)
-                .tint(MusicDesign.coral)
+                .environmentObject(appearance)
+                .environment(\.musicAccent, appearance.theme.color)
+                .tint(appearance.theme.color)
                 .task { await model.start() }
         }
     }
@@ -18,7 +21,8 @@ struct NativeRoot: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var audio: AudioEngine
     @Environment(\.colorScheme) private var scheme
-    @AppStorage("music.appearance") private var appearance = "system"
+    @EnvironmentObject private var appearance: AppearanceSettings
+    @Environment(\.musicAccent) private var accent
     @Namespace private var playerTransition
     var body: some View {
         Group {
@@ -35,11 +39,11 @@ struct NativeRoot: View {
             } else if let error = model.error {
                 VStack(spacing: 20) {
                     NativeEmptyState(symbol: "wifi.exclamationmark", title: "暂时没能启动", detail: error)
-                    Button("重新连接") { Task { await model.start() } }.buttonStyle(.borderedProminent)
+                    Button("重新连接") { Task { await model.start() } }.buttonStyle(.borderedProminent).foregroundStyle(MusicDesign.onAccent)
                 }
             } else {
                 VStack(spacing: 18) {
-                    Image(systemName: "waveform.path").font(.system(size: 52, weight: .ultraLight)).foregroundStyle(MusicDesign.coral)
+                    Image(systemName: "waveform.path").font(.system(size: 52, weight: .ultraLight)).foregroundStyle(accent)
                     Text("澄音").font(.system(.largeTitle, design: .rounded).weight(.medium)).tracking(6)
                     ProgressView().padding(.top, 12)
                 }
@@ -54,7 +58,7 @@ struct NativeRoot: View {
                 Task { await model.resumeConnections() }
             }
         }
-        .preferredColorScheme(appearance == "system" ? nil : appearance == "dark" ? .dark : .light)
+        .preferredColorScheme(appearance.appearance.colorScheme)
         .sheet(isPresented: $model.showPlayer) {
             if #available(iOS 18.0, *) {
                 FullPlayer().navigationTransition(.zoom(sourceID: "player", in: playerTransition))

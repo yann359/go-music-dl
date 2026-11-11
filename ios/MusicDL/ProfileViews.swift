@@ -4,13 +4,13 @@ import CoreImage.CIFilterBuiltins
 struct ProfileScreen: View {
     @EnvironmentObject private var client: NativeClient
     @Environment(\.colorScheme) private var scheme
-    @AppStorage("music.appearance") private var appearance = "system"
+    @Environment(\.musicAccent) private var accent
     var body: some View {
         List {
             Section {
                 HStack(spacing: 18) {
-                    Image(systemName: "waveform.path").font(.system(size: 31, weight: .light)).foregroundStyle(MusicDesign.coral)
-                        .frame(width: 66, height: 66).background(MusicDesign.coral.opacity(0.1), in: RoundedRectangle(cornerRadius: 22))
+                    Image(systemName: "waveform.path").font(.system(size: 31, weight: .light)).foregroundStyle(accent)
+                        .frame(width: 66, height: 66).background(accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 22))
                     VStack(alignment: .leading, spacing: 7) {
                         Text("听见自己的节奏").font(.title3.weight(.semibold))
                         Text("你的音乐，由你掌握").font(.subheadline).foregroundStyle(.secondary)
@@ -23,7 +23,8 @@ struct ProfileScreen: View {
                 NavigationLink { SourceBrowserScreen() } label: { Label("全部音乐来源", systemImage: "globe.asia.australia") }
             }
             Section("偏好设置") {
-                Picker(selection: $appearance) { Text("跟随系统").tag("system"); Text("浅色").tag("light"); Text("深色").tag("dark") } label: { Label("外观", systemImage: "circle.lefthalf.filled") }
+                NavigationLink { AppearanceScreen() } label: { Label("外观", systemImage: "circle.lefthalf.filled") }.accessibilityIdentifier("appearance-settings")
+                MediaRepairLink()
                 NavigationLink { SettingsScreen(group: "playback", title: "播放与搜索") } label: { Label("播放与搜索", systemImage: "slider.horizontal.3") }
                 NavigationLink { SettingsScreen(group: "download", title: "下载与音质") } label: { Label("下载与音质", systemImage: "waveform.badge.magnifyingglass") }
                 NavigationLink { SettingsScreen(group: "webdav", title: "WebDAV") } label: { Label("WebDAV", systemImage: "externaldrive.connected.to.line.below") }
@@ -154,6 +155,12 @@ struct SettingsScreen: View {
     }
     var body: some View {
         Form {
+            if group == "all" {
+                Section("系统与外观") {
+                    MediaRepairLink()
+                    NavigationLink { AppearanceScreen() } label: { Label("外观", systemImage: "circle.lefthalf.filled") }
+                }
+            }
             if group == "download" { Section { Text("下载保留来源返回的音频字节。无损可用性取决于音源授权与设备解码能力，不能把普通音质自动变为无损。").font(.caption).foregroundStyle(.secondary) } }
             if let problem { Section { Text(problem).foregroundStyle(.red); Button("重试") { Task { await load() } } } }
             Section {

@@ -43,10 +43,23 @@ def macho(data):
 
 def verify(path, bundle_id):
     prefix = "Payload/MusicDL.app/"
+    raw = path.read_bytes()
+    assert raw[:4] == b"PK\x03\x04" and zipfile.is_zipfile(path), "Expected an IPA ZIP, not an HTML download page or wrapper"
+    end = raw.rfind(b"PK\x05\x06", max(0, len(raw) - 65557))
+    assert end >= 0 and end + 22 <= len(raw), "Missing or truncated ZIP end record"
+    disk, central_disk, disk_entries, total_entries, central_size, central_offset, comment_size = struct.unpack_from("<4H2IH", raw, end + 4)
+    assert end + 22 + comment_size == len(raw), "Truncated ZIP comment or unexpected trailing download data"
+    assert disk == central_disk == 0 and disk_entries == total_entries, "Split ZIP archives are not supported"
+    assert central_offset + central_size == end and total_entries != 0xFFFF, "Expected a standard, complete non-ZIP64 IPA"
     with zipfile.ZipFile(path) as archive:
         assert archive.testzip() is None, "IPA ZIP integrity failure"
+        entries = archive.infolist()
+        assert len(entries) == total_entries, "ZIP entry count mismatch"
         names = set(archive.namelist())
-        assert all(not name.startswith("/") and ".." not in pathlib.PurePosixPath(name).parts for name in names)
+        assert len(names) == len(entries), "Duplicate ZIP paths can confuse iPhone signing tools"
+        assert all(not entry.flag_bits & 1 for entry in entries), "Encrypted ZIP entries cannot be re-signed"
+        assert all(entry.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED) for entry in entries), "Unsupported ZIP compression for iPhone signing tools"
+        assert all(not name.startswith("/") and "\\" not in name and ".." not in pathlib.PurePosixPath(name).parts for name in names)
         apps = {name.split("/")[1] for name in names if name.startswith("Payload/") and len(name.split("/")) > 2}
         assert apps == {"MusicDL.app"}, f"Unexpected Payload contents: {apps}"
         info = plistlib.loads(archive.read(prefix + "Info.plist"))
@@ -88,6 +101,15 @@ def verify(path, bundle_id):
             "framework_files": frameworks,
             "resources_verified": resources,
             "device_installation_tested": False,
+            "archive": {
+                "zip_crc_verified": True,
+                "standard_zip": True,
+                "unique_paths": True,
+                "no_encrypted_entries": True,
+                "compatible_compression": True,
+                "entry_count": len(entries),
+                "payload_app": "Payload/MusicDL.app",
+            },
         }
 
 

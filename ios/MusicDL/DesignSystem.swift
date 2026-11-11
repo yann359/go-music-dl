@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum MusicDesign {
-    static let coral = Color(red: 0.88, green: 0.33, blue: 0.28)
+    static let onAccent = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? .black : .white })
     static let ink = Color(red: 0.13, green: 0.16, blue: 0.18)
     static func canvas(_ scheme: ColorScheme) -> Color {
         scheme == .dark ? Color(red: 0.065, green: 0.075, blue: 0.085) : Color(red: 0.98, green: 0.97, blue: 0.95)
@@ -63,12 +63,13 @@ struct SectionHeading: View {
 }
 
 struct NativeEmptyState: View {
+    @Environment(\.musicAccent) private var accent
     let symbol: String
     let title: String
     let detail: String
     var body: some View {
         VStack(spacing: 14) {
-            Image(systemName: symbol).font(.system(size: 38, weight: .ultraLight)).foregroundStyle(MusicDesign.coral)
+            Image(systemName: symbol).font(.system(size: 38, weight: .ultraLight)).foregroundStyle(accent)
             Text(title).font(.title3.weight(.semibold))
             Text(detail).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 .frame(maxWidth: 290)
@@ -93,6 +94,7 @@ extension View {
 }
 
 struct SourcePill: View {
+    @Environment(\.musicAccent) private var accent
     let title: String
     var selected = false
     var action: () -> Void
@@ -100,8 +102,8 @@ struct SourcePill: View {
         Button(action: action) {
             Text(title).font(.subheadline.weight(selected ? .semibold : .regular))
                 .padding(.horizontal, 15).padding(.vertical, 10)
-                .foregroundStyle(selected ? Color.white : Color.primary)
-                .background(selected ? MusicDesign.coral : Color.secondary.opacity(0.09), in: Capsule())
+                .foregroundStyle(selected ? MusicDesign.onAccent : Color.primary)
+                .background(selected ? accent : Color.secondary.opacity(0.09), in: Capsule())
         }.buttonStyle(.plain).accessibilityAddTraits(selected ? .isSelected : [])
     }
 }

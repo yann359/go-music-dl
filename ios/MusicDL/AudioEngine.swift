@@ -45,6 +45,13 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     private var itemObservation: NSKeyValueObservation?
     private var notifications: [NSObjectProtocol] = []
     private var commands: [(MPRemoteCommand, Any)] = []
+    private static let liveEngines = NSHashTable<AudioEngine>.weakObjects()
+    private let ownedSessions = NSHashTable<MPNowPlayingSession>.weakObjects()
+    private var recentMetadataWrites: [TimeInterval] = []
+    private var activationEvidence = "尚无本 App 的音频激活记录"
+    @Published private(set) var isRepairingMedia = false
+    @Published private(set) var mediaRepairReport: MediaRepairReport?
+    var registeredRemoteCommandCount: Int { commands.count }
     private(set) var nowPlayingSession: MPNowPlayingSession?
     private(set) var itemMetadataUpdateCount = 0
     private(set) var audioActivationCount = 0
@@ -64,6 +71,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     init(files: AudioFiles = AudioFiles()) {
         self.files = files
         super.init()
+        Self.liveEngines.add(self)
         installPlayerObservers()
         observe(AVAudioSession.interruptionNotification) { [weak self] in self?.interruption($0) }
         observe(AVAudioSession.routeChangeNotification) { [weak self] in self?.routeChanged($0) }
@@ -136,6 +144,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         try session.setCategory(.playback, mode: .default, policy: .longFormAudio)
         try session.setActive(true)
         audioActivationCount += 1
+        activationEvidence = "上次激活调用成功；不是实时激活状态查询"
         recordMediaEvent("audio-activated")
     }
 
@@ -257,7 +266,10 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         nowPlayingSession?.automaticallyPublishesNowPlayingInfo = false
         player.removeAllItems(); itemIndices.removeAll(); itemSources.removeAll()
         songs = []; sequence = []; index = 0; savedPosition = 0; playbackError = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            activationEvidence = "上次停用调用成功"
+        } catch { activationEvidence = "停用调用失败：\((error as NSError).code)" }
         nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo = nil
         artworkTask?.cancel(); artwork = nil; artworkKey = ""
         let token = revision
@@ -270,6 +282,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         guard !shuttingDown else { return }
         stop()
         shuttingDown = true
+        Self.liveEngines.remove(self)
         if let ticker { player.removeTimeObserver(ticker); self.ticker = nil }
         observations.removeAll(); itemObservation = nil
         for token in notifications { NotificationCenter.default.removeObserver(token) }
@@ -467,9 +480,11 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             recoveryWatchdog?.cancel(); recoveryWatchdog = nil
             resumeAfterInterruption = wantsPlayback
             interrupted = true; player.pause(); publish()
+            activationEvidence = "已收到系统音频中断，未主动重新激活"
             recordMediaEvent("interruption-began")
         } else {
             interrupted = false
+            activationEvidence = "系统音频中断已结束，等待正常播放流程"
             let raw = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             let shouldResume = AVAudioSession.InterruptionOptions(rawValue: raw).contains(.shouldResume)
             let resume = resumeAfterInterruption && wantsPlayback && shouldResume
@@ -486,6 +501,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
 
     private func resetMediaServices() {
         rememberPosition()
+        activationEvidence = "媒体服务已重置，原激活记录不再代表当前状态"
         interrupted = false; resumeAfterInterruption = false
         recreatePlayer()
         if wantsPlayback { play() }
@@ -570,6 +586,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         session.automaticallyPublishesNowPlayingInfo = true
         session.delegate = self
         nowPlayingSession = session
+        ownedSessions.add(session)
         sessionID = UUID().uuidString
         configureRemoteCommands(session.remoteCommandCenter)
         recordMediaEvent("session-created")
@@ -588,7 +605,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         nowPlayingSession = nil
     }
 
-    func recordMediaEvent(_ event: String, command: String? = nil) {
+    func recordMediaEvent(_ event: String, command: String? = nil, extra: [String: String] = [:]) {
         let session = AVAudioSession.sharedInstance()
         var fields: [String: String] = [
             "engine": engineID,
@@ -617,6 +634,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             "scene_states": UIApplication.shared.connectedScenes.map { String($0.activationState.rawValue) }.sorted().joined(separator: ",")
         ]
         if let command { fields["command"] = command }
+        fields.merge(extra) { _, new in new }
         MediaSessionDiagnostics.record(event, fields: fields)
     }
 
@@ -634,7 +652,14 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         }
     }
 
-    private func configureRemoteCommands(_ center: MPRemoteCommandCenter) {
+    // Idempotent registration: retain and remove only our own opaque tokens.
+    // Public MediaPlayer APIs cannot enumerate handlers installed elsewhere.
+    func configureRemoteCommands(_ center: MPRemoteCommandCenter) {
+        let expected = remoteCommands(center)
+        let actualIDs = commands.map { ObjectIdentifier($0.0) }
+        if actualIDs.count == expected.count && Set(actualIDs) == Set(expected.map(ObjectIdentifier.init)) { return }
+        for (command, target) in commands { command.removeTarget(target) }
+        commands.removeAll()
         func bind(_ command: MPRemoteCommand, name: String, _ action: @escaping @MainActor () -> Void) {
             command.isEnabled = false
             let token = command.addTarget { [weak self] _ in
@@ -667,8 +692,24 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         commands.append((center.changePlaybackPositionCommand, token))
     }
 
+    private func remoteCommands(_ center: MPRemoteCommandCenter) -> [MPRemoteCommand] {
+        [center.playCommand, center.pauseCommand, center.togglePlayPauseCommand,
+         center.nextTrackCommand, center.previousTrackCommand, center.changePlaybackPositionCommand]
+    }
+
     private func updateItemMetadata(_ item: AVPlayerItem, at selected: Int) {
-        guard songs.indices.contains(selected) else { return }
+        guard let information = itemMetadata(item, at: selected) else { return }
+        guard item.nowPlayingInfo.map({ $0 as NSDictionary })?.isEqual(information as NSDictionary) != true else { return }
+        item.nowPlayingInfo = information
+        itemMetadataUpdateCount += 1
+        let now = ProcessInfo.processInfo.systemUptime
+        recentMetadataWrites.removeAll { now - $0 > 10 }
+        recentMetadataWrites.append(now)
+        if recentMetadataWrites.count > 128 { recentMetadataWrites.removeFirst(recentMetadataWrites.count - 128) }
+    }
+
+    private func itemMetadata(_ item: AVPlayerItem, at selected: Int) -> [String: Any]? {
+        guard songs.indices.contains(selected) else { return nil }
         let song = songs[selected]
         var information: [String: Any] = [
             MPMediaItemPropertyTitle: song.name, MPMediaItemPropertyArtist: song.artist,
@@ -683,9 +724,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         if item === player.currentItem, artworkKey == song.key, let artwork {
             information[MPMediaItemPropertyArtwork] = artwork
         }
-        guard item.nowPlayingInfo.map({ $0 as NSDictionary })?.isEqual(information as NSDictionary) != true else { return }
-        item.nowPlayingInfo = information
-        itemMetadataUpdateCount += 1
+        return information
     }
 
     func publish(includeQueue: Bool = false) {
@@ -725,5 +764,201 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         }
         if let current = player.currentItem { state["activeSource"] = itemSources[ObjectIdentifier(current)] }
         stateDidChange?(state)
+    }
+}
+
+extension AudioEngine {
+    /// An explicit, bounded reconciliation. Never calls play/pause/seek,
+    /// setActive, removePlayer, or rebuild, including on the error paths.
+    @discardableResult
+    func detectAndRepairMediaState() async -> MediaRepairReport {
+        var report = MediaRepairReport()
+        guard !isRepairingMedia else {
+            report.errors = ["已有检测正在进行，请等待完成后重新检测。"]
+            return report
+        }
+        isRepairingMedia = true
+        recordMediaEvent("repair-started")
+        defer {
+            mediaRepairReport = report
+            isRepairingMedia = false
+            recordMediaEvent(report.errors.isEmpty ? "repair-completed" : "repair-failed", extra: [
+                "findings": String(report.findings.count), "repairs": String(report.repairs.count),
+                "errors": String(report.errors.count)
+            ])
+        }
+        func check(_ id: String, _ title: String, _ detail: String, _ status: MediaRepairCheck.Status = .normal) {
+            report.checks.append(MediaRepairCheck(id: id, title: title, detail: detail, status: status))
+            recordMediaEvent("repair-check", extra: ["check": id, "result": String(describing: status)])
+        }
+        func repaired(_ code: String, _ detail: String) {
+            report.repairs.append(detail)
+            recordMediaEvent("repair-action", extra: ["action": code])
+        }
+        guard !shuttingDown else {
+            report.errors.append("播放引擎已关闭，无法同步。请重新进入 App 后检测。")
+            return report
+        }
+        let audioSession = AVAudioSession.sharedInstance()
+        let configured = audioSession.category == .playback && audioSession.mode == .default
+            && audioSession.routeSharingPolicy == .longFormAudio
+            && !audioSession.categoryOptions.contains(.mixWithOthers)
+        let notConfiguredYet = audioActivationCount == 0 && player.rate == 0
+        if !configured && !notConfiguredYet {
+            report.findings.append("音频配置偏离本 App 的后台媒体播放配置。为避免切换音频线路或中断歌曲，本次保留现状；下次手动播放会应用正常配置。")
+        }
+        check("audio-session", "音频配置与激活记录",
+              notConfiguredYet ? "尚未开始实际音频播放，按原流程在就绪时配置与激活。" :
+                "\(configured ? "后台媒体播放配置符合预期" : "配置偏离预期，未强行改动")；\(activationEvidence)。输出线路数：\(audioSession.currentRoute.outputs.count)。",
+              configured || notConfiguredYet ? .normal : .attention)
+        if interrupted { report.findings.append("当前处于系统音频中断；没有自动抢占音频或恢复播放。") }
+        check("engine", "播放引擎与音频中断",
+              "播放器：\(player.status == .failed ? "错误" : player.currentItem == nil ? "暂无播放项" : player.currentItem?.status == .readyToPlay ? "媒体就绪" : "媒体准备中")；\(interrupted ? "中断中" : "未记录到进行中的中断")。",
+              interrupted || player.status == .failed ? .attention : .normal)
+        if player.status == .failed || player.currentItem?.status == .failed {
+            let detail = player.currentItem?.error?.localizedDescription ?? player.error?.localizedDescription ?? "系统未提供错误详情"
+            report.errors.append("播放引擎报告错误：\(detail)。本次没有替换播放器，请使用播放器的重试入口。")
+            let nativeError = (player.currentItem?.error ?? player.error) as NSError?
+            recordMediaEvent("repair-engine-error", extra: ["error_code": String(nativeError?.code ?? -1)])
+        }
+
+        if nowPlayingSession == nil {
+            report.findings.append("当前播放器缺少媒体会话。")
+            installNowPlayingSession() // Same player, same items and timebase.
+            repaired("missing-session", "已将媒体会话重新绑定现有播放器，保留播放进度与队列。")
+        }
+        guard let session = nowPlayingSession else {
+            report.errors.append("未能建立媒体会话，请重新检测。")
+            return report
+        }
+        let engineCount = Self.liveEngines.allObjects.filter { !$0.shuttingDown }.count
+        if engineCount > 1 { report.findings.append("App 内存在\(engineCount)个存活播放引擎；无法确认其他引擎的用途，未自动停止或清理。") }
+        let playerBindingValid = session.players.count == 1 && session.players.first === player
+        if !playerBindingValid { report.errors.append("媒体会话关联的播放器数量或身份异常；为避免中断播放，未移除或重建播放器。") }
+        for old in ownedSessions.allObjects where old !== session {
+            // Only previously owned, retired sessions with no active player.
+            // Never touch the current player or another live engine's session.
+            guard old.players.allSatisfy({ $0 !== player && $0.rate == 0 }),
+                  old.automaticallyPublishesNowPlayingInfo || old.nowPlayingInfoCenter.nowPlayingInfo != nil else { continue }
+            old.automaticallyPublishesNowPlayingInfo = false
+            old.nowPlayingInfoCenter.nowPlayingInfo = nil
+            report.findings.append("发现本引擎已退休且未播放的旧媒体会话仍在发布信息。")
+            repaired("retired-session", "已关闭本引擎闲置旧会话的信息发布，未移除播放器或停止其他音频。")
+        }
+        check("sessions", "媒体会话与活动范围",
+              "本 App 存活引擎\(engineCount)个；当前会话关联播放器\(session.players.count)个。当前版本未接入 Live Activity。",
+              engineCount == 1 && playerBindingValid ? .normal : .attention)
+
+        let expectedCommands = remoteCommands(session.remoteCommandCenter)
+        let ids = commands.map { ObjectIdentifier($0.0) }
+        if ids.count != expectedCommands.count || Set(ids) != Set(expectedCommands.map(ObjectIdentifier.init)) {
+            report.findings.append("本 App 持有的远程控制注册有缺失、重复或中心不匹配。")
+            configureRemoteCommands(session.remoteCommandCenter)
+            repaired("remote-registration", "已按持有的注册令牌重新绑定六项远程指令，未移除未知处理器。")
+        }
+        let enableCommands = player.currentItem != nil
+        if expectedCommands.contains(where: { $0.isEnabled != enableCommands }) {
+            report.findings.append("远程控制的启用状态与真实播放项不一致。")
+            expectedCommands.forEach { $0.isEnabled = enableCommands }
+            repaired("remote-enabled", "已按真实播放项同步播放、暂停、切歌与进度控制的启用状态。")
+        }
+        check("commands", "远程控制注册", "本 App 持有\(commands.count)项注册，每个指令一个令牌；\(enableCommands ? "已启用" : "无实际播放项，保持禁用")。不代表可枚举系统内部处理器。")
+
+        let originalPlayer = player
+        let originalItem = player.currentItem
+        let originalSongs = songs
+        let originalRevision = revision, originalSeek = seekRevision
+        let originalIntent = wantsPlayback, originalInterruption = interrupted
+        let originalRate = player.rate, originalSpeed = speed
+        let originalActivations = audioActivationCount
+        let startTime = player.currentTime().seconds
+        func unchanged() -> Bool {
+            player === originalPlayer && player.currentItem === originalItem && nowPlayingSession === session
+                && songs == originalSongs && revision == originalRevision && seekRevision == originalSeek
+                && wantsPlayback == originalIntent && interrupted == originalInterruption && speed == originalSpeed
+                && player.rate == originalRate && audioActivationCount == originalActivations
+        }
+
+        let writesBefore = itemMetadataUpdateCount
+        for item in player.items() {
+            guard let selected = itemIndices[ObjectIdentifier(item)], let expected = itemMetadata(item, at: selected) else {
+                report.errors.append("播放项与歌曲队列的对应关系缺失；未猜测或覆盖曲目信息。")
+                continue
+            }
+            let differences = MediaMetadataInspection.staticDifferences(actual: item.nowPlayingInfo, expected: expected)
+            if !differences.isEmpty {
+                report.findings.append("真实播放项的媒体信息不一致：" + differences.joined(separator: "、") + "。")
+                updateItemMetadata(item, at: selected)
+            }
+        }
+        if itemMetadataUpdateCount > writesBefore { repaired("item-metadata", "已从真实播放项对应的歌曲恢复静态媒体信息，包含当前项及已预加载项。") }
+        if player.currentItem == nil && songs.isEmpty && !preparing && !wantsPlayback,
+           session.nowPlayingInfoCenter.nowPlayingInfo != nil {
+            report.findings.append("队列为空且没有播放意图，当前会话仍留有媒体信息。")
+            session.automaticallyPublishesNowPlayingInfo = false
+            session.nowPlayingInfoCenter.nowPlayingInfo = nil
+            repaired("idle-metadata", "已清除本 App 空闲会话的残留媒体信息，未修改任何歌曲或队列。")
+        }
+        if player.currentItem != nil && !session.automaticallyPublishesNowPlayingInfo {
+            report.findings.append("真实播放项存在，但系统自动发布被关闭。")
+            session.automaticallyPublishesNowPlayingInfo = true
+            repaired("automatic-publishing", "已恢复当前媒体会话的原生自动发布。")
+        }
+
+        if let item = player.currentItem, item.status == .readyToPlay,
+           let selected = itemIndices[ObjectIdentifier(item)], let expected = itemMetadata(item, at: selected),
+           pendingSeek == nil, !interrupted, playerBindingValid {
+            func differences() -> [String] {
+                MediaMetadataInspection.systemDifferences(actual: session.nowPlayingInfoCenter.nowPlayingInfo,
+                    expected: expected, duration: item.duration.seconds, elapsed: player.currentTime().seconds,
+                    rate: player.rate, checkPausedPosition: player.rate == 0)
+            }
+            let drift = differences()
+            if !drift.isEmpty {
+                report.findings.append("系统媒体信息与真实播放器有偏差：" + drift.joined(separator: "、") + "。")
+                // One explicit reconciliation, retaining automatic publishing.
+                // No nil clearing, mode toggle, pause, seek or audio activation.
+                var information = expected
+                let elapsed = player.currentTime().seconds, length = item.duration.seconds
+                if elapsed.isFinite { information[MPNowPlayingInfoPropertyElapsedPlaybackTime] = max(0, elapsed) }
+                if length.isFinite && length > 0 { information[MPMediaItemPropertyPlaybackDuration] = length }
+                information[MPNowPlayingInfoPropertyPlaybackRate] = player.rate
+                session.nowPlayingInfoCenter.nowPlayingInfo = information
+                repaired("system-snapshot", "已向当前会话重新发布真实歌曲、封面、时长、进度基准及\(player.rate == 0 ? "暂停零速率" : "实际播放速率")，保留原生自动更新。")
+                // Read-back is bounded, not an animation delay. Abort stale
+                // work if a user command, track transition or interruption wins.
+                for _ in 0..<8 {
+                    if !unchanged() || differences().isEmpty { break }
+                    do { try await Task.sleep(nanoseconds: 50_000_000) }
+                    catch { report.errors.append("检测被取消，请重新检测。"); break }
+                }
+                if unchanged() && !differences().isEmpty {
+                    report.errors.append("系统媒体信息回读仍不一致：" + differences().joined(separator: "、") + "。请重新检测；本次没有重启播放器。")
+                    recordMediaEvent("repair-readback-failed")
+                }
+            }
+            check("now-playing", "歌曲、封面与播放时间",
+                  "已核对当前会话信息；真实进度\(Int(max(0, player.currentTime().seconds.isFinite ? player.currentTime().seconds : 0)))秒，实际速率\(player.rate)。播放中系统按进度基准推算，不将基准与当前时间的差值误判为异常。",
+                  unchanged() && differences().isEmpty ? .normal : .attention)
+            if expected[MPMediaItemPropertyArtwork] == nil && !(currentSong?.cover.isEmpty ?? true) {
+                report.limitations.append("当前封面尚未取得可用图像，无法核对图像内容；没有清除缓存或强制重新下载，请加载完成后重新检测。")
+            }
+        } else {
+            check("now-playing", "歌曲、封面与播放时间", "尚无就绪项、正在定位或处于音频中断，未向系统发布猜测进度；可在状态稳定后重新检测。", .unavailable)
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        let recentWrites = recentMetadataWrites.filter { now - $0 <= 10 }.count
+        check("updates", "媒体信息更新频率", "近10秒静态播放项写入\(recentWrites)次；正常刷新按内容去重，进度交由系统推算。频繁切歌或队列调整也会产生合法写入。",
+              recentWrites > 30 ? .attention : .normal)
+        if recentWrites > 30 { report.findings.append("近期静态媒体信息更新较多；无法确认是异常循环，保留用户操作与正常切歌，未关闭更新。") }
+        let endTime = player.currentTime().seconds
+        let positionPreserved = !startTime.isFinite || !endTime.isFinite || endTime >= startTime - 0.1
+        if !unchanged() || !positionPreserved {
+            report.errors.append("检测期间播放项、进度或用户播放意图发生变化，无法完成同一状态的核验。请在状态稳定后重新检测。")
+            recordMediaEvent("repair-context-changed")
+        }
+        check("continuity", "播放保持", "本次未停止、跳转或重建播放器，未更改队列，也未调用音频激活或停用。",
+              unchanged() && positionPreserved ? .normal : .attention)
+        return report
     }
 }

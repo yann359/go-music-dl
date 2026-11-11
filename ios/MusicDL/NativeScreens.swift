@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct DiscoverScreen: View {
+    @Environment(\.musicAccent) private var accent
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var client: NativeClient
     @Environment(\.colorScheme) private var scheme
@@ -15,7 +16,7 @@ struct DiscoverScreen: View {
                 HStack {
                     Text("CHENGYIN / MUSICDL").font(.caption2.weight(.semibold)).tracking(2.4).foregroundStyle(.secondary)
                     Spacer()
-                    Image(systemName: "waveform.path").foregroundStyle(MusicDesign.coral)
+                    Image(systemName: "waveform.path").foregroundStyle(accent)
                 }
                 VStack(alignment: .leading, spacing: 16) {
                     Text("给此刻，\n一点好声音。").font(.system(size: 39, weight: .semibold, design: .rounded))
@@ -24,7 +25,7 @@ struct DiscoverScreen: View {
                     Button { model.selectedTab = 1 } label: {
                         Label("寻找一首歌", systemImage: "arrow.up.right").font(.subheadline.weight(.semibold))
                             .padding(.horizontal, 20).padding(.vertical, 13)
-                    }.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+                    }.buttonStyle(.borderedProminent).foregroundStyle(MusicDesign.onAccent).buttonBorderShape(.capsule)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(26)
                     .background(MusicDesign.panel(scheme), in: RoundedRectangle(cornerRadius: 30))
                 if client.discoveryLoading { HStack { ProgressView(); Text("正在连接音乐来源…").font(.subheadline).foregroundStyle(.secondary) } }
@@ -218,6 +219,7 @@ struct SearchScreen: View {
 }
 
 struct SongRows: View {
+    @Environment(\.musicAccent) private var accent
     let songs: [Song]
     var collectionID: String? = nil
     var onChange: () -> Void = {}
@@ -233,7 +235,7 @@ struct SongRows: View {
                         HStack(spacing: 13) {
                             CoverArt(url: song.cover, title: song.name, radius: 10).frame(width: 52, height: 52)
                             VStack(alignment: .leading, spacing: 5) {
-                                Text(song.name).font(.body.weight(.medium)).foregroundStyle(audio.currentSong?.key == song.key ? MusicDesign.coral : .primary).lineLimit(1)
+                                Text(song.name).font(.body.weight(.medium)).foregroundStyle(audio.currentSong?.key == song.key ? accent : .primary).lineLimit(1)
                                 Text([song.artist, song.sourceAvailable ? song.source.uppercased() : "来源已移除 · 记录保留"].filter { !$0.isEmpty }.joined(separator: " · "))
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                 if searchMetadata {
@@ -339,7 +341,7 @@ struct SongDetailScreen: View {
                 }
                 if !songs.isEmpty {
                     HStack(spacing: 14) {
-                        Button { model.play(songs) } label: { Label("播放", systemImage: "play.fill").frame(maxWidth: .infinity).padding(.vertical, 8) }.buttonStyle(.borderedProminent)
+                        Button { model.play(songs) } label: { Label("播放", systemImage: "play.fill").frame(maxWidth: .infinity).padding(.vertical, 8) }.buttonStyle(.borderedProminent).foregroundStyle(MusicDesign.onAccent)
                         Button { model.play(songs.shuffled()) } label: { Label("随机播放", systemImage: "shuffle").frame(maxWidth: .infinity).padding(.vertical, 8) }.buttonStyle(.bordered)
                     }.buttonBorderShape(.roundedRectangle(radius: 16))
                 }
@@ -407,6 +409,7 @@ struct CollectionDetailScreen: View {
 }
 
 struct LibraryScreen: View {
+    @Environment(\.musicAccent) private var accent
     @EnvironmentObject private var client: NativeClient
     @EnvironmentObject private var model: AppModel
     @Environment(\.colorScheme) private var scheme
@@ -439,7 +442,7 @@ struct LibraryScreen: View {
                         }.padding(.vertical, 5)
                     }.swipeActions {
                         Button("删除", role: .destructive) { deleting = collection }
-                        Button("改名") { name = collection.name; renaming = collection }.tint(MusicDesign.coral)
+                        Button("改名") { name = collection.name; renaming = collection }.tint(accent)
                     }
                 }
             } header: { HStack { Text("我的歌单"); Spacer(); Text("\(client.collections.count)") } }

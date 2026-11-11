@@ -1,11 +1,12 @@
 import SwiftUI
 
 struct AccountStatusLabel: View {
+    @Environment(\.musicAccent) private var accent
     let summary: MusicAccountSummary
     var pendingConfiguration = false
     var body: some View {
         Label(pendingConfiguration ? "待配置" : summary.connection.rawValue, systemImage: summary.connection == .connected ? "checkmark.circle.fill" : summary.connection == .authorizing ? "arrow.trianglehead.2.clockwise" : "circle.dashed")
-            .font(.caption).foregroundStyle(summary.connection == .connected ? MusicDesign.coral : .secondary)
+            .font(.caption).foregroundStyle(summary.connection == .connected ? accent : .secondary)
     }
 }
 

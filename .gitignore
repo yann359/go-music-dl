@@ -34,6 +34,7 @@ sync_and_pr.bat
 docker/
 tmp/
 # Native iOS generated build output
+__pycache__/
 ios/build/
 ios/MusicDL.xcodeproj/
 music-dl-ios-native-*.ipa

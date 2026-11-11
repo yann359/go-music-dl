@@ -134,6 +134,119 @@ final class MediaSessionTests: XCTestCase {
         XCTAssertTrue(engine.nowPlayingSession?.remoteCommandCenter.playCommand.isEnabled == true)
     }
 
+    func testRepairPreservesPlayingTimeQueueSessionAndAudioActivation() async throws {
+        let engine = try engine(); defer { engine.shutdown() }
+        try await queue(engine)
+        engine.play()
+        try await waitFor("native player did not start") { engine.isPlaying }
+        engine.seek(2)
+        try await waitFor("seek failed") { engine.player.currentTime().seconds >= 2 }
+        let player = engine.player, session = try XCTUnwrap(engine.nowPlayingSession)
+        let songs = engine.songs, activations = engine.audioActivationCount
+        let before = engine.player.currentTime().seconds
+        let report = await engine.detectAndRepairMediaState()
+        XCTAssertTrue(report.errors.isEmpty, report.errors.joined(separator: "; "))
+        XCTAssertTrue(engine.player === player)
+        XCTAssertTrue(engine.nowPlayingSession === session)
+        XCTAssertEqual(engine.songs, songs)
+        XCTAssertEqual(engine.audioActivationCount, activations)
+        XCTAssertEqual(engine.player.rate, 1)
+        XCTAssertGreaterThanOrEqual(engine.player.currentTime().seconds, before - 0.1)
+        let writes = engine.itemMetadataUpdateCount
+        for _ in 0..<3 { _ = await engine.detectAndRepairMediaState() }
+        XCTAssertEqual(engine.itemMetadataUpdateCount, writes)
+        XCTAssertEqual(engine.registeredRemoteCommandCount, 6)
+        XCTAssertFalse(engine.isRepairingMedia)
+    }
+
+    func testRepairCorrectsCorruptMetadataAndDisabledControlsWithoutResumingPause() async throws {
+        let engine = try engine(); defer { engine.shutdown() }
+        try await queue(engine)
+        engine.play()
+        try await waitFor("native player did not start") { engine.isPlaying }
+        engine.pause(); engine.seek(1)
+        try await waitFor("paused seek failed") { abs(engine.player.currentTime().seconds - 1) < 0.1 }
+        let item = try XCTUnwrap(engine.player.currentItem)
+        let session = try XCTUnwrap(engine.nowPlayingSession)
+        let activations = engine.audioActivationCount
+        session.automaticallyPublishesNowPlayingInfo = false
+        item.nowPlayingInfo = [MPMediaItemPropertyTitle: "wrong item"]
+        session.nowPlayingInfoCenter.nowPlayingInfo = [MPMediaItemPropertyTitle: "wrong system",
+            MPNowPlayingInfoPropertyPlaybackRate: 3, MPNowPlayingInfoPropertyElapsedPlaybackTime: 9]
+        session.remoteCommandCenter.pauseCommand.isEnabled = false
+        for _ in 0..<4 { engine.configureRemoteCommands(session.remoteCommandCenter) }
+        XCTAssertEqual(engine.registeredRemoteCommandCount, 6)
+        let report = await engine.detectAndRepairMediaState()
+        XCTAssertTrue(report.errors.isEmpty, report.errors.joined(separator: "; "))
+        XCTAssertFalse(report.findings.isEmpty)
+        XCTAssertFalse(report.repairs.isEmpty)
+        XCTAssertEqual(item.nowPlayingInfo?[MPMediaItemPropertyTitle] as? String, song.name)
+        XCTAssertEqual(session.nowPlayingInfoCenter.nowPlayingInfo?[MPMediaItemPropertyTitle] as? String, song.name)
+        XCTAssertEqual(systemNumber(session, MPNowPlayingInfoPropertyPlaybackRate), 0)
+        XCTAssertTrue(session.automaticallyPublishesNowPlayingInfo)
+        XCTAssertTrue(session.remoteCommandCenter.pauseCommand.isEnabled)
+        XCTAssertEqual(engine.audioActivationCount, activations)
+        XCTAssertEqual(engine.player.rate, 0)
+        XCTAssertEqual(engine.player.currentTime().seconds, 1, accuracy: 0.1)
+        XCTAssertTrue(engine.player.currentItem === item)
+        let again = await engine.detectAndRepairMediaState()
+        XCTAssertTrue(again.findings.isEmpty, again.findings.joined(separator: "; "))
+        XCTAssertTrue(again.repairs.isEmpty)
+        XCTAssertEqual(again.summary, "未发现可自动修复的异常")
+    }
+
+    func testRepairDuringPreparationDoesNotPublishFutureSongOrActivateAudio() async throws {
+        let gate = MediaPreparationGate()
+        let engine = try engine(gate: gate); defer { engine.shutdown() }
+        engine.playSongs([song])
+        let report = await engine.detectAndRepairMediaState()
+        XCTAssertTrue(report.errors.isEmpty)
+        XCTAssertNil(engine.player.currentItem)
+        XCTAssertEqual(engine.audioActivationCount, 0)
+        XCTAssertEqual(engine.player.rate, 0)
+        XCTAssertNil(engine.nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo?[MPMediaItemPropertyTitle])
+        XCTAssertEqual(report.checks.first { $0.id == "now-playing" }?.status, .unavailable)
+        await gate.open()
+        try await waitFor("preparation lost playback intent") { engine.isPlaying }
+    }
+
+    func testRepairRespectsInterruptionAndReportsClosedEngineFailure() async throws {
+        let engine = try engine(); defer { engine.shutdown() }
+        try await queue(engine); engine.play()
+        try await waitFor("native player did not start") { engine.isPlaying }
+        NotificationCenter.default.post(name: AVAudioSession.interruptionNotification, object: nil,
+            userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue])
+        try await waitFor("interruption was not observed") { engine.playbackState == .interrupted }
+        let activations = engine.audioActivationCount, songs = engine.songs
+        let report = await engine.detectAndRepairMediaState()
+        XCTAssertTrue(report.errors.isEmpty)
+        XCTAssertTrue(report.findings.contains { $0.contains("音频中断") })
+        XCTAssertEqual(engine.player.rate, 0)
+        XCTAssertEqual(engine.audioActivationCount, activations)
+        XCTAssertEqual(engine.songs, songs)
+        engine.shutdown()
+        let closed = await engine.detectAndRepairMediaState()
+        XCTAssertFalse(closed.errors.isEmpty)
+        XCTAssertEqual(closed.summary, "检测未完成，请重新检测")
+        XCTAssertFalse(engine.isRepairingMedia)
+    }
+
+    func testRepairDoesNotTreatPlayingClockAnchorAsElapsedDrift() {
+        let expected: [String: Any] = [MPMediaItemPropertyTitle: song.name, MPMediaItemPropertyArtist: song.artist,
+            MPMediaItemPropertyAlbumTitle: song.album, MPNowPlayingInfoPropertyExternalContentIdentifier: "fixture:media-session",
+            MPNowPlayingInfoPropertyPlaybackQueueIndex: 0, MPNowPlayingInfoPropertyPlaybackQueueCount: 1,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: 1]
+        var actual = expected
+        actual[MPMediaItemPropertyPlaybackDuration] = 12
+        actual[MPNowPlayingInfoPropertyElapsedPlaybackTime] = 0
+        actual[MPNowPlayingInfoPropertyPlaybackRate] = 1
+        XCTAssertTrue(MediaMetadataInspection.systemDifferences(actual: actual, expected: expected,
+            duration: 12, elapsed: 5, rate: 1, checkPausedPosition: false).isEmpty)
+        actual[MPNowPlayingInfoPropertyPlaybackRate] = 0
+        XCTAssertTrue(MediaMetadataInspection.systemDifferences(actual: actual, expected: expected,
+            duration: 12, elapsed: 5, rate: 0, checkPausedPosition: true).contains("暂停进度"))
+    }
+
     func testMediaResetRebindsSessionAndRetiresOldControls() async throws {
         let engine = try engine(); defer { engine.shutdown() }
         let old = try XCTUnwrap(engine.nowPlayingSession)
