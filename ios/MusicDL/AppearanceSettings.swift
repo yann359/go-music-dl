@@ -81,6 +81,7 @@ struct AppearanceScreen: View {
     @EnvironmentObject private var settings: AppearanceSettings
     @Environment(\.musicAccent) private var accent
     @State private var confirmingReset = false
+    @State private var previewEnabled = true
     var body: some View {
         Form {
             Section("外观模式") {
@@ -119,7 +120,7 @@ struct AppearanceScreen: View {
             Section("效果预览") {
                 Label(settings.theme.title, systemImage: "waveform").foregroundStyle(accent)
                 ProgressView(value: 0.58).accessibilityLabel("主题色进度预览")
-                Toggle("开关预览", isOn: .constant(true)).accessibilityIdentifier("theme-toggle-preview")
+                Toggle("开关预览", isOn: $previewEnabled).accessibilityIdentifier("theme-toggle-preview")
             }
             Section {
                 Button("恢复默认主题") { confirmingReset = true }.accessibilityIdentifier("theme-restore")

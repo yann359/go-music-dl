@@ -190,7 +190,10 @@ final class MediaSessionTests: XCTestCase {
         XCTAssertEqual(engine.player.currentTime().seconds, 1, accuracy: 0.1)
         XCTAssertTrue(engine.player.currentItem === item)
         let again = await engine.detectAndRepairMediaState()
-        XCTAssertTrue(again.findings.isEmpty, again.findings.joined(separator: "; "))
+        // The SwiftUI XCTest host owns a separate idle engine. Reporting that
+        // second live engine is correct; it must not be cleaned up by this one.
+        XCTAssertTrue(again.findings.allSatisfy { $0.contains("存活播放引擎") }, again.findings.joined(separator: "; "))
+        XCTAssertTrue(again.errors.isEmpty, again.errors.joined(separator: "; "))
         XCTAssertTrue(again.repairs.isEmpty)
         XCTAssertEqual(again.summary, "未发现可自动修复的异常")
     }
@@ -242,6 +245,13 @@ final class MediaSessionTests: XCTestCase {
         actual[MPNowPlayingInfoPropertyPlaybackRate] = 1
         XCTAssertTrue(MediaMetadataInspection.systemDifferences(actual: actual, expected: expected,
             duration: 12, elapsed: 5, rate: 1, checkPausedPosition: false).isEmpty)
+        let size = CGSize(width: 16, height: 16)
+        let image = UIGraphicsImageRenderer(size: size).image { context in
+            UIColor.red.setFill(); context.fill(CGRect(origin: .zero, size: size))
+        }
+        actual[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: size) { _ in image }
+        XCTAssertTrue(MediaMetadataInspection.staticDifferences(actual: actual, expected: expected).isEmpty,
+                      "A system cover with no fetched reference must not be diagnosed as wrong")
         actual[MPNowPlayingInfoPropertyPlaybackRate] = 0
         XCTAssertTrue(MediaMetadataInspection.systemDifferences(actual: actual, expected: expected,
             duration: 12, elapsed: 5, rate: 0, checkPausedPosition: true).contains("暂停进度"))

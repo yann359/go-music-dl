@@ -812,10 +812,11 @@ extension AudioEngine {
                 "\(configured ? "后台媒体播放配置符合预期" : "配置偏离预期，未强行改动")；\(activationEvidence)。输出线路数：\(audioSession.currentRoute.outputs.count)。",
               configured || notConfiguredYet ? .normal : .attention)
         if interrupted { report.findings.append("当前处于系统音频中断；没有自动抢占音频或恢复播放。") }
+        let engineFailed = player.status == .failed || player.currentItem?.status == .failed
         check("engine", "播放引擎与音频中断",
-              "播放器：\(player.status == .failed ? "错误" : player.currentItem == nil ? "暂无播放项" : player.currentItem?.status == .readyToPlay ? "媒体就绪" : "媒体准备中")；\(interrupted ? "中断中" : "未记录到进行中的中断")。",
-              interrupted || player.status == .failed ? .attention : .normal)
-        if player.status == .failed || player.currentItem?.status == .failed {
+              "播放器：\(engineFailed ? "错误" : player.currentItem == nil ? "暂无播放项" : player.currentItem?.status == .readyToPlay ? "媒体就绪" : "媒体准备中")；\(interrupted ? "中断中" : "未记录到进行中的中断")。",
+              interrupted || engineFailed ? .attention : .normal)
+        if engineFailed {
             let detail = player.currentItem?.error?.localizedDescription ?? player.error?.localizedDescription ?? "系统未提供错误详情"
             report.errors.append("播放引擎报告错误：\(detail)。本次没有替换播放器，请使用播放器的重试入口。")
             let nativeError = (player.currentItem?.error ?? player.error) as NSError?
@@ -919,6 +920,12 @@ extension AudioEngine {
                 // One explicit reconciliation, retaining automatic publishing.
                 // No nil clearing, mode toggle, pause, seek or audio activation.
                 var information = expected
+                let previous = session.nowPlayingInfoCenter.nowPlayingInfo
+                if information[MPMediaItemPropertyArtwork] == nil,
+                   previous?[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String == expected[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String,
+                   let existingCover = previous?[MPMediaItemPropertyArtwork] as? MPMediaItemArtwork {
+                    information[MPMediaItemPropertyArtwork] = existingCover
+                }
                 let elapsed = player.currentTime().seconds, length = item.duration.seconds
                 if elapsed.isFinite { information[MPNowPlayingInfoPropertyElapsedPlaybackTime] = max(0, elapsed) }
                 if length.isFinite && length > 0 { information[MPMediaItemPropertyPlaybackDuration] = length }

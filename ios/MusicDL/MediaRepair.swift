@@ -44,7 +44,9 @@ enum MediaMetadataInspection {
         }
         let wanted = expected[MPMediaItemPropertyArtwork] as? MPMediaItemArtwork
         let found = actual?[MPMediaItemPropertyArtwork] as? MPMediaItemArtwork
-        if !artworkMatches(found, wanted) { result.append("封面") }
+        // Without a fetched reference, a system/embedded cover is unknown,
+        // not proven incorrect. Never discard it just because loading lags.
+        if wanted != nil && !artworkMatches(found, wanted) { result.append("封面") }
         return result
     }
 
