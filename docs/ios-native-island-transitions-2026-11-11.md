@@ -2,13 +2,19 @@
 
 ## Build28 用户反馈后的纠正与后续修订
 
-用户确认测试的是 Build28，App 内点歌即显示封面与波形的紧凑媒体小岛。用户要求的是“前台点歌不上岛，上滑回桌面时自然承接”，不是单纯减少信息刷新或 App 返回页面动画。本项**尚未达到目标**；下文 Build28 自动化结果不能作为该视觉行为成功的证据。反馈来自用户实际设备，未由本机独立观察。
+用户确认测试的是 Build28，App 内点歌即显示封面与波形的紧凑媒体小岛。用户要求的是“前台点歌不上岛，上滑回桌面时自然承接”，不是单纯减少信息刷新或 App 返回页面动画。本项**尚未达到目标**；下文 Build28 自动化结果不能作为该视觉行为成功的证据。用户进一步确认同机Apple Music确实在App内不显示，回桌面才显示。用户也确认是SideStore直接安装的独立App，不是容器运行，不能未经证据将其归为签名故障。当前App与这一对照不一致，不能直接归结为系统统一策略。反馈来自用户实际设备，未由本机独立观察。
 
 再次核查 [WWDC22 的单会话示例，5:32–5:56](https://developer.apple.com/videos/play/wwdc2022/110338/?time=332)，Apple 明确说明仅一个会话时无需调用 becomeActiveIfPossible，它会成为默认会话。上一轮代码仍在播放发布与资格变化时调用主动提升。本轮删除该方法、两个调用点及重试状态，保留系统默认单会话；此为明确的冗余调用修正，**不是已证明的提前上岛根因，也不保证隐藏前台媒体岛**。
 
 不把该调用搬到 background，不清空前台信息，也不模拟 Home 手势动画。UI 探测另增加离开 App 前的播放截图，使前台与 Home 的系统呈现可分别查看；无法定位系统目标仍须 skip。核心验收必须以同机 Apple Music 与新包的前台→Home→回 App 录屏确认；现阶段不能用系统接管解释为用户描述已经正常。
 
-基线552c84f、分支codex/island-system-handoff。本轮 macOS 验证与新包待记录；原 Build28 包保留。
+基线552c84f、分支codex/island-system-handoff。修订代码2a711e08e1d315d6aebee2b1b6d8b3f406663c61的 [Build29](https://github.com/yann359/go-music-dl/actions/runs/42928367771) 成功：Go四包、Node6、设备/模拟器编译、Swift65/65，UI7通过/2跳过/0失败。两项skip仍为模拟器未暴露可识别媒体岛，核心视觉目标仍未验收。
+
+本轮 [IPA及对应源码](https://github.com/yann359/go-music-dl/actions/runs/42928367771/artifacts/13815463642) 本地为 `../outputs/ios-release-build/build29/music-dl-ios-native-unsigned.ipa`，14,350,439字节；SHA256 `4c980040a56abe13ffc964a7f516c8a25aa962f2c0b8acc7f4119ce26e7a894a`。本地/CI verification JSON相同，原bundle/MusicDL/Build29、arm64/iOS18+/后台audio、未签名，源码ZIP两份改动Swift与2a711e0相同，hash/CRC/服务器artifact digest均已核验。原Build28包保留，没有改动手机安装、签名或数据。回滚修订用 `git revert 2a711e0`。
+
+已复查Build28导出的原始截图：Home图实际上是退场中间帧，而非动画结束的桌面证据；App内真实搜索图仍显示正在准备音频，也不能证明已开始实际播放时的岛状态。上一轮这两图不能用于宣告用户的核心目标通过。本轮已实际打开并查看Build29的fixture前台图及Home图：本地 `../outputs/ios-release-build/build29/foreground.png`、`home-transition.png`。两图均没有可辨认的媒体岛内容，因而既不能复现用户手机上“前台封面+波形”的现象，也不能证明本次修订实现了目标过渡。它们仍是模拟器受控证据，不能替代iPhone与Apple Music录屏对照。
+
+下一步需现有Build28的 `Diagnostics/media-session.jsonl`，检查手机实际bundle/build、前台状态、系统默认会话及事件序列；该文件已向用户请求，尚未收到。根据证据再决定是否涉及签后归属，不能把SideStore、系统版本或主动激活调用任意一个认定为已证实根因。
 
 ## 范围与证据
 

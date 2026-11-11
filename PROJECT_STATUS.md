@@ -1,11 +1,14 @@
 ## 当前阶段：用户确认 Build28 提前上岛，核心体验未达成（2026-11-11）
 
-- 用户已明确确认：手机运行 **Build28**，在 App 内点歌即显示**封面+波形的紧凑小岛**；期望是 App 内不显示歌曲小岛，滑回桌面时通过系统过渡自然承接。不是旧包或自动展开的大卡片问题。此为用户提供的真机反馈，未由本机远程观察。
+- 用户已明确确认：手机运行 **Build28**，在 App 内点歌即显示**封面+波形的紧凑小岛**；期望是 App 内不显示歌曲小岛，滑回桌面时通过系统过渡自然承接。不是旧包或自动展开的大卡片问题。用户另确认是 **SideStore直接安装的独立App，不是容器运行**；这不等于已证实签名不匹配。用户另确认**同机Apple Music确实前台不显示、退出桌面才显示**，因此当前App表现相对该对照未达标。此为用户提供的真机反馈，未由本机远程观察。
 - 因此 Build28 的65项原生回归/UI流程通过，只证明那些受测功能，没有证明核心前台→Home视觉体验成功；本项重新记为**未达成**。不能用“系统控制”直接认定当前异常符合 Apple Music 行为。
 - 复查 Apple [WWDC22 5:32–5:56](https://developer.apple.com/videos/play/wwdc2022/110338/?time=332)：单个 MPNowPlayingSession 自动作为默认会话，不需要 becomeActiveIfPossible；主动提升用于同一 App 多会话的选择。现有代码在播放和资格变化时仍主动提升，属于多余干预，已移除方法、调用和重试标志，保留单一会话、信息中心和命令中心。这一事实不证明它就是提前上岛的根因。
 - 继续实时发布正确元数据，不按前后台隐藏、不延迟到 background、不创建假岛；没有公开的 Home 手势进度/媒体岛动画控制接口。本轮没有将多余调用删除包装为已经实现目标动画。
 - 修改：`ios/MusicDL/AudioEngine.swift`；`ios/UITests/NativeVisualTests.swift` 增加 App 内播放→Home 之前的截图，和已有 Home 图保留对照。既有媒体/暂停/切歌/后台/系统探测回归保留；搜索、下载、音源和界面设计未动。本轮不使用 REA。
-- 新分支 `codex/island-system-handoff`，基线 `552c84f`。Node6/6、diff检查通过；新代码的macOS/原生回归待验证，Build28结果不得替代。
+- 新分支 `codex/island-system-handoff`，基线 `552c84f`。Node6/6、diff检查通过；代码 `2a711e08e1d315d6aebee2b1b6d8b3f406663c61` 的 [Build29](https://github.com/yann359/go-music-dl/actions/runs/42928367771) 全部成功：Go四包、Node6、设备/模拟器编译、Swift65/65、UI7通过/2跳过/0失败。跳过仍是系统岛不可定位，不能证明核心视觉目标已实现。
+- [Build29 IPA/匹配源码](https://github.com/yann359/go-music-dl/actions/runs/42928367771/artifacts/13815463642) 已下载至 `../outputs/ios-release-build/build29/music-dl-ios-native-unsigned.ipa`，14,350,439字节，SHA256 `4c980040a56abe13ffc964a7f516c8a25aa962f2c0b8acc7f4119ce26e7a894a`。原Bundle ID、MusicDL、Build29、arm64 iPhoneOS/iOS18+、未签名、后台audio；本地与CI验证JSON一致，源码/附带hash/ZIP CRC/GitHub artifact digest已核验。旧包保留，未操作手机安装或签名。[原始测试报告](https://github.com/yann359/go-music-dl/actions/runs/42928367771/artifacts/13816521561)，日志 `../outputs/island-native-build29.log`。
+- 复查Build28导出图发现 `system-media-home-probe` 为Home退场动画中间帧，不能证明桌面稳定后的岛状态；不能用截图或模拟器skip冒充丝滑过渡已验收。本轮已查看Build29的 `foreground.png` 和 `home-transition.png`，两图均没有可辨认的媒体岛内容；模拟器不能复现/验证用户的真机视觉差异，新增前台图不替代真机录屏。
+- 下一步取证：现有Build28已可在“文件→我的iPhone→MusicDL→Diagnostics→media-session.jsonl”导出日志，无需为了取日志再装包；核对实际运行bundle/build、app_state、session_active与事件序列。已向用户请求该文件，当前尚未收到。回滚本轮代码：`git revert 2a711e0`。
 - 真机最终验收必须分别观察：①App内开始播放不提前显示歌曲小岛；②滑回桌面时系统自然承接；③重新进App后的呈现与Apple Music同机对照；同时验证锁屏/控制中心/暂停/切歌。若仍失败，需手机实际 `Diagnostics/media-session.jsonl` 与短录屏定位运行身份/场景及系统呈现；当前没有这些证据，不能认定签名、SideStore或系统版本为根因。
 
 ## 上阶段：原生灵动岛时机与过渡复查（2026-11-11，Build28自动化通过，真机待验）
