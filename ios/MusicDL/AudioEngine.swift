@@ -49,8 +49,6 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     private var lastNowPlayingMetadata: NSDictionary?
     private weak var lastNowPlayingItem: AVPlayerItem?
     private(set) var nowPlayingUpdateCount = 0
-    private var ownershipRequestPending = false
-    private var ownershipAttempted = false
     private var shuttingDown = false
     private let engineID = UUID().uuidString
     private var preparing = false
@@ -176,7 +174,6 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
 
     func play() {
         guard !songs.isEmpty else { return }
-        ownershipAttempted = false
         do {
             try activate()
             // A suspended app may receive began without a matching ended. A
@@ -500,6 +497,9 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
 
     private func installNowPlayingSession() {
         let session = MPNowPlayingSession(players: [player])
+        // A single session is selected by the system as the default session.
+        // Explicit promotion is for choosing among multiple app sessions, not
+        // for requesting Dynamic Island presentation when playback starts.
         // Keep the existing player-derived metadata path as the sole author.
         // Do not combine automatic publishing with manual global-center writes.
         session.automaticallyPublishesNowPlayingInfo = false
@@ -520,8 +520,6 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         // lifetime own its KVO teardown. Removing every player first caused a
         // reproducible duplicate currentItem-observer removal on iOS 26.5.
         nowPlayingSession = nil
-        ownershipRequestPending = false
-        ownershipAttempted = false
     }
 
     func recordMediaEvent(_ event: String) {
@@ -542,21 +540,6 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         ])
     }
 
-    private func claimNowPlayingSession() {
-        guard !shuttingDown, wantsPlayback, !interrupted, player.currentItem != nil,
-              let session = nowPlayingSession, !session.isActive, session.canBecomeActive,
-              !ownershipRequestPending, !ownershipAttempted else { return }
-        ownershipRequestPending = true
-        ownershipAttempted = true
-        session.becomeActiveIfPossible { [weak self, weak session] accepted in
-            Task { @MainActor in
-                guard let self, let session, self.nowPlayingSession === session else { return }
-                self.ownershipRequestPending = false
-                self.recordMediaEvent(accepted ? "ownership-accepted" : "ownership-declined")
-            }
-        }
-    }
-
     nonisolated func nowPlayingSessionDidChangeActive(_ session: MPNowPlayingSession) {
         Task { @MainActor [weak self] in
             guard let self, self.nowPlayingSession === session else { return }
@@ -568,8 +551,6 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         Task { @MainActor [weak self] in
             guard let self, self.nowPlayingSession === session else { return }
             self.recordMediaEvent("eligibility-changed")
-            if session.canBecomeActive { self.ownershipAttempted = false }
-            self.claimNowPlayingSession()
         }
     }
 
@@ -656,7 +637,6 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             }
         }
         for (command, _) in commands { command.isEnabled = currentSong != nil }
-        if playing { claimNowPlayingSession() }
         var state: [String: Any] = ["index": index, "position": position, "duration": length,
                          "playing": playing, "waiting": wantsPlayback && !playing && !interrupted,
                          "rate": speed, "message": message, "readyCount": player.items().count,

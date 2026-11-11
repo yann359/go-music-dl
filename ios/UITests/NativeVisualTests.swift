@@ -142,6 +142,10 @@ final class NativeVisualTests: XCTestCase {
         let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
         XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
         XCTAssertTrue(app.buttons["暂停"].waitForExistence(timeout: 8))
+        // Preserve both states for comparison even if system accessibility is
+        // unavailable. A passing in-app playback test cannot prove the visual
+        // foreground-to-Home handoff requested by the user.
+        capture("system-media-playing-inside-app-before-home")
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let systemShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
