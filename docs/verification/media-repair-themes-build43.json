@@ -1,0 +1,273 @@
+{
+  "run_id": 42994771737,
+  "run_url": "https://github.com/yann359/go-music-dl/actions/runs/42994771737",
+  "run_conclusion": "success",
+  "build": "43",
+  "code_commit": "4e6c5d47c8e85b708a710f5e14c1b1a269cbac48",
+  "ipa": {
+    "sha256": "3bd2a61d47f2c9f69c551701c67947d92d18fa3f4177af5ea06a1c80651c90ad",
+    "size_bytes": 14447292,
+    "bundle_id": "com.guohuiyuan.musicdl.nativedesign",
+    "build": "43",
+    "version": "1.0.0",
+    "minimum_ios": "18.0",
+    "background_modes": [
+      "audio"
+    ],
+    "signed": false,
+    "executable": {
+      "architecture": "arm64",
+      "file_type": 2,
+      "libraries": [
+        "/usr/lib/libresolv.9.dylib",
+        "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+        "/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer",
+        "/System/Library/Frameworks/Security.framework/Security",
+        "/System/Library/Frameworks/MusicKit.framework/MusicKit",
+        "/System/Library/Frameworks/AuthenticationServices.framework/AuthenticationServices",
+        "/System/Library/Frameworks/Network.framework/Network",
+        "/System/Library/Frameworks/Foundation.framework/Foundation",
+        "/usr/lib/libobjc.A.dylib",
+        "/usr/lib/libSystem.B.dylib",
+        "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+        "/System/Library/Frameworks/AVKit.framework/AVKit",
+        "/System/Library/Frameworks/Combine.framework/Combine",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+        "/System/Library/Frameworks/CoreImage.framework/CoreImage",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+        "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+        "/System/Library/Frameworks/UIKit.framework/UIKit",
+        "/usr/lib/swift/libswiftAVFoundation.dylib",
+        "/usr/lib/swift/libswiftCore.dylib",
+        "/usr/lib/swift/libswiftCoreAudio.dylib",
+        "/usr/lib/swift/libswiftCoreFoundation.dylib",
+        "/usr/lib/swift/libswiftCoreImage.dylib",
+        "/usr/lib/swift/libswiftCoreMIDI.dylib",
+        "/usr/lib/swift/libswiftCoreMedia.dylib",
+        "/usr/lib/swift/libswiftDispatch.dylib",
+        "/usr/lib/swift/libswiftMetal.dylib",
+        "/usr/lib/swift/libswiftOSLog.dylib",
+        "/usr/lib/swift/libswiftObjectiveC.dylib",
+        "/usr/lib/swift/libswiftQuartzCore.dylib",
+        "/usr/lib/swift/libswiftSpatial.dylib",
+        "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+        "/usr/lib/swift/libswiftXPC.dylib",
+        "/usr/lib/swift/libswift_Builtin_float.dylib",
+        "/usr/lib/swift/libswift_Concurrency.dylib",
+        "/usr/lib/swift/libswiftos.dylib",
+        "/usr/lib/swift/libswiftsimd.dylib"
+      ],
+      "encrypted": false,
+      "signature_bytes": 0,
+      "platform": 2,
+      "minimum_ios": "18.0.0",
+      "sdk": "26.5.0"
+    },
+    "framework_files": [],
+    "resources_verified": [
+      "Assets.car",
+      "LICENSE",
+      "NOTICE.md",
+      "ThirdPartyNotices.txt"
+    ],
+    "device_installation_tested": false,
+    "archive": {
+      "zip_crc_verified": true,
+      "standard_zip": true,
+      "unique_paths": true,
+      "no_encrypted_entries": true,
+      "compatible_compression": true,
+      "entry_count": 12,
+      "payload_app": "Payload/MusicDL.app"
+    }
+  },
+  "ipa_artifact": {
+    "id": 13845431128,
+    "name": "music-dl-ios-native-unsigned",
+    "digest": "sha256:43dda29c35e1b2a70c7d02c722f98dcd4791d83733292e2d628b500088487187",
+    "size_in_bytes": 19445259,
+    "expires_at": "2026-12-11T09:49:37Z"
+  },
+  "ipa_artifact_url": "https://github.com/yann359/go-music-dl/actions/runs/42994771737/artifacts/13845431128",
+  "source_files_verified": [
+    "ios/MusicDL/AccountViews.swift",
+    "ios/MusicDL/AppearanceSettings.swift",
+    "ios/MusicDL/AudioEngine.swift",
+    "ios/MusicDL/DesignSystem.swift",
+    "ios/MusicDL/MediaRepair.swift",
+    "ios/MusicDL/NativeRoot.swift",
+    "ios/MusicDL/NativeScreens.swift",
+    "ios/MusicDL/PlayerViews.swift",
+    "ios/MusicDL/ProfileViews.swift",
+    "ios/Tests/AppearanceSettingsTests.swift",
+    "ios/Tests/MediaSessionTests.swift",
+    "ios/Tests/NativeBridgeIntegrationTests.swift",
+    "ios/Tests/test_ipa_verifier.py",
+    "ios/UITests/NativeVisualTests.swift",
+    "ios/scripts/verify-ipa.py"
+  ],
+  "artifact_zip_crc_verified": true,
+  "artifact_digest_verified": true,
+  "source_archive_crc_verified": true,
+  "ci_and_local_verification_equal": true,
+  "executable_permission_verified": true,
+  "date_local": "2026-11-11",
+  "timezone": "Asia/Shanghai",
+  "tests": {
+    "swift_passed": 76,
+    "swift_failed": 0,
+    "media_passed": 13,
+    "appearance_passed": 4,
+    "ui_passed": 10,
+    "ui_skipped": 2,
+    "ui_failed": 0,
+    "go_packages_passed": 4,
+    "node_passed": 6,
+    "ipa_format_passed": 7,
+    "ui_theme_combinations": 24,
+    "real_c_abi_control_channel_passed": true,
+    "repair_home_return_full_player_pause_passed": true,
+    "theme_restart_and_reset_passed": true
+  },
+  "test_environment": {
+    "xcode": "26.6",
+    "sdk": "26.5",
+    "simulator": "iPhone 17 Pro Max",
+    "simulator_os": "26.5"
+  },
+  "test_report_artifact": {
+    "id": 13845660317,
+    "digest": "sha256:ee7c39b674f670886ced169c43082b206e1964ff152ef1ea7c27c2a62503ded0",
+    "size_in_bytes": 130103096,
+    "expires_at": "2027-02-09T09:23:30Z"
+  },
+  "test_report_url": "https://github.com/yann359/go-music-dl/actions/runs/42994771737/artifacts/13845660317",
+  "limitations": {
+    "new_build_installed_on_users_iphone": false,
+    "lcsign_open_or_sign_tested": false,
+    "physical_lock_screen_control_center_verified": false,
+    "physical_island_tap_long_press_verified": false,
+    "physical_island_animation_verified": false,
+    "mini_player_after_zoom_touch_verified_on_device": false,
+    "global_sessions_or_unknown_activities_enumerated": false
+  },
+  "scope": {
+    "no_rea": true,
+    "no_private_apis": true,
+    "no_animation_redesign": true,
+    "no_go_business_changes": true,
+    "appearance_reset_only_two_keys": true
+  },
+  "public_release": {
+    "build": "43",
+    "code_commit": "4e6c5d47c8e85b708a710f5e14c1b1a269cbac48",
+    "release_url": "https://github.com/yann359/go-music-dl/releases/tag/ios-build43",
+    "release_id": 441698028,
+    "download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build43/MusicDL-Build43.ipa",
+    "ipa_sha256": "3bd2a61d47f2c9f69c551701c67947d92d18fa3f4177af5ea06a1c80651c90ad",
+    "size_bytes": 14447292,
+    "anonymous_download_verified": true,
+    "release_tag_matches_tested_commit": true,
+    "signed": false,
+    "assets": [
+      {
+        "id": 735542036,
+        "name": "LICENSE.txt",
+        "size": 34522,
+        "digest": "sha256:20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+        "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build43/LICENSE.txt"
+      },
+      {
+        "id": 735541658,
+        "name": "MusicDL-Build43-source.txt",
+        "size": 41,
+        "digest": "sha256:4e74efae425f2be393171e85af875b88828be00f620fb0602fbe2b78fb0520ea",
+        "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build43/MusicDL-Build43-source.txt"
+      },
+      {
+        "id": 735541445,
+        "name": "MusicDL-Build43-source.zip",
+        "size": 4716054,
+        "digest": "sha256:51487709db1daf9b7129c3b6417525bd8dfb9cd9f7c268da9dda7926463b61c6",
+        "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build43/MusicDL-Build43-source.zip"
+      },
+      {
+        "id": 735542298,
+        "name": "MusicDL-Build43-verification.json",
+        "size": 3067,
+        "digest": "sha256:8fe58baba9d2607940c5eeb2f08d636131bf406e82a2f24589862b16cdd3d0f7",
+        "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build43/MusicDL-Build43-verification.json"
+      },
+      {
+        "id": 735540992,
+        "name": "MusicDL-Build43.ipa",
+        "size": 14447292,
+        "digest": "sha256:3bd2a61d47f2c9f69c551701c67947d92d18fa3f4177af5ea06a1c80651c90ad",
+        "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build43/MusicDL-Build43.ipa"
+      },
+      {
+        "id": 735541374,
+        "name": "MusicDL-Build43.ipa.sha256",
+        "size": 87,
+        "digest": "sha256:acd68e7b7468f32e0fd39d648c4994d1f7a182e4dbe54a18774aa2f409c38f88",
+        "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build43/MusicDL-Build43.ipa.sha256"
+      },
+      {
+        "id": 735542155,
+        "name": "ThirdPartyNotices.txt",
+        "size": 136453,
+        "digest": "sha256:99ae307ed55e8cc5d25f7d0614817c50cc6a66ed58342115ca32c1f49881b7f2",
+        "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build43/ThirdPartyNotices.txt"
+      }
+    ]
+  },
+  "public_download_zip_and_device_structure_verified": true,
+  "test_report_digest_verified": true,
+  "test_report_zip_crc_verified": true,
+  "screenshots_reviewed": [
+    "media-repair-home-return-still-playing",
+    "media-repair-paused-result",
+    "appearance-oceanBlue-persisted-dark",
+    "appearance-eight-colors-light"
+  ],
+  "screenshot_review_scope": "Simulator fixture layout/material/selection and visible transport state only; not physical Island animations or device touch verification.",
+  "failed_or_cancelled_runs": [
+    {
+      "build": 36,
+      "result": "failed",
+      "delivered": false
+    },
+    {
+      "build": 37,
+      "result": "cancelled",
+      "delivered": false
+    },
+    {
+      "build": 38,
+      "result": "cancelled",
+      "delivered": false
+    },
+    {
+      "build": 39,
+      "result": "failed",
+      "delivered": false
+    },
+    {
+      "build": 40,
+      "result": "failed",
+      "delivered": false
+    },
+    {
+      "build": 41,
+      "result": "failed",
+      "delivered": false
+    },
+    {
+      "build": 42,
+      "result": "cancelled_stale_commit",
+      "delivered": false
+    }
+  ]
+}
