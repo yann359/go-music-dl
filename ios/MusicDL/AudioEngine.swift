@@ -221,7 +221,9 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         preparationTaskGeneration += 1
         let token = preparationTaskGeneration
         preparationTask = UIApplication.shared.beginBackgroundTask(withName: "Prepare native playback") { [weak self] in
-            Task { @MainActor [weak self] in
+            // UIKit guarantees this handler runs synchronously on the main
+            // thread. End the task before returning, not in a deferred Task.
+            MainActor.assumeIsolated {
                 guard let self, self.preparationTaskGeneration == token, self.preparationTask != .invalid else { return }
                 self.endPreparationBackgroundTask()
                 self.revision += 1; self.pipeline?.cancel(); self.preparing = false; self.sequence.removeAll()
