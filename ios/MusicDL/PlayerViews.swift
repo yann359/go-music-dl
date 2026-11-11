@@ -111,7 +111,10 @@ struct FullPlayer: View {
                             Button { audio.isPlaying || audio.waiting ? audio.pause() : audio.play() } label: {
                                 Image(systemName: audio.isPlaying || audio.waiting ? "pause.fill" : "play.fill")
                                     .font(.system(size: 36, weight: .medium)).frame(width: 78, height: 78)
+                                    .contentShape(Rectangle())
                             }.foregroundStyle(accent).accessibilityLabel(audio.isPlaying || audio.waiting ? "暂停" : "播放")
+                                .accessibilityValue(audio.isPlaying ? "正在播放" : audio.waiting ? "正在准备" : "已暂停")
+                                .accessibilityIdentifier("full-player-play-pause")
                             Button { audio.skip(1) } label: { Image(systemName: "forward.end.fill").font(.system(size: 26)).frame(width: 48, height: 60) }.accessibilityLabel("下一首")
                         }.buttonStyle(.plain).foregroundStyle(.primary)
                         controls

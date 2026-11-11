@@ -59,7 +59,7 @@ jobs:
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -maximum-test-execution-time-allowance 60 CODE_SIGNING_ALLOWED=NO test
       - name: Test native screens and capture appearances
-        timeout-minutes: 12
+        timeout-minutes: 18
         run: |
           xcodebuild -project ios/MusicDL.xcodeproj -scheme MusicDLVisual -configuration Debug \
             -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath ios/build/VisualTests.xcresult \

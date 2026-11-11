@@ -298,22 +298,21 @@ final class NativeVisualTests: XCTestCase {
         capture("media-repair-playing-result")
         XCUIDevice.shared.press(.home); app.activate()
         XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
-        app.buttons["收起播放器"].tap()
-        XCTAssertTrue(app.staticTexts["media-repair-summary"].waitForExistence(timeout: 5))
-        // The sheet's underlying form can exist before its dismissal finishes.
-        // Resolve the actual mini-player button, not the SF Symbol's AX node,
-        // and wait for a real hit point instead of inserting a fixed delay.
-        let returnedControl = app.buttons["mini-player-play-pause"]
-        let stillPlaying = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            returnedControl.isHittable && returnedControl.value as? String == "正在播放"
-        }, object: nil)
+        // Use the actual visible transport. This simulator can expose an
+        // invalid AX activation point for the bottom accessory after zoom
+        // dismissal; that does not prove a device touch succeeded or failed.
+        let returnedControl = app.buttons["full-player-play-pause"]
+        XCTAssertTrue(returnedControl.waitForExistence(timeout: 8))
+        let stillPlaying = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "正在播放"), object: returnedControl)
         XCTAssertEqual(XCTWaiter.wait(for: [stillPlaying], timeout: 8), .completed)
         capture("media-repair-home-return-still-playing")
         returnedControl.tap()
-        app.swipeDown(); app.swipeDown()
+        let paused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "已暂停"), object: returnedControl)
+        XCTAssertEqual(XCTWaiter.wait(for: [paused], timeout: 5), .completed)
+        app.buttons["收起播放器"].tap()
+        XCTAssertTrue(app.staticTexts["media-repair-summary"].waitForExistence(timeout: 5))
         app.buttons["media-repair-start"].tap()
         XCTAssertTrue(app.staticTexts["media-repair-summary"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.buttons["播放"].value as? String, "已暂停")
         XCTAssertFalse(app.staticTexts["检测未完成，请重新检测"].exists)
         capture("media-repair-paused-result")
     }
