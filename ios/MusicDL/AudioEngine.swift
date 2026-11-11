@@ -46,9 +46,8 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     private var notifications: [NSObjectProtocol] = []
     private var commands: [(MPRemoteCommand, Any)] = []
     private(set) var nowPlayingSession: MPNowPlayingSession?
-    private var lastNowPlayingMetadata: NSDictionary?
-    private weak var lastNowPlayingItem: AVPlayerItem?
-    private(set) var nowPlayingUpdateCount = 0
+    private(set) var itemMetadataUpdateCount = 0
+    private var sessionID = ""
     private var shuttingDown = false
     private let engineID = UUID().uuidString
     private var preparing = false
@@ -76,7 +75,10 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             Task { @MainActor in self?.currentItemChanged() }
         })
         observations.append(player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
-            Task { @MainActor in self?.publish() }
+            Task { @MainActor in
+                self?.publish()
+                self?.recordMediaEvent("player-time-control-changed")
+            }
         })
         observations.append(player.observe(\.rate, options: [.new]) { [weak self] _, _ in
             Task { @MainActor in self?.publish() }
@@ -117,7 +119,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         case "seek": seek(request.value ?? 0)
         case "rate":
             speed = Float(min(3, max(0.25, request.value ?? 1)))
-            if wantsPlayback && !interrupted { player.rate = speed }
+            if player.timeControlStatus == .playing { player.rate = speed }
             publish()
         case "volume": player.volume = Float(min(1, max(0, request.value ?? 1)))
         case "state": publish(includeQueue: true)
@@ -187,10 +189,21 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             } else if player.currentItem == nil && !preparing {
                 rebuild(keepingCurrent: false, position: savedPosition)
             }
-            player.playImmediately(atRate: speed)
-            watchRecovery()
+            startPreparedPlayback()
             publish()
+            recordMediaEvent("play-requested")
         } catch { fail("暂时无法恢复音频，请稍后点击播放重试。") }
+    }
+
+    private func startPreparedPlayback() {
+        // rate > 0 on an empty player is a future playback request, not audio
+        // playback. Keep the intent local until there is a real, ready item.
+        guard wantsPlayback, !interrupted, pendingSeek == nil,
+              player.currentItem?.status == .readyToPlay else { return }
+        if player.timeControlStatus != .playing || player.rate != speed {
+            player.playImmediately(atRate: speed)
+        }
+        watchRecovery()
     }
 
     func pause() {
@@ -205,11 +218,11 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
 
     func stop() {
         pause(); revision += 1; pipeline?.cancel(); preparing = false
+        nowPlayingSession?.automaticallyPublishesNowPlayingInfo = false
         player.removeAllItems(); itemIndices.removeAll(); itemSources.removeAll()
         songs = []; sequence = []; index = 0; savedPosition = 0; playbackError = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo = nil
-        lastNowPlayingMetadata = nil; lastNowPlayingItem = nil
         artworkTask?.cancel(); artwork = nil; artworkKey = ""
         let token = revision
         Task { await files.prune(keeping: [], generation: token) }
@@ -244,8 +257,10 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         player.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
             Task { @MainActor in
                 guard let self, token == self.seekRevision, item === self.player.currentItem else { return }
-                if finished { self.pendingSeek = nil }
-                self.publish(refreshTiming: finished)
+                self.pendingSeek = nil
+                self.startPreparedPlayback()
+                self.publish()
+                self.recordMediaEvent(finished ? "seek-completed" : "seek-cancelled")
             }
         }
     }
@@ -326,15 +341,16 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
                     let item = AVPlayerItem(url: prepared.url)
                     self.itemIndices[ObjectIdentifier(item)] = next
                     self.itemSources[ObjectIdentifier(item)] = prepared.source
+                    self.updateItemMetadata(item, at: next)
                     guard self.player.canInsert(item, after: self.player.items().last) else {
                         throw NativeError.message("无法加入原生播放队列")
                     }
                     self.player.insert(item, after: self.player.items().last)
-                    if first && position > 0 { self.seek(position) }
-                    if self.wantsPlayback && !self.interrupted {
-                        self.player.playImmediately(atRate: self.speed)
-                        self.watchRecovery()
+                    if self.nowPlayingSession?.automaticallyPublishesNowPlayingInfo == false {
+                        self.nowPlayingSession?.automaticallyPublishesNowPlayingInfo = true
                     }
+                    if first && position > 0 { self.seek(position) }
+                    self.startPreparedPlayback()
                     self.message = prepared.source == song.source
                         ? "原生音频已缓存 · 队列就绪 \(self.player.items().count) 首"
                         : "已自动换源：\(song.source) → \(prepared.source) · 已缓存"
@@ -357,6 +373,9 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         itemObservation = nil
         guard let item = player.currentItem, let selected = itemIndices[ObjectIdentifier(item)] else { publish(); return }
         index = selected
+        if let pending = pendingSeek, pending.item !== item {
+            pendingSeek = nil; seekRevision += 1
+        }
         if pendingSeek == nil { savedPosition = 0 }
         loadArtwork()
         let activeIDs = Set(player.items().map(ObjectIdentifier.init))
@@ -366,7 +385,12 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             Task { @MainActor in
                 guard let self, item === self.player.currentItem else { return }
                 if item.status == .failed { self.itemFailed(item) }
-                else if item.status == .readyToPlay { self.applyPendingSeek(for: item) }
+                else if item.status == .readyToPlay {
+                    self.applyPendingSeek(for: item)
+                    self.startPreparedPlayback()
+                    self.publish()
+                    self.recordMediaEvent("player-item-ready")
+                }
             }
         }
         // A native preloaded queue bridges track boundaries even while WKWebView sleeps.
@@ -375,6 +399,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             sequence.append(next); fill()
         }
         publish()
+        recordMediaEvent("player-item-changed")
     }
 
     private func itemFailed(_ item: AVPlayerItem) {
@@ -404,6 +429,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             recoveryWatchdog?.cancel(); recoveryWatchdog = nil
             resumeAfterInterruption = wantsPlayback
             interrupted = true; player.pause(); publish()
+            recordMediaEvent("interruption-began")
         } else {
             interrupted = false
             let raw = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
@@ -411,6 +437,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             let resume = resumeAfterInterruption && wantsPlayback && shouldResume
             resumeAfterInterruption = false
             if resume { play() } else { pause() }
+            recordMediaEvent("interruption-ended")
         }
     }
 
@@ -500,11 +527,12 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         // A single session is selected by the system as the default session.
         // Explicit promotion is for choosing among multiple app sessions, not
         // for requesting Dynamic Island presentation when playback starts.
-        // Keep the existing player-derived metadata path as the sole author.
-        // Do not combine automatic publishing with manual global-center writes.
-        session.automaticallyPublishesNowPlayingInfo = false
+        // The system derives duration, elapsed time and rate from the actual
+        // player. Titles/artwork belong to each item, including preloaded ones.
+        session.automaticallyPublishesNowPlayingInfo = true
         session.delegate = self
         nowPlayingSession = session
+        sessionID = UUID().uuidString
         configureRemoteCommands(session.remoteCommandCenter)
         recordMediaEvent("session-created")
     }
@@ -514,30 +542,42 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         commands.removeAll()
         guard let session = nowPlayingSession else { return }
         session.delegate = nil
+        session.automaticallyPublishesNowPlayingInfo = false
         session.nowPlayingInfoCenter.nowPlayingInfo = nil
-        lastNowPlayingMetadata = nil; lastNowPlayingItem = nil
         // This entire session is being retired, not edited in place. Let its
         // lifetime own its KVO teardown. Removing every player first caused a
         // reproducible duplicate currentItem-observer removal on iOS 26.5.
         nowPlayingSession = nil
     }
 
-    func recordMediaEvent(_ event: String) {
+    func recordMediaEvent(_ event: String, command: String? = nil) {
         let session = AVAudioSession.sharedInstance()
-        MediaSessionDiagnostics.record(event, fields: [
+        var fields = [
             "engine": engineID,
+            "session": sessionID,
             "session_active": String(nowPlayingSession?.isActive ?? false),
             "can_become_active": String(nowPlayingSession?.canBecomeActive ?? false),
             "session_players": String(nowPlayingSession?.players.count ?? 0),
             "registered_commands": String(commands.count),
-            "metadata_updates": String(nowPlayingUpdateCount),
+            "enabled_commands": String(commands.filter { $0.0.isEnabled }.count),
+            "metadata_mode": "player-auto",
+            "item_metadata_updates": String(itemMetadataUpdateCount),
+            "item_present": String(player.currentItem != nil),
+            "item_status": String(player.currentItem?.status.rawValue ?? -1),
+            "time_control_status": String(player.timeControlStatus.rawValue),
+            "elapsed": String(player.currentTime().seconds),
+            "wants_playback": String(wantsPlayback),
+            "item_metadata_present": String(player.currentItem?.nowPlayingInfo != nil),
             "queue_count": String(songs.count),
             "state": playbackState.rawValue,
             "rate": String(player.rate),
             "category": session.category.rawValue,
             "mixing": String(session.categoryOptions.contains(.mixWithOthers)),
-            "app_state": String(UIApplication.shared.applicationState.rawValue)
-        ])
+            "app_state": String(UIApplication.shared.applicationState.rawValue),
+            "scene_states": UIApplication.shared.connectedScenes.map { String($0.activationState.rawValue) }.sorted().joined(separator: ",")
+        ]
+        if let command { fields["command"] = command }
+        MediaSessionDiagnostics.record(event, fields: fields)
     }
 
     nonisolated func nowPlayingSessionDidChangeActive(_ session: MPNowPlayingSession) {
@@ -555,36 +595,60 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     }
 
     private func configureRemoteCommands(_ center: MPRemoteCommandCenter) {
-        func bind(_ command: MPRemoteCommand, _ action: @escaping @MainActor () -> Void) {
+        func bind(_ command: MPRemoteCommand, name: String, _ action: @escaping @MainActor () -> Void) {
             command.isEnabled = false
             let token = command.addTarget { [weak self] _ in
                 guard self != nil else { return .commandFailed }
                 Task { @MainActor [weak self] in
-                    guard let self, self.currentSong != nil, !self.shuttingDown else { return }
-                    self.recordMediaEvent("remote-command")
+                    guard let self, self.player.currentItem != nil, !self.shuttingDown else { return }
+                    self.recordMediaEvent("remote-command", command: name)
                     action()
                 }
                 return .success
             }
             commands.append((command, token))
         }
-        bind(center.playCommand) { [weak self] in self?.play() }
-        bind(center.pauseCommand) { [weak self] in self?.pause() }
-        bind(center.togglePlayPauseCommand) { [weak self] in
+        bind(center.playCommand, name: "play") { [weak self] in self?.play() }
+        bind(center.pauseCommand, name: "pause") { [weak self] in self?.pause() }
+        bind(center.togglePlayPauseCommand, name: "toggle") { [weak self] in
             guard let self else { return }; self.wantsPlayback ? self.pause() : self.play()
         }
-        bind(center.nextTrackCommand) { [weak self] in self?.skip(1) }
-        bind(center.previousTrackCommand) { [weak self] in self?.skip(-1) }
+        bind(center.nextTrackCommand, name: "next") { [weak self] in self?.skip(1) }
+        bind(center.previousTrackCommand, name: "previous") { [weak self] in self?.skip(-1) }
         let token = center.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
-            Task { @MainActor in self?.seek(event.positionTime) }
+            Task { @MainActor in
+                self?.recordMediaEvent("remote-command", command: "seek")
+                self?.seek(event.positionTime)
+            }
             return .success
         }
         center.changePlaybackPositionCommand.isEnabled = false
         commands.append((center.changePlaybackPositionCommand, token))
     }
 
-    func publish(includeQueue: Bool = false, refreshTiming: Bool = false) {
+    private func updateItemMetadata(_ item: AVPlayerItem, at selected: Int) {
+        guard songs.indices.contains(selected) else { return }
+        let song = songs[selected]
+        var information: [String: Any] = [
+            MPMediaItemPropertyTitle: song.name, MPMediaItemPropertyArtist: song.artist,
+            MPMediaItemPropertyAlbumTitle: song.album,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: speed,
+            MPNowPlayingInfoPropertyPlaybackQueueIndex: selected,
+            MPNowPlayingInfoPropertyPlaybackQueueCount: songs.count,
+            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
+            MPNowPlayingInfoPropertyIsLiveStream: false,
+            MPNowPlayingInfoPropertyExternalContentIdentifier: song.source + ":" + song.id
+        ]
+        if item === player.currentItem, artworkKey == song.key, let artwork {
+            information[MPMediaItemPropertyArtwork] = artwork
+        }
+        guard item.nowPlayingInfo.map({ $0 as NSDictionary })?.isEqual(information as NSDictionary) != true else { return }
+        item.nowPlayingInfo = information
+        itemMetadataUpdateCount += 1
+    }
+
+    func publish(includeQueue: Bool = false) {
         guard !shuttingDown else { return }
         // KVO callbacks hop to MainActor. A rate/timer callback can arrive before
         // currentItemChanged, so read track identity from the same player item
@@ -608,35 +672,10 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         else if player.currentItem == nil && preparing { playbackState = .preparing }
         else if wantsPlayback { playbackState = .buffering }
         else { playbackState = player.currentItem?.status == .readyToPlay ? .paused : .ready }
-        if songs.indices.contains(index) {
-            let song = songs[index]
-            var information: [String: Any] = [
-                MPMediaItemPropertyTitle: song.name, MPMediaItemPropertyArtist: song.artist,
-                MPMediaItemPropertyAlbumTitle: song.album, MPMediaItemPropertyPlaybackDuration: length,
-                MPNowPlayingInfoPropertyElapsedPlaybackTime: position,
-                MPNowPlayingInfoPropertyPlaybackRate: playing ? player.rate : Float(0),
-                MPNowPlayingInfoPropertyDefaultPlaybackRate: speed,
-                MPNowPlayingInfoPropertyPlaybackQueueIndex: index,
-                MPNowPlayingInfoPropertyPlaybackQueueCount: songs.count
-            ]
-            information[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
-            information[MPNowPlayingInfoPropertyIsLiveStream] = false
-            information[MPNowPlayingInfoPropertyExternalContentIdentifier] = song.source + ":" + song.id
-            if let artwork { information[MPMediaItemPropertyArtwork] = artwork }
-            // iOS extrapolates elapsed time using the published rate. Keep UI
-            // ticks local; publish immediately for track/artwork/state changes
-            // and completed seeks, without clearing info on scene transitions.
-            var metadata = information
-            metadata.removeValue(forKey: MPNowPlayingInfoPropertyElapsedPlaybackTime)
-            let snapshot = metadata as NSDictionary
-            if refreshTiming || lastNowPlayingMetadata?.isEqual(snapshot) != true || lastNowPlayingItem !== player.currentItem {
-                nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo = information
-                lastNowPlayingMetadata = snapshot
-                lastNowPlayingItem = player.currentItem
-                nowPlayingUpdateCount += 1
-            }
+        for item in player.items() {
+            if let selected = itemIndices[ObjectIdentifier(item)] { updateItemMetadata(item, at: selected) }
         }
-        for (command, _) in commands { command.isEnabled = currentSong != nil }
+        for (command, _) in commands { command.isEnabled = player.currentItem != nil }
         var state: [String: Any] = ["index": index, "position": position, "duration": length,
                          "playing": playing, "waiting": wantsPlayback && !playing && !interrupted,
                          "rate": speed, "message": message, "readyCount": player.items().count,

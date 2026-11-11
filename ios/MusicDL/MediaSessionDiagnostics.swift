@@ -7,11 +7,21 @@ import OSLog
 enum MediaSessionDiagnostics {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MusicDL", category: "media-session")
     private static let writer = DispatchQueue(label: "musicdl.media-diagnostics", qos: .utility)
+    private static let sequenceLock = NSLock()
+    private static var sequence: UInt64 = 0
 
     static func record(_ event: String, fields: [String: String] = [:]) {
         var entry = fields
+        sequenceLock.lock()
+        sequence += 1
+        entry["sequence"] = String(sequence)
+        sequenceLock.unlock()
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        entry["schema"] = "2"
         entry["event"] = event
-        entry["at"] = ISO8601DateFormatter().string(from: Date())
+        entry["at"] = formatter.string(from: Date())
+        entry["uptime_ms"] = String(Int(ProcessInfo.processInfo.systemUptime * 1000))
         entry["bundle"] = Bundle.main.bundleIdentifier ?? "unknown"
         entry["build"] = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
         entry["os"] = ProcessInfo.processInfo.operatingSystemVersionString

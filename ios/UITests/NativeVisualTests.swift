@@ -142,20 +142,23 @@ final class NativeVisualTests: XCTestCase {
         let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
         XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
         XCTAssertTrue(app.buttons["暂停"].waitForExistence(timeout: 8))
+        let playing = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "正在播放"), object: app.buttons["暂停"])
+        XCTAssertEqual(XCTWaiter.wait(for: [playing], timeout: 8), .completed)
         // Preserve both states for comparison even if system accessibility is
         // unavailable. A passing in-app playback test cannot prove the visual
         // foreground-to-Home handoff requested by the user.
         capture("system-media-playing-inside-app-before-home")
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let systemShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        systemShot.name = "system-media-home-probe"; systemShot.lifetime = .keepAlways; add(systemShot)
         // Use a real system accessibility target. Never equate app.activate()
         // or a guessed coordinate with a successful Dynamic Island tap.
         // Match track content, not the app name: a Home Screen app icon is
         // not evidence of a system media-island interaction.
         let media = springboard.buttons.matching(NSPredicate(format: "label CONTAINS %@", "第一缕晨光")).firstMatch
-        guard media.waitForExistence(timeout: 8) else {
+        let exposed = media.waitForExistence(timeout: 8)
+        let systemShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        systemShot.name = "system-media-home-probe"; systemShot.lifetime = .keepAlways; add(systemShot)
+        guard exposed else {
             throw XCTSkip("Simulator does not expose an identifiable system media island; iPhone tap/long-press remains unverified.")
         }
         media.tap()
@@ -172,6 +175,8 @@ final class NativeVisualTests: XCTestCase {
         let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
         XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
         XCTAssertTrue(app.buttons["暂停"].waitForExistence(timeout: 8))
+        let playing = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "正在播放"), object: app.buttons["暂停"])
+        XCTAssertEqual(XCTWaiter.wait(for: [playing], timeout: 8), .completed)
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let media = springboard.buttons.matching(NSPredicate(format: "label CONTAINS %@", "第一缕晨光")).firstMatch

@@ -47,6 +47,7 @@ struct NativeRoot: View {
         }
         .background(MusicDesign.canvas(scheme))
         .onChange(of: phase) { _, value in
+            if value == .inactive { audio.recordMediaEvent("scene-inactive") }
             if value == .background { model.sceneEnteredBackground() }
             if value == .active {
                 model.sceneBecameActive()
