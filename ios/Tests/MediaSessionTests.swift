@@ -111,7 +111,7 @@ final class MediaSessionTests: XCTestCase {
         try await waitFor("real prepared item did not start") { engine.isPlaying }
         XCTAssertEqual(engine.player.currentItem?.status, .readyToPlay)
         XCTAssertEqual(engine.player.rate, 1.5)
-        XCTAssertGreaterThan(engine.audioActivationCount, 0)
+        XCTAssertEqual(engine.audioActivationCount, 1)
         XCTAssertTrue(engine.nowPlayingSession === session)
         try await waitFor("real item title did not publish") {
             session.nowPlayingInfoCenter.nowPlayingInfo?[MPMediaItemPropertyTitle] as? String == self.song.name

@@ -199,7 +199,9 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         // playback. Keep the intent local until there is a real, ready item.
         guard wantsPlayback, !interrupted, pendingSeek == nil,
               player.currentItem?.status == .readyToPlay else { return }
-        if player.timeControlStatus != .playing || player.rate != speed {
+        // A positive requested rate may briefly be waiting for output. Do not
+        // reactivate audio for each preloaded item during that same request.
+        if player.rate != speed {
             do {
                 try activate()
                 player.playImmediately(atRate: speed)
