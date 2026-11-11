@@ -242,7 +242,10 @@ final class NativeVisualTests: XCTestCase {
                 XCTAssertTrue(card.isHittable, "Theme card inaccessible: \(color) / \(mode)")
                 card.tap()
                 XCTAssertEqual(card.value as? String, "已选中")
-                XCTAssertGreaterThanOrEqual(card.frame.width, 44)
+                // Accessibility's transformed CGRect can return 43.9999847
+                // for a 44pt circle. Tolerate < 1/300 of a physical pixel.
+                XCTAssertGreaterThanOrEqual(card.frame.width, 44 - 0.001)
+                XCTAssertGreaterThanOrEqual(card.frame.height, 44 - 0.001)
                 XCTAssertLessThanOrEqual(card.frame.maxX, app.frame.maxX)
             }
             capture("appearance-eight-colors-" + mode)
