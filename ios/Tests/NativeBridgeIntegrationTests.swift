@@ -49,12 +49,15 @@ final class NativeBridgeIntegrationTests: XCTestCase {
         defer { connection.stop(); engine.shutdown() }
         connection.start()
         var connected = false
-        for _ in 0..<30 {
+        // Wait for actual readiness through the client's finite reconnect
+        // window. A cold simulator's first URLSession startup can exceed 3s.
+        for _ in 0..<100 {
             let state = try await client.request("ai.state")
             if state["connected_clients"].numberValue > 0 { connected = true; break }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
         XCTAssertTrue(connected, "Native AI SSE client did not connect")
+        guard connected else { return } // Do not obscure this with a second 409.
         _ = try await client.request("ai.command", params: ["action": .string("volume"), "volume": .number(0.25)])
         for _ in 0..<30 {
             if abs(engine.player.volume - 0.25) < 0.01 { break }
