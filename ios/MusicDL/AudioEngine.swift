@@ -49,6 +49,8 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     private let ownedSessions = NSHashTable<MPNowPlayingSession>.weakObjects()
     private var recentMetadataWrites: [TimeInterval] = []
     private var activationEvidence = "尚无本 App 的音频激活记录"
+    private var audioSessionFailure: NSError?
+    private var audioSessionFailureOperation = ""
     @Published private(set) var isRepairingMedia = false
     @Published private(set) var mediaRepairReport: MediaRepairReport?
     var registeredRemoteCommandCount: Int { commands.count }
@@ -141,11 +143,20 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
 
     private func activate() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default, policy: .longFormAudio)
-        try session.setActive(true)
-        audioActivationCount += 1
-        activationEvidence = "上次激活调用成功；不是实时激活状态查询"
-        recordMediaEvent("audio-activated")
+        do {
+            try session.setCategory(.playback, mode: .default, policy: .longFormAudio)
+            try session.setActive(true)
+            audioSessionFailure = nil
+            audioActivationCount += 1
+            activationEvidence = "上次激活调用成功；不是实时激活状态查询"
+            recordMediaEvent("audio-activated")
+        } catch {
+            audioSessionFailure = error as NSError
+            audioSessionFailureOperation = "音频配置或激活"
+            activationEvidence = "最近的音频配置或激活调用失败"
+            recordMediaEvent("audio-activation-failed", extra: ["error_code": String((error as NSError).code)])
+            throw error
+        }
     }
 
     func playSongs(_ items: [Song], at selected: Int = 0) {
@@ -268,8 +279,13 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         songs = []; sequence = []; index = 0; savedPosition = 0; playbackError = nil
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            audioSessionFailure = nil
             activationEvidence = "上次停用调用成功"
-        } catch { activationEvidence = "停用调用失败：\((error as NSError).code)" }
+        } catch {
+            audioSessionFailure = error as NSError
+            audioSessionFailureOperation = "音频停用"
+            activationEvidence = "最近的音频停用调用失败"
+        }
         nowPlayingSession?.nowPlayingInfoCenter.nowPlayingInfo = nil
         artworkTask?.cancel(); artwork = nil; artworkKey = ""
         let token = revision
@@ -502,6 +518,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     private func resetMediaServices() {
         rememberPosition()
         activationEvidence = "媒体服务已重置，原激活记录不再代表当前状态"
+        audioSessionFailure = nil
         interrupted = false; resumeAfterInterruption = false
         recreatePlayer()
         if wantsPlayback { play() }
@@ -803,21 +820,24 @@ extension AudioEngine {
         let configured = audioSession.category == .playback && audioSession.mode == .default
             && audioSession.routeSharingPolicy == .longFormAudio
             && !audioSession.categoryOptions.contains(.mixWithOthers)
-        let notConfiguredYet = audioActivationCount == 0 && player.rate == 0
+        let notConfiguredYet = audioActivationCount == 0 && player.rate == 0 && audioSessionFailure == nil
         if !configured && !notConfiguredYet {
             report.findings.append("音频配置偏离本 App 的后台媒体播放配置。为避免切换音频线路或中断歌曲，本次保留现状；下次手动播放会应用正常配置。")
         }
         check("audio-session", "音频配置与激活记录",
               notConfiguredYet ? "尚未开始实际音频播放，按原流程在就绪时配置与激活。" :
                 "\(configured ? "后台媒体播放配置符合预期" : "配置偏离预期，未强行改动")；\(activationEvidence)。输出线路数：\(audioSession.currentRoute.outputs.count)。",
-              configured || notConfiguredYet ? .normal : .attention)
+              (configured || notConfiguredYet) && audioSessionFailure == nil ? .normal : .attention)
+        if let failure = audioSessionFailure {
+            report.errors.append("最近的\(audioSessionFailureOperation)调用失败：\(failure.localizedDescription)（\(failure.domain)，\(failure.code)）。本次没有强行激活或停用，请通过正常播放入口重试后重新检测。")
+        }
         if interrupted { report.findings.append("当前处于系统音频中断；没有自动抢占音频或恢复播放。") }
-        let engineFailed = player.status == .failed || player.currentItem?.status == .failed
+        let engineFailed = player.status == .failed || player.currentItem?.status == .failed || playbackError != nil
         check("engine", "播放引擎与音频中断",
               "播放器：\(engineFailed ? "错误" : player.currentItem == nil ? "暂无播放项" : player.currentItem?.status == .readyToPlay ? "媒体就绪" : "媒体准备中")；\(interrupted ? "中断中" : "未记录到进行中的中断")。",
               interrupted || engineFailed ? .attention : .normal)
         if engineFailed {
-            let detail = player.currentItem?.error?.localizedDescription ?? player.error?.localizedDescription ?? "系统未提供错误详情"
+            let detail = player.currentItem?.error?.localizedDescription ?? player.error?.localizedDescription ?? playbackError ?? "系统未提供错误详情"
             report.errors.append("播放引擎报告错误：\(detail)。本次没有替换播放器，请使用播放器的重试入口。")
             let nativeError = (player.currentItem?.error ?? player.error) as NSError?
             recordMediaEvent("repair-engine-error", extra: ["error_code": String(nativeError?.code ?? -1)])
