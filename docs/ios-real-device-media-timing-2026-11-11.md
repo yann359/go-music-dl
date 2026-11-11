@@ -27,7 +27,7 @@
 
 Build28的play在没有currentItem时直接调用playImmediately(atRate:)，因此AVPlayer.rate可以为1但没有可播放的项；publish又仅凭songs[index]发布曲目和封面，并按currentSong启用远程命令。源码的preparing分支为`currentItem == nil && preparing`，与上述日志窗口相容；但旧日志state是上次publish的缓存，因此本轮补了实际item/timeControl字段，而不把缓存状态当成独立的AVPlayer状态快照。
 
-这是一处可复现的**准备队列过早成为系统媒体信息来源**的时序缺陷。它解释了为何加载期间就能发布歌曲信息；**它尚不能独立证明用户描述的“真正播放后前台始终有小岛”及Home视觉过渡的全部根因**。同机Apple Music对照由用户确认，仍作为最终真机验收标准。
+这是一处可复现的**准备队列过早成为系统媒体信息来源**的时序缺陷。它解释了为何加载期间就能发布歌曲信息；**它尚不能独立证明前台小岛可见性及Home视觉过渡的全部根因**。同机Apple Music对照由用户确认，仍作为最终真机验收标准。
 
 ## 原生机制与实现
 
@@ -47,6 +47,31 @@ Build28的play在没有currentItem时直接调用playImmediately(atRate:)，因�
 
 新增受控资源准备门闩的两项回归：准备期间没有currentItem/正速率/歌曲元数据/远程命令；资源就绪后正确启动；准备中暂停不在就绪后自动播放。既有播放/暂停/原生seek、同曲循环、预加载切歌、前后台返回、stop后重新使用会话及媒体服务重置回归全部保留，并改为验证原生自动发布的输出。
 
-本地Node6/6、diff检查通过。准备中的Build30–32被本轮补齐的激活/后台准备修订取代，取消而未交付；最终修订需独立验证。Windows没有iOS SDK，设备/模拟器编译和原生XCTest将使用现有macOS流程，结果待补。旧Build29与Build28保留；没有操作手机安装、重签或卸载。
+本地Node6/6、diff检查通过。准备中的Build30–33被本轮修订取代，取消而未交付；Build34在设备编译阶段因新增诊断字典类型推断超时失败，没有执行原生测试或交付IPA。补明确的[String: String]类型后重新构建，最终代码91983c00fd6096e4ed5ba111bb897696d62628ed的[Build35](https://github.com/yann359/go-music-dl/actions/runs/42945824242)全部成功。
+
+| 验证 | Build35实际结果 |
+|---|---|
+| Go / Node | 四包通过 / 6项通过 |
+| iPhoneOS Release / 模拟器编译 | 通过；Xcode26.6、SDK26.5 |
+| Swift XCTest | 67/67，包括66项单元/受控测试及1项真实C ABI网络集成；媒体会话8项全通过 |
+| 原生UI | 7通过、2跳过、0失败；两项真实启动/搜索/后台流程及5项fixture回归通过 |
+| 灵动岛轻点 / 长按 | 模拟器不暴露可识别曲目媒体岛，明确跳过，未算通过 |
+| 用户iPhone / iOS27.3 | 尚未安装新包；显隐、Home过渡、锁屏/控制中心及重签身份待真机验收 |
+
+媒体回归实际验证系统自动生成时长/正速率/暂停零速率/暂停seek、同曲循环归零、预加载切歌、stop后重用同一会话和重置退休旧会话。新增受控准备回归还验证：未就绪时音频激活计数为0；就绪后按1.5倍速启动且只激活一次；准备中暂停则不抢播并释放有限后台任务。后台任务系统到期路径未在用户设备端到端触发，不声称后台准备可无限持续。
+
+本轮模拟器为iPhone17 Pro Max/iOS26.5，并非用户iOS27.3真机。已从完整测试报告提取并查看`foreground.png`和`home.png`：前者为实际播放后的App内画面，后者为目标探测等待后的稳定桌面；两图均未见媒体岛。不能从缺少目标的模拟器推断真机前台显隐正常，或用这两张静态图证明动画流畅。[原始测试报告](https://github.com/yann359/go-music-dl/actions/runs/42945824242/artifacts/13824235276)共106,722,152字节，下载SHA256与服务器digest一致：`bf5a2ee157e258308f6ab8ba0732652b3d2148a4a3a0d8b462cd06b30275aa3c`。构建日志保留在外层`outputs/island-real-build35.log`。
+
+## 新IPA与追溯
+
+[Build35 IPA、匹配源码、许可证及核验文件](https://github.com/yann359/go-music-dl/actions/runs/42945824242/artifacts/13823144437)。本地文件`../outputs/ios-release-build/build35/music-dl-ios-native-unsigned.ipa`，14,354,553字节，SHA256 `41de973b2ca4c08ea2eef0c45fade4d067df82cb27fa58011591d75717f0ec8d`。原Bundle ID `com.guohuiyuan.musicdl.nativedesign`、MusicDL、1.0.0/Build35、arm64 iPhoneOS/iOS18+、后台audio、未签名/未加密。交由SideStore沿用原签名身份覆盖安装；没有操作手机安装、重签或卸载，旧Build29与Build28保留。
+
+IPA附带hash、内外ZIP CRC、服务器artifact digest、六份修改Swift对应源码、CI与本地verify-ipa输出均一致。IPA artifact外层ZIP SHA256为`63f3ec59298753025fd4bbe27f015527ff52b4da8a44c15593ebd8e7894de8f8`，云端有效期至北京时间2026-12-11 10:44，本地副本保留。脱敏核验见[结构化交付记录](verification/real-device-media-build35-delivery.json)。
+
+若需撤销本轮代码，按新到旧执行`git revert 91983c0 a87917a 551728f f47b0a8 7b82837 7b87921`；这不影响外层旧包或用户手机。最终文档提交另行记录，未修改被测试的Swift代码。
+
+## 真机验收与系统边界
 
 最终仍需新包在原iPhone上验证：加载中→真实播放中→上滑Home→重新进入App，及锁屏/控制中心/轻点/长按/切歌/暂停。不得用模拟器的不可定位skip或静态截图代替真机过渡验收。
+
+App负责真实媒体状态和稳定的单一会话，iOS负责媒体岛的呈现、Home过渡、轻点激活及长按系统面板。公开媒体API没有可强制隐藏前台媒体岛或控制Home手势中岛动画的开关。本轮没有利用清空信息、延迟发布或私有API强求动画；这也不意味着原Build28相对同机Apple Music的异常已被证明为系统统一行为。现阶段能交付的是有真机日志依据、通过原生回归的时序修复及Build35验证包，核心视觉目标继续以用户同机对照为准。
