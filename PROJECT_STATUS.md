@@ -3,7 +3,7 @@
 - 已实际读取用户的真机media-session.jsonl：20,818字节、45条有效记录，Build28/iOS27.3；北京时间07:56:25–08:25:56。[完整分析与证据边界](docs/ios-real-device-media-timing-2026-11-11.md)。原始用户日志不入库。
 - 一引擎/一会话，仅启动时自动active，无主动认领、反复激活或重建。正常播放多次前后台时metadata_updates稳定5；远程暂停确实进入App。故Build29删除主动提升不是这份日志中现象的已证实根因，不能继续归咎于重复创建/闪写。
 - 确认源码时序缺陷：资源准备尚无currentItem，play已设置rate1，publish却从请求队列发布歌曲/封面并启用命令。真机两段preparing窗口与之相容。旧state是publish缓存，日志未记录原生item/status，因此不把rate1或缓存preparing当作实际发声/屏幕可见性的证明。
-- 修复：唯一MPNowPlayingSession使用官方自动发布，静态信息绑定真实AVPlayerItem，系统从player维护动态时间/播放状态；真实item ready后才激活音频会话并发起原生播放，准备期间暂停不自动抢播。没有前后台条件隐藏、固定延时、清信息假动画或私有API，没有改动画。
+- 修复：唯一MPNowPlayingSession使用官方自动发布，静态信息绑定真实AVPlayerItem，系统从player维护动态时间/播放状态；真实item ready后才激活音频会话并发起原生播放，准备期间暂停不自动抢播；有限后台任务覆盖准备阶段，开始播放/暂停/中断时释放，系统到期取消并提示重试，不靠静音或空player保活。没有前后台条件隐藏、固定延时、清信息假动画或私有API，没有改动画。
 - schema2诊断加入毫秒/单调时间、事件序号、item/timeControlStatus、会话标识、实际命令与inactive/中断事件；仍有界且无歌名/地址/凭证。MiniPlayer仅补无障碍播放状态，UI探测等待真实playing后截图；搜索/下载/来源/数据库和签名不动。
 - 分支codex/real-device-media-timing，基线36d6a43；新增两项准备门闩回归，保留原有媒体/业务回归并验证自动发布；本地Node6/6和diff检查通过，macOS编译/XCTest待执行。旧IPA保留，本轮不使用REA。
 - 用户要求的“前台真实播放不显示歌曲小岛→Home自然承接”仍需新包真机验证；这份日志不包含岛可见性、手势动画或签后entitlements，不能认定已定位全部视觉根因，也不能未经证据归因SideStore。新包及实际测试结果将在本节补录。

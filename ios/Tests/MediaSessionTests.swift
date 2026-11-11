@@ -112,6 +112,7 @@ final class MediaSessionTests: XCTestCase {
         XCTAssertEqual(engine.player.currentItem?.status, .readyToPlay)
         XCTAssertEqual(engine.player.rate, 1.5)
         XCTAssertEqual(engine.audioActivationCount, 1)
+        XCTAssertFalse(engine.hasPreparationBackgroundTask)
         XCTAssertTrue(engine.nowPlayingSession === session)
         try await waitFor("real item title did not publish") {
             session.nowPlayingInfoCenter.nowPlayingInfo?[MPMediaItemPropertyTitle] as? String == self.song.name
@@ -123,6 +124,7 @@ final class MediaSessionTests: XCTestCase {
         let engine = try engine(gate: gate); defer { engine.shutdown() }
         engine.playSongs([song])
         engine.pause()
+        XCTAssertFalse(engine.hasPreparationBackgroundTask)
         await gate.open()
         try await waitFor("paused item failed to prepare") { engine.player.currentItem?.status == .readyToPlay }
         try await Task.sleep(nanoseconds: 100_000_000)

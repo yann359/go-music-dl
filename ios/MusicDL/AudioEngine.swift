@@ -52,6 +52,9 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
     private var shuttingDown = false
     private let engineID = UUID().uuidString
     private var preparing = false
+    private var preparationTask: UIBackgroundTaskIdentifier = .invalid
+    private var preparationTaskGeneration = 0
+    var hasPreparationBackgroundTask: Bool { preparationTask != .invalid }
     private var artwork: MPMediaItemArtwork?
     private var artworkKey = ""
     private var artworkTask: Task<Void, Never>?
@@ -189,6 +192,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         } else if player.currentItem == nil && !preparing {
             rebuild(keepingCurrent: false, position: savedPosition)
         }
+        beginPreparationBackgroundTask()
         startPreparedPlayback()
         publish()
         recordMediaEvent("play-requested")
@@ -208,9 +212,35 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             } catch { fail("暂时无法恢复音频，请稍后点击播放重试。"); return }
         }
         watchRecovery()
+        endPreparationBackgroundTask()
+    }
+
+    private func beginPreparationBackgroundTask() {
+        guard wantsPlayback, !interrupted, player.currentItem?.status != .readyToPlay,
+              preparationTask == .invalid else { return }
+        preparationTaskGeneration += 1
+        let token = preparationTaskGeneration
+        preparationTask = UIApplication.shared.beginBackgroundTask(withName: "Prepare native playback") { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, self.preparationTaskGeneration == token, self.preparationTask != .invalid else { return }
+                self.endPreparationBackgroundTask()
+                self.revision += 1; self.pipeline?.cancel(); self.preparing = false; self.sequence.removeAll()
+                self.fail("后台音频准备超时，请返回 App 后点击播放重试。")
+                self.recordMediaEvent("background-preparation-expired")
+            }
+        }
+        recordMediaEvent("background-preparation-began")
+    }
+
+    private func endPreparationBackgroundTask() {
+        guard preparationTask != .invalid else { return }
+        let task = preparationTask; preparationTask = .invalid
+        UIApplication.shared.endBackgroundTask(task)
+        recordMediaEvent("background-preparation-ended")
     }
 
     func pause() {
+        endPreparationBackgroundTask()
         rememberPosition()
         recoveryWatchdog?.cancel(); recoveryWatchdog = nil; recoveryAttempts = 0
         wantsPlayback = false
@@ -308,6 +338,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             guard !songs.isEmpty, let next = nextIndex(after: cursor) else { break }
             sequence.append(next); cursor = next
         }
+        beginPreparationBackgroundTask()
         fill(position: position, forceFallback: forceFallback)
     }
 
@@ -429,6 +460,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
         if type == .began {
+            endPreparationBackgroundTask()
             rememberPosition()
             recoveryWatchdog?.cancel(); recoveryWatchdog = nil
             resumeAfterInterruption = wantsPlayback
@@ -572,6 +604,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             "time_control_status": String(player.timeControlStatus.rawValue),
             "elapsed": String(player.currentTime().seconds),
             "wants_playback": String(wantsPlayback),
+            "background_preparation": String(hasPreparationBackgroundTask),
             "item_metadata_present": String(player.currentItem?.nowPlayingInfo != nil),
             "queue_count": String(songs.count),
             "state": playbackState.rawValue,
