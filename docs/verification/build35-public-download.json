@@ -1,0 +1,64 @@
+{
+  "tag": "ios-build35",
+  "release_id": 441307651,
+  "release_url": "https://github.com/yann359/go-music-dl/releases/tag/ios-build35",
+  "code_commit": "91983c00fd6096e4ed5ba111bb897696d62628ed",
+  "download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build35/MusicDL-Build35.ipa",
+  "ipa_sha256": "41de973b2ca4c08ea2eef0c45fade4d067df82cb27fa58011591d75717f0ec8d",
+  "size_bytes": 14354553,
+  "signed": false,
+  "prerelease": true,
+  "assets": [
+    {
+      "id": 734401692,
+      "name": "LICENSE.txt",
+      "size": 34522,
+      "digest": "sha256:20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build35/LICENSE.txt"
+    },
+    {
+      "id": 734401635,
+      "name": "MusicDL-Build35-source.txt",
+      "size": 41,
+      "digest": "sha256:333000790fa45801ccd12e4e0fcaf9ddab4d79711b5edf27380f2a052a58362e",
+      "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build35/MusicDL-Build35-source.txt"
+    },
+    {
+      "id": 734401462,
+      "name": "MusicDL-Build35-source.zip",
+      "size": 4688135,
+      "digest": "sha256:9229a5343f598bb1127bb4a29fe31f0cadffa6fff4c5841725126aabf91c7790",
+      "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build35/MusicDL-Build35-source.zip"
+    },
+    {
+      "id": 734401816,
+      "name": "MusicDL-Build35-verification.json",
+      "size": 2831,
+      "digest": "sha256:a059d8b404df5c7da7e85d167c1e51d9ef2328436f330306e5b96f972592353f",
+      "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build35/MusicDL-Build35-verification.json"
+    },
+    {
+      "id": 734400960,
+      "name": "MusicDL-Build35.ipa",
+      "size": 14354553,
+      "digest": "sha256:41de973b2ca4c08ea2eef0c45fade4d067df82cb27fa58011591d75717f0ec8d",
+      "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build35/MusicDL-Build35.ipa"
+    },
+    {
+      "id": 734401393,
+      "name": "MusicDL-Build35.ipa.sha256",
+      "size": 87,
+      "digest": "sha256:f4f9573aeb4973de3a4bc9e1df5aafe5f8d7f9dfa09e4116f5df867b1c4a3f5b",
+      "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build35/MusicDL-Build35.ipa.sha256"
+    },
+    {
+      "id": 734401762,
+      "name": "ThirdPartyNotices.txt",
+      "size": 136453,
+      "digest": "sha256:99ae307ed55e8cc5d25f7d0614817c50cc6a66ed58342115ca32c1f49881b7f2",
+      "browser_download_url": "https://github.com/yann359/go-music-dl/releases/download/ios-build35/ThirdPartyNotices.txt"
+    }
+  ],
+  "anonymous_download_verified": true,
+  "release_tag_matches_tested_commit": true
+}

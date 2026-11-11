@@ -64,6 +64,8 @@ Build28的play在没有currentItem时直接调用playImmediately(atRate:)，因�
 
 ## 新IPA与追溯
 
+后续根据用户“可直接在iPhone下载”的要求，将同一受测IPA发布为公开验证版：[手机直接下载MusicDL-Build35.ipa](https://github.com/yann359/go-music-dl/releases/download/ios-build35/MusicDL-Build35.ipa)，[下载页及匹配源码/许可](https://github.com/yann359/go-music-dl/releases/tag/ios-build35)。无须登录或解压Actions ZIP。仅重命名，包内容与下面SHA256相同；下载后从SideStore选择该文件重签覆盖安装，不是Safari免签安装。此下载页不使用Actions artifact的30天保留期。[公开下载核验记录](verification/build35-public-download.json)。
+
 [Build35 IPA、匹配源码、许可证及核验文件](https://github.com/yann359/go-music-dl/actions/runs/42945824242/artifacts/13823144437)。本地文件`../outputs/ios-release-build/build35/music-dl-ios-native-unsigned.ipa`，14,354,553字节，SHA256 `41de973b2ca4c08ea2eef0c45fade4d067df82cb27fa58011591d75717f0ec8d`。原Bundle ID `com.guohuiyuan.musicdl.nativedesign`、MusicDL、1.0.0/Build35、arm64 iPhoneOS/iOS18+、后台audio、未签名/未加密。交由SideStore沿用原签名身份覆盖安装；没有操作手机安装、重签或卸载，旧Build29与Build28保留。
 
 IPA附带hash、内外ZIP CRC、服务器artifact digest、六份修改Swift对应源码、CI与本地verify-ipa输出均一致。IPA artifact外层ZIP SHA256为`63f3ec59298753025fd4bbe27f015527ff52b4da8a44c15593ebd8e7894de8f8`，云端有效期至北京时间2026-12-11 10:44，本地副本保留。脱敏核验见[结构化交付记录](verification/real-device-media-build35-delivery.json)。
