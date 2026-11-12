@@ -9,6 +9,7 @@
 - 新文件：`internal/web/playlist_import{,_provider,_test}.go`、`internal/spotify/playlist_import.go`、`ios/MusicDL/{PlaylistImportService,PlaylistImportView,ApplePlaylistImport}.swift`、`ios/Tests/PlaylistImportTests.swift`。调整NativeClient、NativeScreens、Go dispatch/collection/Spotify track模型、桥接与UI测试；完整清单以本分支git diff为准。
 - 本地验证：Go四包通过、Node6/6、IPA结构测试7/7；新增Go格式、URL安全、批次事务/回滚、重复、曲序、重开持久化、元数据替换、重定向/限流和真实公开歌单导入通过。Swift编译/XCTest/UI及IPA正在使用原有macOS Actions流程验证，尚不能标记交付完成。
 - 构建进展：Build44设备/模拟器与Swift83/83通过，因后续修复被替代取消；Build45设备/模拟器、Go/JS/ZIP、Swift86/86通过，UI10通过/2跳过/1失败。已实际查看录屏帧和AX树，iOS搜索键盘展开会隐藏导航栏的完成按钮；改为安全区域固定确认区，正在重新验证，失败包未交付。
+- Build46确认按钮已可操作，文本导入及重启恢复实际通过；双选计数暴露首次选择插入清除行导致列表下移、第二首被底部搜索框遮挡，录屏核实只选中1首。已将清除移至固定区、增加逐首选中状态校验并重新构建，未交付失败包；Swift86项及原有UI10项保持通过。
 - 限制/下一步：公开接口可能变更或限流；单次5000首/5MB、分页50首（Apple100）、逐首匹配与最多3来源并发。没有声称拥有私有接口授权、绕过DRM或版权。仍需新包iPhone播放、切歌、真实后台、锁屏/控制中心及媒体岛回归；Spotify/Apple账号验收；未完成项应继续，禁止重做已交付媒体逻辑。
 
 ## 当前阶段：灵动岛安全修复与独立八色主题已交付（2026-11-11，Build43自动化通过，真机待验）

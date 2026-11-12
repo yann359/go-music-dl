@@ -75,7 +75,7 @@ final class PlaylistImportTests: XCTestCase {
             case "playlist_import.parse": return try JSONEncoder().encode(JSONValue.object(["data": try .encoded([input])]))
             case "collections.add_batch":
                 writes += 1
-                XCTAssertEqual(r["params"]["songs"].arrayValue.first?["source"].stringValue, "import-metadata")
+                XCTAssertEqual(r["params"]["songs"].arrayValue.first?["source"].stringValue, writes == 1 ? "import-metadata" : "netease")
                 return Data(#"{"data":{"added":1,"duplicates":0}}"#.utf8)
             case "collections.list": return Data(#"{"data":[]}"#.utf8)
             default: return Data(#"{"error":"网络超时"}"#.utf8)
@@ -95,6 +95,16 @@ final class PlaylistImportTests: XCTestCase {
         XCTAssertTrue(restored.draft.confirmed); XCTAssertEqual(restored.draft.added, 1)
         restored.commit(client: client, completed: {}); await finished(restored)
         XCTAssertEqual(writes, 1, "reopening results must not write a second copy")
+        // Manual selection upgrades a saved metadata row, in the same destination.
+        let rowID = restored.draft.rows[0].id
+        restored.select(song(), rowID: rowID)
+        XCTAssertEqual(restored.draft.rows[0].state, .matched)
+        XCTAssertFalse(restored.draft.rows[0].committed)
+        let manualDraft = try XCTUnwrap(repo.load("42"))
+        XCTAssertEqual(manualDraft.rows[0].match?.source, "netease")
+        XCTAssertEqual(manualDraft.rows[0].track.title, input.title)
+        restored.commit(client: client, completed: {}); await finished(restored)
+        XCTAssertEqual(writes, 2); XCTAssertTrue(restored.draft.rows[0].committed)
     }
     func testCanceledReadCannotOverwriteNewPreview() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

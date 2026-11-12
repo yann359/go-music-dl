@@ -20,7 +20,21 @@ final class NativeVisualTests: XCTestCase {
         search.tap(); search.typeText("周杰伦 晴天")
         let options = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "song-selection-row-"))
         XCTAssertTrue(options.element(boundBy: 1).waitForExistence(timeout: 45), "Real providers must return two selectable songs")
-        options.element(boundBy: 0).tap(); options.element(boundBy: 1).tap()
+        // Bind to real source identities before asynchronous sources finish.
+        let first = app.buttons[options.element(boundBy: 0).identifier]
+        let second = app.buttons[options.element(boundBy: 1).identifier]
+        first.tap()
+        let firstSelected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "已选择"), object: first)
+        XCTAssertEqual(XCTWaiter.wait(for: [firstSelected], timeout: 5), .completed)
+        // Bring a partly clipped row fully above the native bottom search field.
+        if second.frame.maxY >= search.frame.minY {
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: search.frame.minY - 20))
+            let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 180))
+            from.press(forDuration: 0.05, thenDragTo: to)
+        }
+        second.tap()
+        let secondSelected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "已选择"), object: second)
+        XCTAssertEqual(XCTWaiter.wait(for: [secondSelected], timeout: 5), .completed)
         let done = app.buttons["song-selection-done"]
         XCTAssertTrue(done.waitForExistence(timeout: 5)); XCTAssertTrue(done.isHittable, "Commit must remain reachable with the search keyboard visible")
         XCTAssertTrue(done.label.contains("2")); done.tap()

@@ -29,7 +29,6 @@ struct SongSelectionScreen: View {
                 } label: { Label("\(sources.count) 个搜索来源 · 含本地音乐", systemImage: "line.3.horizontal.decrease") }
                 Text(single ? "请核对歌手、专辑和版本，再选择歌曲。" : "按歌名或歌手搜索，支持跨搜索结果多选，每次最多 200 首。")
                     .font(.caption).foregroundStyle(.secondary)
-                if !selection.isEmpty { Button("清除已选 \(selection.count) 首") { selection = [] } }
             }
             if session.loading { ProgressView("正在搜索…") }
             if let problem { Text(problem).foregroundStyle(.red) }
@@ -55,6 +54,7 @@ struct SongSelectionScreen: View {
                     }.contentShape(Rectangle())
                 }.buttonStyle(.plain).disabled(duplicate || saving || !song.sourceAvailable)
                     .accessibilityIdentifier("song-selection-row-" + identity)
+                    .accessibilityValue(duplicate ? "已在歌单" : (selected ? "已选择" : "未选择"))
             }
             if (session.result?.songs.count ?? 0) > session.visibleCount { Button("显示更多结果") { session.showMore() } }
             if session.phase == .empty { Text("没有找到歌曲，请调整歌名、歌手或来源。") }
@@ -71,6 +71,7 @@ struct SongSelectionScreen: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack {
                     Text(single ? "核对歌曲后保存" : "已选择 \(selection.count) 首").font(.subheadline).foregroundStyle(.secondary)
+                    Button("清除") { selection = [] }.font(.caption).disabled(selection.isEmpty || saving)
                     Spacer()
                     Button(saving ? "正在保存…" : "完成 (\(selection.count))", action: finish)
                         .buttonStyle(.borderedProminent).foregroundStyle(MusicDesign.onAccent).buttonBorderShape(.capsule)
