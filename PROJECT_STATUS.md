@@ -1,4 +1,4 @@
-## 当前阶段：跨平台歌单导入开发与验证（2026-11-12）
+## 当前阶段：跨平台歌单导入已构建交付（2026-11-12，Build48自动化通过，真机待验）
 
 - 基线 `cf62e57`；备份分支 `backup/pre-playlist-import-20261112`；开发分支 `codex/playlist-import`。已先读取本文件、原生/Go 源码与提交历史。原有界面、音源、搜索后端、AudioEngine、后台/锁屏/控制中心/系统媒体岛、签名与 Actions 配置保留。
 - 现有架构：SwiftUI → NativeClient/C ABI → Go；SQLite Collection/SavedSong；手工歌单本地持久化，历史 imported 类型只保留外部引用。歌曲用 source+id 辨识；在线与本地共用 Song/AudioEngine 队列；extra 包含来源解析所需信息。两个新入口仅显示于自建歌单。
@@ -7,12 +7,14 @@
 - Folia最新源码 `a44758bbc02929225ca7304b5a4c4580d7b4e87b`：八个指定文件均实际下载/核对，路径存在；初始浅克隆等待期间先按提交读取源码；之后克隆成功，HEAD同为a44758b，八个文件逐一核对与固定提交原文一致。只参考能力注册、分页、身份与本地路径匹配思路，独立实现，未复制播放器或第三方适配实现。MusicDL/Folia均附AGPLv3文本；本次无代码移植，原署名/源码打包分发保留。[技术映射、平台证据与验收矩阵](docs/ios-playlist-import-2026-11-12.md)。
 - 数据决策：不新增/删除SQLite表或列、不重写旧记录；沿用SavedSong.Extra扩展元数据和顺序，旧行维持原顺序，新批次追加原始曲序；只保存本地关联。可恢复预览独立在Application Support/PlaylistImports/<歌单ID>.json，原子写入与文件保护；每页/每10首检查点，进后台和暂停立即保存。回滚代码不会删除旧库，新元数据行仍在库中，旧版本显示与排序有限制。
 - 新文件：`internal/web/playlist_import{,_provider,_test}.go`、`internal/spotify/playlist_import.go`、`ios/MusicDL/{PlaylistImportService,PlaylistImportView,ApplePlaylistImport}.swift`、`ios/Tests/PlaylistImportTests.swift`。调整NativeClient、NativeScreens、Go dispatch/collection/Spotify track模型、桥接与UI测试；完整清单以本分支git diff为准。
-- 本地验证：Go四包通过、Node6/6、IPA结构测试7/7；新增Go格式、URL安全、批次事务/回滚、重复、曲序、重开持久化、元数据替换、重定向/限流和真实公开歌单导入通过。Swift编译/XCTest/UI及IPA正在使用原有macOS Actions流程验证，尚不能标记交付完成。
-- 构建进展：Build44设备/模拟器与Swift83/83通过，因后续修复被替代取消；Build45设备/模拟器、Go/JS/ZIP、Swift86/86通过，UI10通过/2跳过/1失败。已实际查看录屏帧和AX树，iOS搜索键盘展开会隐藏导航栏的完成按钮；改为安全区域固定确认区，正在重新验证，失败包未交付。
+- 本地验证：Go四包通过、Node6/6、IPA结构测试7/7；新增Go格式、URL安全、批次事务/回滚、重复、曲序、重开持久化、元数据替换、重定向/限流和真实公开歌单导入通过。Build48已通过原有macOS Actions全流程：设备Release与模拟器编译、Swift86/86、UI12通过/2跳过/0失败。跳过是无法定位的系统媒体岛轻点/长按，不计作真机通过。
+- 构建进展：Build44设备/模拟器与Swift83/83通过，因后续修复被替代取消；Build45设备/模拟器、Go/JS/ZIP、Swift86/86通过，UI10通过/2跳过/1失败。已实际查看录屏帧和AX树，iOS搜索键盘展开会隐藏导航栏的完成按钮；改为安全区域固定确认区，Build48已验证通过，失败包未交付。
 - Build46确认按钮已可操作，文本导入及重启恢复实际通过；双选计数暴露首次选择插入清除行导致列表下移、第二首被底部搜索框遮挡，录屏核实只选中1首。已将清除移至固定区、增加逐首选中状态校验并重新构建，未交付失败包；Swift86项及原有UI10项保持通过。
-- 当前等待最终构建：Build47，源码 `1d1496bde7171c426535faa6c68796991a331840`，运行 https://github.com/yann359/go-music-dl/actions/runs/43133708469 ，当前 attempt2 job `130915085690`（首次job130903831843已结束，新歌单UI通过、旧冷启动播放器测试超时；同提交重跑中）。尚未完成交付：必须等待CI，读取完整日志，核对UI真实双选/保存/文本确认/终止重启；成功后下载IPA和测试报告，核验artifact digest/ZIP CRC、IPA结构、匹配源码，查看截图，再补结果并提交文档。若失败继续修复，不能降级为静态验收。可用外层 `outputs/playlist_actions.py` 安全下载当前仓库workflow日志/artifact（不打印或落盘凭证）。原签名和Actions不变，失败Build44–46未交付。
-- Build47 attempt1新歌单UI完整通过（77.317秒），Swift86/86通过；整体失败是原有冷启动播放器双主题UI遇到系统动画通知等待约60秒、超过原120秒预算，测试runner重启。未修改播放器/动画/限时，正在重跑同一提交原工作流；不将失败轮次称为完整通过。
-- Build47 attempt2新歌单UI再次通过（69.020秒），原生86/86通过；旧播放器深色收起后AX语义点击未展开导致队列断言失败。已核实截图/AX可见框且生产PlayerViews/NativeRoot/AudioEngine无修改；只修正测试实际触控定位，浅/深主题拆为独立120秒用例，保留并强化真实暂停/展开/清空断言。准备Build48，不交付失败轮次。
+- 最终构建：[Build48完整成功](https://github.com/yann359/go-music-dl/actions/runs/43162079340)，源码 `6ec4cf513e47e1af6bb29f628afe648889926d6b`，job `130995398031`。新歌单真实UI完成双选/批量保存/文本确认/终止重启（64.757秒）；播放器浅深色独立流程均成功（45.555/59.460秒）。本次仅调整旧UI测试可见框触控及拆分主题，AudioEngine/PlayerViews/NativeRoot/NativeAppModel与基线无差异。
+- 本地交付 `../outputs/ios-release-build/build48/MusicDL-Build48.ipa`（14,654,034字节，SHA256 `e394c23c70fb14befef6c3a99f3ac0c0c3f39c31f38e632b9dab1a86b2ea9e80`）；[IPA/匹配源码/许可证artifact](https://github.com/yann359/go-music-dl/actions/runs/43162079340/artifacts/13919805249)。原Bundle ID、MusicDL、1.0.0/Build48、arm64 iPhoneOS、iOS18+、后台audio、未签名；沿用原SideStore身份或有效签名覆盖安装，无需卸载。未操作手机重签/安装，未发布新的公开Release。
+- 交付校验：CI与本地IPA结构核验一致；IPA/SHA、两份GitHub artifact digest/ZIP CRC、源码ZIP CRC、17份改动文件与受测提交逐字一致。已实际查看新歌单及浅深播放器截图；[完整交付核验](docs/verification/playlist-import-build48.json)。最终文档在构建后单独提交，IPA对应应用源码始终为6ec4cf5。
+- Build47 attempt1新歌单UI完整通过（77.317秒），Swift86/86通过；整体失败是原有冷启动播放器双主题UI遇到系统动画通知等待约60秒、超过原120秒预算，测试runner重启。当时未修改播放器/动画/限时，先重跑同一提交原工作流；不将失败轮次称为完整通过。
+- Build47 attempt2新歌单UI再次通过（69.020秒），原生86/86通过；旧播放器深色收起后AX语义点击未展开导致队列断言失败。已核实截图/AX可见框且生产PlayerViews/NativeRoot/AudioEngine无修改；只修正测试实际触控定位，浅/深主题拆为独立120秒用例，保留并强化真实暂停/展开/清空断言。此后Build48完整通过；不交付失败轮次。
 - 限制/下一步：公开接口可能变更或限流；单次5000首/5MB、分页50首（Apple100）、逐首匹配与最多3来源并发。没有声称拥有私有接口授权、绕过DRM或版权。仍需新包iPhone播放、切歌、真实后台、锁屏/控制中心及媒体岛回归；Spotify/Apple账号验收；未完成项应继续，禁止重做已交付媒体逻辑。
 
 ## 当前阶段：灵动岛安全修复与独立八色主题已交付（2026-11-11，Build43自动化通过，真机待验）
