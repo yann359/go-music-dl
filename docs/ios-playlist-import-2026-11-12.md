@@ -76,3 +76,11 @@ macOS CI 编译、原生和UI结果及IPA：待本轮构建完成后补充；未
 代码回退到 backup/pre-playlist-import-20261112 可恢复旧行为；优先使用 git revert 本轮实现提交，保留后续工作。不清库、不卸载App。旧代码不会因新增 Extra 键读不懂而删数据；可能恢复旧排序，import-metadata仍为不可用来源。已导入曲目是新增关联，若要撤回，应在歌单逐项移除，不能恢复旧整库覆盖新数据。预览sidecar可以保留，重新升级可恢复。
 
 下一轮先读 PROJECT_STATUS.md、本报告、git log 和新增代码，优先完成CI/真机验收、平台授权成功样本，再评估其他平台官方接入；不要重做AudioEngine或岛逻辑。
+
+### 构建过程记录
+
+- Build44 / 26e0381 / https://github.com/yann359/go-music-dl/actions/runs/43125767416：Go四包、JS6、ZIP7、iPhone Release与模拟器编译成功；Swift83/83（原76+导入7）通过。真实C ABI搜索返回34首，first1242ms/全部1660ms/热请求0ms（3个来源命中缓存），同一集成测试已执行真实结果批量保存、重复、重读、移除、文件与文本解析。只是这次云端网络样本，不代表iPhone性能或实际整曲播放。
+- 因恢复/安全补丁已形成新提交8ca1339，重新调度Build45，Build44在UI阶段被工作流并发规则取消，未上传/交付旧IPA；取消造成未完成xcresult的截图导出失败，不是已完成原生测试失败。
+- Build45 / 8ca1339 / https://github.com/yann359/go-music-dl/actions/runs/43127637748：进行中；新增封面URL限制、已保存未匹配曲目重试落库、来源版本变化保留已读页回归和真实搜索双选UI验收，最终结果待补。
+
+- Build45结果：设备/模拟器编译、Go/JS/ZIP与Swift86/86全部通过；UI13项中10通过、2跳过、1失败。唯一失败在真实搜索已选中两首后：iOS26搜索激活隐藏导航工具栏，完成按钮实际不可见（截图/AX树均确认），不是伪造通过或单纯更改断言。修复为内容顶部safeAreaInset固定确认区，键盘展开仍可操作；测试要求按钮真实isHittable，并在文本导入后等待实际“导入完成”再终止App。未交付Build45失败包。原始报告artifact13904504216，146024699字节，SHA256 4941963b27b893b041d15d92178b9034765f380a8f2bee328cf4cb2fafbd1ea8，ZIP CRC已验，保留外层outputs/playlist-import-build45-report.zip。

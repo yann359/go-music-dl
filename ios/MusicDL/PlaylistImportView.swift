@@ -65,16 +65,26 @@ struct SongSelectionScreen: View {
             .onChange(of: query) { _, _ in search(debounce: true) }
             .onAppear { if query.isEmpty { query = initialQuery }; if !query.isEmpty { search() } }
             .onDisappear { session.suspend() }
-            .toolbar { ToolbarItem(placement: .confirmationAction) {
-                Button(saving ? "正在保存…" : "完成 (\(selection.count))") {
-                    saving = true; problem = nil
-                    Task {
-                        do { try await onSelect(selection); dismiss() }
-                        catch { problem = error.localizedDescription }
-                        saving = false
-                    }
-                }.disabled(selection.isEmpty || saving).accessibilityIdentifier("song-selection-done")
-            } }
+            .scrollDismissesKeyboard(.interactively)
+            // iOS 26 hides navigation toolbar actions while search is active.
+            // Keep the real commit action in the content's safe area instead.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                HStack {
+                    Text(single ? "核对歌曲后保存" : "已选择 \(selection.count) 首").font(.subheadline).foregroundStyle(.secondary)
+                    Spacer()
+                    Button(saving ? "正在保存…" : "完成 (\(selection.count))", action: finish)
+                        .buttonStyle(.borderedProminent).foregroundStyle(MusicDesign.onAccent).buttonBorderShape(.capsule)
+                        .disabled(selection.isEmpty || saving).accessibilityIdentifier("song-selection-done")
+                }.padding(.horizontal, 20).padding(.vertical, 10).background(.bar)
+            }
+    }
+    private func finish() {
+        saving = true; problem = nil
+        Task {
+            do { try await onSelect(selection); dismiss() }
+            catch { problem = error.localizedDescription }
+            saving = false
+        }
     }
     private func search(debounce: Bool = false) {
         // Reuse the existing search session, including debounce and stale-result protection.
@@ -250,7 +260,7 @@ struct PlaylistImportReviewScreen: View {
             Section {
                 HStack(spacing: 14) {
                     CoverArt(url: service.draft.cover, title: service.draft.title).frame(width: 64, height: 64)
-                    VStack(alignment: .leading, spacing: 5) { Text(service.draft.title).font(.headline); Text(service.phase).font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment: .leading, spacing: 5) { Text(service.draft.title).font(.headline); Text(service.phase).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("playlist-import-phase") }
                 }
                 Text("已读取 \(service.draft.rows.count) · 已匹配 \(service.matched) · 待处理 \(service.unresolved) · 待匹配 \(service.pending)").font(.caption)
                 if service.draft.confirmed { Text("已新增 \(service.draft.added) · 已跳过重复 \(service.draft.duplicates)").font(.subheadline) }

@@ -22,6 +22,7 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertTrue(options.element(boundBy: 1).waitForExistence(timeout: 45), "Real providers must return two selectable songs")
         options.element(boundBy: 0).tap(); options.element(boundBy: 1).tap()
         let done = app.buttons["song-selection-done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5)); XCTAssertTrue(done.isHittable, "Commit must remain reachable with the search keyboard visible")
         XCTAssertTrue(done.label.contains("2")); done.tap()
         XCTAssertTrue(app.buttons["playlist-import"].waitForExistence(timeout: 25))
         capture("playlist-native-real-search-multiple-added")
@@ -36,10 +37,13 @@ final class NativeVisualTests: XCTestCase {
         app.buttons["playlist-import-confirm"].tap()
         app.buttons["确认导入"].tap()
         XCTAssertTrue(app.navigationBars["导入结果"].waitForExistence(timeout: 10))
+        let saved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "导入完成"), object: app.staticTexts["playlist-import-phase"])
+        XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 15), .completed, "Wait for the actual SQLite commit before terminating the app")
         capture("playlist-import-native-result")
         app.terminate(); app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 35)); app.tabBars.buttons["音乐库"].tap()
         XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 8)); app.staticTexts[name].tap()
+        for _ in 0..<3 { if app.staticTexts["Import Verification Track"].exists { break }; app.swipeUp() }
         XCTAssertTrue(app.staticTexts["Import Verification Track"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "暂不可播放")).firstMatch.exists)
         capture("playlist-import-native-persisted")
