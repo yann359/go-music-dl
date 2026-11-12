@@ -16,7 +16,15 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertTrue(app.buttons["playlist-add-songs"].waitForExistence(timeout: 8))
         app.buttons["playlist-add-songs"].tap()
         XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 5))
-        app.buttons["关闭"].tap()
+        let search = app.searchFields.firstMatch
+        search.tap(); search.typeText("周杰伦 晴天")
+        let options = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "song-selection-row-"))
+        XCTAssertTrue(options.element(boundBy: 1).waitForExistence(timeout: 45), "Real providers must return two selectable songs")
+        options.element(boundBy: 0).tap(); options.element(boundBy: 1).tap()
+        let done = app.buttons["song-selection-done"]
+        XCTAssertTrue(done.label.contains("2")); done.tap()
+        XCTAssertTrue(app.buttons["playlist-import"].waitForExistence(timeout: 25))
+        capture("playlist-native-real-search-multiple-added")
         app.buttons["playlist-import"].tap()
         app.buttons["粘贴歌曲列表"].tap()
         let editor = app.textViews["playlist-import-text"]

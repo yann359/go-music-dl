@@ -10,14 +10,14 @@ SwiftUI 原生界面 → NativeClient → 现有 C ABI → Go；手工歌单通�
 
 ## Folia 最新源码实际核对
 
-2026-11-12 GitHub API 查询 main 为 [a44758bbc02929225ca7304b5a4c4580d7b4e87b](https://github.com/chthollyphile/folia-major/commit/a44758bbc02929225ca7304b5a4c4580d7b4e87b)，release v0.7.28。浅克隆传输未完成，随后按固定提交从 raw.githubusercontent.com 实际读取源文件，避免将网页介绍当作实现。参考文件在工作区外层 outputs/folia-source，未打入 App。
+2026-11-12 GitHub API 查询 main 为 [a44758bbc02929225ca7304b5a4c4580d7b4e87b](https://github.com/chthollyphile/folia-major/commit/a44758bbc02929225ca7304b5a4c4580d7b4e87b)，release v0.7.28。浅克隆等待期间先按固定提交从 raw.githubusercontent.com 实际读取源文件，避免将网页介绍当作实现。随后浅克隆成功，outputs/folia-major-reference 的 HEAD 同为 a44758b；八个指定文件与固定提交下载内容逐一对照一致。参考文件在工作区外层 outputs/folia-source 和完整克隆目录，未打入 App。
 
 | 指定文件（均存在） | 当前实现与 MusicDL 映射 |
 | --- | --- |
 | src/services/onlineMusic/omni.ts | 汇总 providerRegistry 的能力及歌曲来源引用，统一操作。MusicDL 保留 core 来源注册和 NativeClient，不新建重复搜索后端。 |
 | src/types/onlineMusic.ts | ProviderCapabilities、PlaybackSourceRef、ProviderCollection、ProviderPage 等区分来源、媒体 ID、能力、分页与播放。MusicDL 新建 ImportTrack/ImportRow，保留原 Song，明确“信息匹配”和“可播放验证”不同。 |
 | src/services/onlineMusic/netease/neteaseProvider.ts | catalog.getPlaylistTracks 调 neteaseApi.getPlaylistTracks(id,limit,offset)，另有50首详情批次与登录状态错误处理。MusicDL 用公开曲目索引+50首详情请求，并检查完整性。 |
-| src/services/onlineMusic/qq/qqProvider.ts | 自有歌单带授权的真实分页、我喜欢单独接口；公开收藏/分享歌单走匿名读取后切片，返回 nextOffset/hasMore，空页停止。MusicDL 实际验证公开接口 song_begin/song_num，拒绝重复/空页，未复用私有登录实现。 |
+| src/services/onlineMusic/qq/qqProvider.ts | 自有歌单带授权的真实分页、我喜欢单独接口；公开收藏/分享歌单走匿名读取后切片，返回 nextOffset/hasMore，空页停止。MusicDL 实际验证公开接口 song_begin/song_num，拒绝不前进/空页，未复用私有登录实现。 |
 | src/services/onlineMusic/spotify/spotifyCatalog.ts | fetchPlaylist GraphQL 的 offset/limit、空/不可用行及 totalCount；spotifyTransport.ts 明确依赖 window.electron.spotifyRequest。MusicDL 使用已有官方 PKCE 与 /v1/playlists/{id}/items，不移植 Electron Web Player token。 |
 | src/services/onlineMusic/ytm/ytmCatalog.ts | createYtmPager、continuation、公有读取与账号路径、mix/album 区分；ytmTransport.ts 依赖 Electron IPC。不能推出 iOS MusicDL 已获歌单读取权限，当前不接通。 |
 | src/services/localPlaylistFileService.ts | 本地 M3U 路径归一化、唯一/歧义区分、歌单导出。MusicDL 独立实现已有本地库路径匹配，不读取外部路径、不下载流地址；本轮不增加未要求的导出模块。 |
@@ -48,12 +48,12 @@ Folia 和 MusicDL 的 LICENSE 均为 GNU AGPL v3 文本。本次参考架构、�
 - 文件与粘贴数据限制 5MB/5000 首，单字段4096字节。CSV 正确处理引号/换行并拒绝列数不一致；JSON 支持数组、tracks 或 songs；文本按“歌手 - 歌名”；M3U 解析 EXTINF，HLS EXT-X 清单明确拒绝。UTF-8/带BOM UTF-16，其他编码清楚报错。
 - M3U 路径只在已有本地索引内匹配；精确路径优先，文件名仅唯一时自动选；歧义转手动。网络流行只保留元数据，不当作可迁移音频、不请求该地址。
 - 歌曲匹配优先来源 ID/ISRC，并仍核对非空歌手、标题与版本；名称宽度、大小写、标点标准化，保留版本差异；专辑和时长加权，多种可能录音/歌手缺失不强行匹配。Live、Remix、伴奏、翻唱、不插电、重制等不得与原版混同。未知候选可手动选择，搜索仍用现有引擎。
-- 歌单 URL 只接受明确平台完整 HTTPS 域名和路径，拒绝用户信息、端口、IP/伪装域名、非法ID和短链接；外部网络请求固定 HTTPS API 域名，禁重定向，20秒超时、8MB响应限制。不接收任意 API URL，不复制密码/Cookie，不绕过DRM或付费。
+- 歌单 URL 只接受明确平台完整 HTTPS 域名和路径，拒绝用户信息、端口、IP/伪装域名、非法ID和短链接；外部网络请求固定 HTTPS API 域名，禁重定向，20秒超时、8MB响应限制。不接收任意 API URL，不复制密码/Cookie，不绕过DRM或付费。导入文件中的封面原始值保留为元数据，只将已知平台CDN的HTTPS地址传给图片展示，避免任意URL请求。
 - 逐页保存检查点、逐首匹配，三来源并发，上游页间350ms、曲目间300ms。429 停止并提示稍后人工重试，不自动洪泛重试；已有内容保留。单次读取上限5000；匹配可很耗时，支持取消和继续。
 - 预览存在 Application Support/PlaylistImports/<数字歌单ID>.json，原子写、解锁后文件保护；与SQLite完全分开。每页、每10首及暂停/后台保存；进后台主动暂停，不承诺任意后台持续跑网络。最多九首未落检查点的元数据匹配会在进程被强杀后重做，已存数据库不会丢。
 - 用户明确确认后分批100首写入现有SavedSong，单批事务（最多200）。source+id唯一约束及保守ISRC+歌名+歌手去重保护重复点击和丢响应重试；失败批次全回滚，之前成功批次不丢。确认前不动目标歌单。
 - 未匹配行使用 import-metadata 来源保存，sourceAvailable 为false，原播放队列自动跳过；显示暂不可播放，绝不声称已验证音频。后续手动匹配只替换该导入元数据占位，保留原曲序；从歌单移除仅删关联，不动文件和其他歌单。
-- 不改SQLite结构。新字段在已有 Extra 中，musicdl_import_metadata、musicdl_match_state、musicdl_import_key、musicdl_playlist_order；原有来源 extra 保留。旧行排序保持原样，新批次按源顺序追加。独立预览版本校验/大小限制；不兼容或损坏则明确报错，不清空原库。
+- 不改SQLite结构。新字段在已有 Extra 中，musicdl_import_metadata、musicdl_match_state、musicdl_import_key、musicdl_playlist_order；原有来源 extra 保留。旧行排序保持原样，新批次按源顺序追加。读取期间核对网易完整索引指纹、QQ分页游标及mtime、Spotify snapshot_id；Apple仅在响应提供lastModifiedDate时核对。重复出现的歌曲保留预览位置，落库时去重。独立预览版本校验/大小限制；不兼容或损坏则明确报错，不清空原库。
 
 ## 验证与当前边界
 

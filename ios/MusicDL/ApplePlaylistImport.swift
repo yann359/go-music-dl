@@ -52,7 +52,8 @@ enum ApplePlaylistImport {
         // Some Apple responses omit total; -1 explicitly means unknown.
         let totalValue = value["meta"]["total"]
         let total = totalValue == .null ? (more ? -1 : offset + tracks.count) : Int(totalValue.numberValue)
-        return ImportPlaylistPage(title: item["attributes"]["name"].stringValue, cover: artwork(item["attributes"]["artwork"]), total: total, tracks: tracks, next: offset + tracks.count, more: more)
+        let revision = item["attributes"]["lastModifiedDate"].stringValue
+        return ImportPlaylistPage(title: item["attributes"]["name"].stringValue, cover: artwork(item["attributes"]["artwork"]), total: total, tracks: tracks, next: offset + tracks.count, more: more, revision: revision.isEmpty ? nil : revision)
     }
     private static func artwork(_ value: JSONValue) -> String {
         value["url"].stringValue.replacingOccurrences(of: "{w}", with: "300").replacingOccurrences(of: "{h}", with: "300")

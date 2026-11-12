@@ -47,8 +47,15 @@ final class NativeBridgeIntegrationTests: XCTestCase {
         // Actual search results are added in one SQLite transaction through the
         // production batch boundary. Includes a retry and a local file parse.
         let destination = try await client.createCollection(name: "Real search import acceptance")
-        let selected = Array(cold.songs.prefix(2))
+        var selectedIdentities = Set<String>()
+        let selected = Array(cold.songs.filter { selectedIdentities.insert($0.source + ":" + $0.id).inserted }.prefix(2))
         XCTAssertEqual(selected.count, 2)
+        for actual in selected {
+            let metadata = ImportTrack(id: "actual-network-metadata", title: actual.name, artist: actual.artist,
+                                       album: actual.album, duration: actual.duration, source: actual.source,
+                                       sourceID: actual.id, playlistID: "", isrc: "", cover: actual.cover, localPath: "")
+            XCTAssertEqual(SongMatchingService.automatic(metadata, candidates: cold.songs)?.id, actual.id)
+        }
         let added = try await client.addSongsToCollection(id: destination.id, songs: selected)
         XCTAssertEqual(added.added, 2)
         let repeated = try await client.addSongsToCollection(id: destination.id, songs: selected)

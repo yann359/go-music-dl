@@ -54,6 +54,7 @@ struct SongSelectionScreen: View {
                         Image(systemName: selected || duplicate ? "checkmark.circle.fill" : "circle")
                     }.contentShape(Rectangle())
                 }.buttonStyle(.plain).disabled(duplicate || saving || !song.sourceAvailable)
+                    .accessibilityIdentifier("song-selection-row-" + identity)
             }
             if (session.result?.songs.count ?? 0) > session.visibleCount { Button("显示更多结果") { session.showMore() } }
             if session.phase == .empty { Text("没有找到歌曲，请调整歌名、歌手或来源。") }
@@ -77,6 +78,12 @@ struct SongSelectionScreen: View {
     }
     private func search(debounce: Bool = false) {
         // Reuse the existing search session, including debounce and stale-result protection.
+        guard !query.contains("://"), !query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("spotify:") else {
+            session.start(client: client, query: "", kind: "song", sources: sources)
+            problem = "请按歌名或歌手搜索，歌单链接请使用导入入口。"
+            return
+        }
+        problem = nil
         session.start(client: client, query: query, kind: "song", sources: sources, debounce: debounce)
     }
 }

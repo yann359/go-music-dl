@@ -127,6 +127,7 @@ type track struct {
 	Preview  string `json:"preview_url"`
 }
 type playlist struct {
+	SnapshotID  string `json:"snapshot_id"`
 	ID          string
 	Name        string
 	Description string

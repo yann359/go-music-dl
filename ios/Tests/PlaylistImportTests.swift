@@ -30,6 +30,12 @@ final class PlaylistImportTests: XCTestCase {
         var candidate = song(artist: "其他人"); candidate.extra = #"{"isrc":"USABC1234567"}"#
         XCTAssertEqual(SongMatchingService.score(input, candidate), 0)
     }
+    func testImportedArtworkCannotRequestPrivateOrArbitraryURLs() {
+        for url in ["http://127.0.0.1/private", "https://192.168.1.1/", "file:///private/secret", "https://music.126.net.evil.test/a.jpg", "https://evil.test/a.jpg", "https://user@p1.music.126.net/a.jpg"] {
+            XCTAssertEqual(ImportArtwork.safe(url), "")
+        }
+        XCTAssertEqual(ImportArtwork.safe("http://p1.music.126.net/art.jpg"), "https://p1.music.126.net/art.jpg")
+    }
     func testDraftRoundTripAndOldLibraryAreIndependent() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -105,5 +111,52 @@ final class PlaylistImportTests: XCTestCase {
         service.parse(text: "周杰伦 - 晴天", format: "text", client: client)
         await finished(service); try await Task.sleep(nanoseconds: 150_000_000)
         XCTAssertEqual(service.draft.rows.first?.track.title, "晴天"); XCTAssertNil(service.problem)
+    }
+    func testRetryOfSavedUnmatchedMetadataCanPersistNewMatch() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = PlaylistImportRepository(directory: root)
+        var input = track(); input.localPath = "Music/晴天.mp3"; input.isrc = "UNTRUSTED-ORIGINAL"
+        var draft = PlaylistImportDraft(collectionID: "42")
+        var row = ImportRow(track: input); row.state = .unmatched; row.committed = true
+        draft.rows = [row]; draft.confirmed = true; try repo.save(draft)
+        let candidate = song(source: "local")
+        var writes = 0
+        let client = NativeClient { data in
+            let r = try JSONDecoder().decode(JSONValue.self, from: data)
+            if r["action"].stringValue == "playlist_import.local" {
+                return try JSONEncoder().encode(JSONValue.object(["data": try .encoded([candidate])]))
+            }
+            if r["action"].stringValue == "collections.add_batch" {
+                writes += 1
+                let song = try XCTUnwrap(r["params"]["songs"].arrayValue.first)
+                XCTAssertEqual(song["source"].stringValue, "local")
+                let extra = try JSONDecoder().decode([String: String].self, from: Data(song["extra"].stringValue.utf8))
+                XCTAssertNil(extra["isrc"], "a manual/local match must not inherit an unrelated original ISRC")
+                return Data(#"{"data":{"added":1,"duplicates":0}}"#.utf8)
+            }
+            return Data(#"{"data":[]}"#.utf8)
+        }
+        let service = PlaylistImportService(collectionID: "42", repository: repo)
+        service.match(client: client, retry: true); await finished(service)
+        XCTAssertEqual(service.draft.rows[0].state, .matched); XCTAssertFalse(service.draft.rows[0].committed)
+        service.commit(client: client, completed: {}); await finished(service)
+        XCTAssertEqual(writes, 1); XCTAssertTrue(service.draft.rows[0].committed)
+    }
+    func testChangedSourceRevisionPreservesAlreadyReadPage() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let input = track()
+        let client = NativeClient { data in
+            let r = try JSONDecoder().decode(JSONValue.self, from: data)
+            let offset = Int(r["params"]["offset"].numberValue)
+            let page = JSONValue.object(["title": .string("Actual title"), "cover": .string(""), "total": .number(2), "tracks": try .encoded([input]), "next": .number(Double(offset + 1)), "more": .bool(offset == 0), "revision": .string(offset == 0 ? "revision-a" : "revision-b")])
+            return try JSONEncoder().encode(JSONValue.object(["data": page]))
+        }
+        let service = PlaylistImportService(collectionID: "42", repository: PlaylistImportRepository(directory: root))
+        service.readLink("https://music.163.com/playlist?id=1", source: "netease", client: client)
+        await finished(service)
+        XCTAssertEqual(service.draft.rows.count, 1); XCTAssertFalse(service.draft.readComplete)
+        XCTAssertTrue(service.problem?.contains("已改变") == true)
     }
 }

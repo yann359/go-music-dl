@@ -244,7 +244,7 @@ func importLocalCandidates(raw string) ([]nativeClientSong, error) {
 	if p == "" {
 		return []nativeClientSong{}, nil
 	}
-	tracks, _, _, err := scanLocalMusicTracks()
+	tracks, _, _, err, _, _ := scanLocalMusicTracksCached(false)
 	if err != nil {
 		return nil, err
 	}
@@ -366,9 +366,12 @@ func commitImportSongs(params map[string]json.RawMessage) (importCommitResult, e
 func sortImportedSongs(rows []SavedSong) {
 	// Old rows retain their original newest-first order. New batches append in
 	// source order without changing the schema or rewriting existing records.
+	orders := make(map[uint]int, len(rows))
+	for _, r := range rows {
+		orders[r.ID], _ = strconv.Atoi(decodeSongExtraMap(r.Extra)["musicdl_playlist_order"])
+	}
 	sort.SliceStable(rows, func(i, j int) bool {
-		a, _ := strconv.Atoi(decodeSongExtraMap(rows[i].Extra)["musicdl_playlist_order"])
-		b, _ := strconv.Atoi(decodeSongExtraMap(rows[j].Extra)["musicdl_playlist_order"])
+		a, b := orders[rows[i].ID], orders[rows[j].ID]
 		if a == 0 && b == 0 {
 			return false
 		}

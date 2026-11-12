@@ -371,7 +371,7 @@ struct SongDetailScreen: View {
                 })
             }.padding(.horizontal, 22).padding(.bottom, 28)
         }.background(MusicDesign.canvas(scheme)).navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { model.perform { try await client.enqueueDownload(songs); model.notify("已加入下载任务") } } label: { Image(systemName: "arrow.down.circle") }.disabled(songs.isEmpty).accessibilityLabel("下载全部") } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { model.perform { try await client.enqueueDownload(songs.filter(\.sourceAvailable)); model.notify("已加入下载任务") } } label: { Image(systemName: "arrow.down.circle") }.disabled(!songs.contains(where: \.sourceAvailable)).accessibilityLabel("下载全部") } }
             .task(id: requestKey + "\n\(attempt)") { await load() }
             .refreshable { await load(force: true) }
             .sheet(isPresented: $addSheet) {

@@ -4,7 +4,7 @@
 - 现有架构：SwiftUI → NativeClient/C ABI → Go；SQLite Collection/SavedSong；手工歌单本地持久化，历史 imported 类型只保留外部引用。歌曲用 source+id 辨识；在线与本地共用 Song/AudioEngine 队列；extra 包含来源解析所需信息。两个新入口仅显示于自建歌单。
 - 已实施：现有 SearchSession 搜索多选添加（最多200首）、同源ID去重、事务批量追加、移除关联；CSV/TXT/JSON/M3U/M3U8 文件与文本预览；分页平台读取；元数据自动匹配、版本/歌手/时长检查、手动选择；确认后写入、结果筛选、失败重试、暂停取消、后台暂停、重启恢复、未匹配元数据保留且禁止假播放。
 - 网易云和QQ：已用生产Go代码真实分页读取公开歌单，分别200首/4页、100首/2页，共300条信息写入隔离SQLite并关闭重开验证。此结论仅是公开元数据导入，不代表整曲播放或iPhone验收。Spotify官方PKCE与Apple MusicKit路径已实现，缺真实账号授权/签名能力，未验证成功。酷狗、YouTube Music、SoundCloud及其他平台未开放链接导入，支持文件/文本；不将Folia桌面播放等同于iOS歌单权限。
-- Folia最新源码 `a44758bbc02929225ca7304b5a4c4580d7b4e87b`：八个指定文件均实际下载/核对，路径存在；初始浅克隆未完成，改为GitHub API确认main与按提交读取源码。只参考能力注册、分页、身份与本地路径匹配思路，独立实现，未复制播放器或第三方适配实现。MusicDL/Folia均附AGPLv3文本；本次无代码移植，原署名/源码打包分发保留。[技术映射、平台证据与验收矩阵](docs/ios-playlist-import-2026-11-12.md)。
+- Folia最新源码 `a44758bbc02929225ca7304b5a4c4580d7b4e87b`：八个指定文件均实际下载/核对，路径存在；初始浅克隆等待期间先按提交读取源码；之后克隆成功，HEAD同为a44758b，八个文件逐一核对与固定提交原文一致。只参考能力注册、分页、身份与本地路径匹配思路，独立实现，未复制播放器或第三方适配实现。MusicDL/Folia均附AGPLv3文本；本次无代码移植，原署名/源码打包分发保留。[技术映射、平台证据与验收矩阵](docs/ios-playlist-import-2026-11-12.md)。
 - 数据决策：不新增/删除SQLite表或列、不重写旧记录；沿用SavedSong.Extra扩展元数据和顺序，旧行维持原顺序，新批次追加原始曲序；只保存本地关联。可恢复预览独立在Application Support/PlaylistImports/<歌单ID>.json，原子写入与文件保护；每页/每10首检查点，进后台和暂停立即保存。回滚代码不会删除旧库，新元数据行仍在库中，旧版本显示与排序有限制。
 - 新文件：`internal/web/playlist_import{,_provider,_test}.go`、`internal/spotify/playlist_import.go`、`ios/MusicDL/{PlaylistImportService,PlaylistImportView,ApplePlaylistImport}.swift`、`ios/Tests/PlaylistImportTests.swift`。调整NativeClient、NativeScreens、Go dispatch/collection/Spotify track模型、桥接与UI测试；完整清单以本分支git diff为准。
 - 本地验证：Go四包通过、Node6/6、IPA结构测试7/7；新增Go格式、URL安全、批次事务/回滚、重复、曲序、重开持久化、元数据替换、重定向/限流和真实公开歌单导入通过。Swift编译/XCTest/UI及IPA正在使用原有macOS Actions流程验证，尚不能标记交付完成。

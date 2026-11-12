@@ -53,5 +53,7 @@ func (c *Client) ImportPlaylistPage(id string, offset int) (model.Playlist, []mo
 	if next < payload.Total && next <= offset {
 		return collection(p), nil, 0, 0, errors.New("Spotify returned an incomplete page")
 	}
-	return collection(p), rows, next, payload.Total, nil
+	col := collection(p)
+	col.Extra = map[string]string{"snapshot_id": p.SnapshotID}
+	return col, rows, next, payload.Total, nil
 }

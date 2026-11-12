@@ -39,12 +39,26 @@ struct PlaylistImportDraft: Codable {
     var added = 0
     var duplicates = 0
     var confirmed = false
+    var revision: String? = nil
 }
 struct ImportPlaylistPage: Decodable {
     var title: String; var cover: String; var total: Int
     var tracks: [ImportTrack]; var next: Int; var more: Bool
+    var revision: String? = nil
 }
 struct ImportCommitResult: Decodable { var added: Int; var duplicates: Int }
+
+enum ImportArtwork {
+    // Imported files can contain arbitrary strings. Preserve them in metadata,
+    // but render only known platform CDNs; never request a file's internal URL.
+    static func safe(_ raw: String) -> String {
+        guard var u = URLComponents(string: raw), ["http", "https"].contains(u.scheme ?? ""),
+              u.user == nil, u.password == nil, u.port == nil, let host = u.host?.lowercased() else { return "" }
+        let allowed = ["music.126.net", "y.gtimg.cn", "mzstatic.com", "scdn.co"]
+        guard allowed.contains(where: { host == $0 || host.hasSuffix("." + $0) }) else { return "" }
+        u.scheme = "https"; return u.string ?? ""
+    }
+}
 
 enum SongMatchingService {
     static func normalized(_ text: String) -> String {
@@ -180,6 +194,7 @@ final class PlaylistImportService: ObservableObject {
     }
     func readLink(_ link: String, source: String, client: NativeClient) {
         run { [self] in
+            phase = "正在读取歌单"
             var next = PlaylistImportDraft(collectionID: draft.collectionID)
             next.link = link.trimmingCharacters(in: .whitespacesAndNewlines); next.source = source; next.readComplete = false
             // Validate/load the first page before replacing an earlier draft.
@@ -196,11 +211,11 @@ final class PlaylistImportService: ObservableObject {
         guard page.total <= 5000, next.rows.count + page.tracks.count <= 5000,
               !page.more || page.next > next.offset else { throw NativeError.message("分页异常或超出 5000 首限制") }
         if next.offset > 0, page.total >= 0, next.total >= 0, page.total != next.total { throw NativeError.message("来源歌单已发生变化，请重新读取以保持曲目顺序") }
-        let priorIDs = Set(next.rows.map { $0.track.id })
-        if page.more, !page.tracks.isEmpty, page.tracks.allSatisfy({ priorIDs.contains($0.id) }) {
-            throw NativeError.message("来源重复返回上一页，已停止读取，请检查歌单")
+        if next.offset > 0, let revision = next.revision, let current = page.revision, revision != current {
+            throw NativeError.message("来源歌单在读取期间已改变，请重新读取以保持曲目顺序")
         }
-        next.title = page.title; next.cover = page.cover; next.total = page.total
+        next.revision = page.revision
+        next.title = page.title; next.cover = ImportArtwork.safe(page.cover); next.total = page.total
         next.rows += page.tracks.map { ImportRow(track: $0) }; next.offset = page.next; next.readComplete = !page.more
     }
     private func readRemaining(client: NativeClient) async throws {
@@ -231,19 +246,19 @@ final class PlaylistImportService: ObservableObject {
                         let value = try await client.request("playlist_import.local", params: ["path": .string(track.localPath)])
                         candidates = try value.decoded([NativeSongPayload].self).map(\.song)
                         try Task.checkCancellation()
-                        if candidates.count == 1 { draft.rows[index].match = candidates[0]; draft.rows[index].state = .matched }
+                        if candidates.count == 1 { draft.rows[index].match = candidates[0]; draft.rows[index].state = .matched; draft.rows[index].committed = false }
                         else { draft.rows[index].state = candidates.isEmpty ? .unmatched : .needsReview; draft.rows[index].note = "本地路径未唯一匹配；未打开或下载路径中的内容" }
                     } else {
                         // Same search implementation and three-source concurrency cap as the search tab.
                         let query = [track.title, track.artist].filter { !$0.isEmpty }.joined(separator: " ")
                         // Never let an imported field enter the search tab's URL parser.
-                        guard !query.contains("://"), !query.hasPrefix("spotify:") else { throw NativeError.message("歌名包含链接，请手动搜索匹配") }
+                        guard !query.contains("://"), !query.lowercased().hasPrefix("spotify:") else { throw NativeError.message("歌名包含链接，请手动搜索匹配") }
                         try await client.searchProgressively(query: query, type: "song", sources: client.searchSources.map(\.id)) { result in
                             candidates = result.songs; failures = result.errors
                         }
                         try Task.checkCancellation()
                         if let selected = SongMatchingService.automatic(track, candidates: candidates) {
-                            draft.rows[index].match = selected; draft.rows[index].state = .matched
+                            draft.rows[index].match = selected; draft.rows[index].state = .matched; draft.rows[index].committed = false
                         } else { draft.rows[index].state = candidates.isEmpty ? (failures.isEmpty ? .unmatched : .failed) : .needsReview }
                         draft.rows[index].note = failures.isEmpty ? "" : "部分来源暂不可用，可重试或手动匹配"
                     }
@@ -283,12 +298,12 @@ final class PlaylistImportService: ObservableObject {
     }
     private func storedSong(_ row: ImportRow) throws -> Song {
         let t = row.track
-        var song = row.match ?? Song(id: t.id, source: "import-metadata", name: t.title, artist: t.artist, album: t.album, cover: t.cover, duration: t.duration, extra: "{}")
+        var song = row.match ?? Song(id: t.id, source: "import-metadata", name: t.title, artist: t.artist, album: t.album, cover: ImportArtwork.safe(t.cover), duration: t.duration, extra: "{}")
         var extra = (try? JSONDecoder().decode([String: String].self, from: Data(song.extra.utf8))) ?? [:]
         extra["musicdl_import_key"] = t.id
         extra["musicdl_import_metadata"] = String(decoding: try JSONEncoder().encode(t), as: UTF8.self)
         extra["musicdl_match_state"] = row.state.rawValue
-        if !t.isrc.isEmpty { extra["isrc"] = t.isrc }
+        if row.match == nil, !t.isrc.isEmpty { extra["isrc"] = t.isrc }
         song.extra = String(decoding: try JSONEncoder().encode(extra), as: UTF8.self)
         return song
     }

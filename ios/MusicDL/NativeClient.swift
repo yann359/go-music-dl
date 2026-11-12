@@ -393,7 +393,7 @@ final class NativeClient: ObservableObject {
         let sourceErrors = envelope["data"]["errors"].arrayValue
         let spotifyRejected = directError.contains("Spotify API HTTP 401") || sourceErrors.contains { $0.stringValue.contains("Spotify API HTTP 401") }
         if let prepare = spotifyAuthorization, spotify && spotifyRejected {
-            if retrySpotify && ["search", "recommend", "toplists", "categories", "detail", "user_playlists", "category_playlists", "switch_source", "lyric"].contains(action) {
+            if retrySpotify && ["search", "recommend", "toplists", "categories", "detail", "user_playlists", "category_playlists", "switch_source", "lyric", "playlist_import.page"].contains(action) {
                 do { try await prepare(true) }
                 catch {
                     let hasResults = ["songs", "playlists", "toplists", "categories"].contains { !envelope["data"][$0].arrayValue.isEmpty }

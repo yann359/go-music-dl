@@ -17,12 +17,13 @@ import (
 
 type importPlaylistRef struct{ Source, ID string }
 type importPlaylistPage struct {
-	Title  string        `json:"title"`
-	Cover  string        `json:"cover"`
-	Total  int           `json:"total"`
-	Tracks []importTrack `json:"tracks"`
-	Next   int           `json:"next"`
-	More   bool          `json:"more"`
+	Title    string        `json:"title"`
+	Cover    string        `json:"cover"`
+	Total    int           `json:"total"`
+	Tracks   []importTrack `json:"tracks"`
+	Next     int           `json:"next"`
+	More     bool          `json:"more"`
+	Revision string        `json:"revision,omitempty"`
 }
 
 var importDigits = regexp.MustCompile(`^[0-9]{1,20}$`)
@@ -44,7 +45,10 @@ func parseImportPlaylistURL(raw, selected string) (importPlaylistRef, error) {
 		q := u.Query()
 		p := u.Path
 		if strings.HasPrefix(u.Fragment, "/playlist?") {
-			v, _ := url.Parse(u.Fragment)
+			v, parseErr := url.Parse(u.Fragment)
+			if parseErr != nil {
+				return ref, bad
+			}
 			p = v.Path
 			q = v.Query()
 		}
@@ -140,6 +144,7 @@ func readImportPlaylistPage(params map[string]json.RawMessage) (importPlaylistPa
 		page.Total = total
 		page.Next = next
 		page.More = next < total
+		page.Revision = p.Extra["snapshot_id"]
 		for _, s := range songs {
 			page.Tracks = append(page.Tracks, importTrack{Title: s.Name, Artist: s.Artist, Album: s.Album, Duration: s.Duration, Source: "spotify", SourceID: s.ID, PlaylistID: ref.ID, ISRC: s.Extra["isrc"], Cover: s.Cover})
 		}
@@ -160,6 +165,8 @@ func readImportPlaylistPage(params map[string]json.RawMessage) (importPlaylistPa
 			return page, errors.New("网易云歌单不可读取：可能为私有、已删除或需要授权")
 		}
 		h := head.Playlist
+		manifest, _ := json.Marshal(h.TrackIDs)
+		page.Revision = importIdentity(importTrack{Source: "netease", SourceID: string(manifest)})
 		page.Title = h.Name
 		page.Cover = h.Cover
 		page.Total = h.TrackCount
@@ -226,10 +233,12 @@ func readImportPlaylistPage(params map[string]json.RawMessage) (importPlaylistPa
 		var data struct {
 			Code   int
 			CDList []struct {
-				Name  string `json:"dissname"`
-				Cover string `json:"logo"`
-				Total int    `json:"total_song_num"`
-				Songs []struct {
+				Begin    *int            `json:"song_begin"`
+				Modified json.RawMessage `json:"mtime"`
+				Name     string          `json:"dissname"`
+				Cover    string          `json:"logo"`
+				Total    int             `json:"total_song_num"`
+				Songs    []struct {
 					ID       string                  `json:"songmid"`
 					Name     string                  `json:"songname"`
 					Album    string                  `json:"albumname"`
@@ -247,6 +256,10 @@ func readImportPlaylistPage(params map[string]json.RawMessage) (importPlaylistPa
 			return page, errors.New("QQ 歌单不可读取：可能为私有、已删除或需要授权")
 		}
 		h := data.CDList[0]
+		if h.Begin == nil || *h.Begin != offset {
+			return page, errors.New("QQ 接口没有按请求返回正确分页")
+		}
+		page.Revision = string(h.Modified)
 		page.Title = h.Name
 		page.Cover = h.Cover
 		page.Total = h.Total
