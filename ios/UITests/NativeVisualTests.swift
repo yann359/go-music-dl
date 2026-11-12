@@ -151,38 +151,88 @@ final class NativeVisualTests: XCTestCase {
         capture("09-player-dark-fixture")
     }
 
-    func testColdEmptyPlayerNavigationAndPlaybackLifecycle() {
-        for style in ["light", "dark"] {
-            let app = open(style, emptyPlayer: true)
+    func testColdEmptyPlayerNavigationAndPlaybackLifecycleLight() {
+        verifyColdEmptyPlayerLifecycle(style: "light")
+    }
+
+    func testColdEmptyPlayerNavigationAndPlaybackLifecycleDark() {
+        verifyColdEmptyPlayerLifecycle(style: "dark")
+    }
+
+    private func verifyColdEmptyPlayerLifecycle(style: String) {
+        let app = open(style, emptyPlayer: true)
+        defer { app.terminate() }
+        XCTAssertFalse(app.buttons["展开播放器"].exists)
+        capture("empty-discover-\(style)")
+        let tabFrame = app.tabBars.firstMatch.frame
+        for tab in ["搜索", "音乐库", "我的", "发现"] {
+            app.tabBars.buttons[tab].tap()
             XCTAssertFalse(app.buttons["展开播放器"].exists)
-            capture("empty-discover-\(style)")
-            let tabFrame = app.tabBars.firstMatch.frame
-            for tab in ["搜索", "音乐库", "我的", "发现"] {
-                app.tabBars.buttons[tab].tap()
-                XCTAssertFalse(app.buttons["展开播放器"].exists)
-                XCTAssertEqual(app.tabBars.firstMatch.frame, tabFrame)
-            }
-            app.tabBars.buttons["音乐库"].tap()
-            app.buttons["本地音乐"].tap()
-            let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
-            XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
-            XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 8))
-            app.buttons["暂停"].tap()
-            XCTAssertTrue(app.buttons["展开播放器"].exists)
-            XCUIDevice.shared.press(.home); app.activate()
-            XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
-            app.buttons["收起播放器"].tap()
-            XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 8))
-            app.buttons["展开播放器"].tap()
-            XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
-            app.buttons["播放队列"].tap()
-            app.buttons["清空"].tap()
-            app.buttons["清空队列并停止播放"].tap()
-            app.buttons["收起播放器"].tap()
-            XCTAssertFalse(app.buttons["展开播放器"].exists)
-            capture("cleared-player-\(style)")
-            app.terminate()
+            XCTAssertEqual(app.tabBars.firstMatch.frame, tabFrame)
         }
+        app.tabBars.buttons["音乐库"].tap()
+        app.buttons["本地音乐"].tap()
+        let song = app.buttons.containing(.staticText, identifier: "第一缕晨光").firstMatch
+        XCTAssertTrue(song.waitForExistence(timeout: 8)); song.tap()
+        XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 8))
+        guard tapVisibleAccessory(app, id: "mini-player-play-pause") else { return }
+        let paused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "已暂停"), object: app.buttons["mini-player-play-pause"])
+        XCTAssertEqual(XCTWaiter.wait(for: [paused], timeout: 5), .completed)
+        XCTAssertTrue(app.buttons["展开播放器"].exists)
+        XCUIDevice.shared.press(.home); app.activate()
+        XCTAssertTrue(app.buttons["收起播放器"].waitForExistence(timeout: 8))
+        app.buttons["收起播放器"].tap()
+        XCTAssertTrue(app.buttons["展开播放器"].waitForExistence(timeout: 8))
+        capture("accessory-before-reopen-\(style)")
+        guard tapVisibleAccessory(app, id: "open-player") else { return }
+        // An actual expanded view, rather than a successful tap call, proves navigation.
+        guard app.buttons["收起播放器"].waitForExistence(timeout: 8) else {
+            XCTFail("Visible accessory touch did not open the player")
+            return
+        }
+        app.buttons["播放队列"].tap()
+        app.buttons["清空"].tap()
+        app.buttons["清空队列并停止播放"].tap()
+        app.buttons["收起播放器"].tap()
+        XCTAssertFalse(app.buttons["展开播放器"].exists)
+        capture("cleared-player-\(style)")
+    }
+
+    /// iOS 26's zoom/bottom accessory can publish a stale AX activation point.
+    /// Touch the current visible frame, then assert the actual UI/state outcome.
+    /// If the button's frame is invalid, use its observed accessory ancestor and
+    /// MiniPlayer's unchanged 12pt padding / 12pt gaps / 44pt and 40pt controls.
+    private func tapVisibleAccessory(_ app: XCUIApplication, id: String) -> Bool {
+        let button = app.buttons[id]
+        guard button.waitForExistence(timeout: 8) else { XCTFail("Missing accessory control: \(id)"); return false }
+        let window = app.frame
+        func visible(_ rect: CGRect) -> Bool {
+            rect.minX.isFinite && rect.minY.isFinite && rect.width.isFinite && rect.height.isFinite &&
+                rect.width > 0 && rect.height > 0 && window.insetBy(dx: -1, dy: -1).contains(rect)
+        }
+        let frame = button.frame
+        let point: CGPoint
+        if visible(frame) {
+            point = CGPoint(x: frame.midX, y: frame.midY)
+        } else {
+            let ancestors = app.otherElements.containing(.button, identifier: "open-player").allElementsBoundByIndex
+                .map(\.frame).filter { visible($0) && $0.width > window.width * 0.6 && (40...80).contains($0.height) && $0.minY > window.height * 0.6 }
+            guard let accessory = ancestors.min(by: { $0.height < $1.height }) else {
+                XCTFail("No observed visible accessory frame for \(id)")
+                return false
+            }
+            if id == "open-player" {
+                let openingWidth = accessory.width - 24 - 44 - 40 - 24
+                point = CGPoint(x: accessory.minX + 12 + openingWidth / 2, y: accessory.midY)
+            } else {
+                point = CGPoint(x: accessory.maxX - 12 - 40 - 12 - 22, y: accessory.midY)
+            }
+        }
+        guard window.contains(point) else { XCTFail("Accessory touch point outside app"); return false }
+        print("[ui-accessory-touch] id=\(id) frame=\(frame) point=\(point)")
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: point.x - window.minX, dy: point.y - window.minY)).tap()
+        return true
     }
 
     func testFinalLyricsUIHasOneCreditAndKeepsRepeatedChorus() {
