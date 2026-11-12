@@ -116,6 +116,9 @@ type album struct {
 	TotalTracks int `json:"total_tracks"`
 }
 type track struct {
+	ExternalIDs struct {
+		ISRC string `json:"isrc"`
+	} `json:"external_ids"`
 	ID       string
 	Name     string
 	Artists  []artist

@@ -236,7 +236,7 @@ struct SongRows: View {
                             CoverArt(url: song.cover, title: song.name, radius: 10).frame(width: 52, height: 52)
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(song.name).font(.body.weight(.medium)).foregroundStyle(audio.currentSong?.key == song.key ? accent : .primary).lineLimit(1)
-                                Text([song.artist, song.sourceAvailable ? song.source.uppercased() : "来源已移除 · 记录保留"].filter { !$0.isEmpty }.joined(separator: " · "))
+                                Text([song.artist, song.sourceAvailable ? song.source.uppercased() : (song.source == "import-metadata" ? "暂不可播放 · 歌曲信息已保留" : "来源已移除 · 记录保留")].filter { !$0.isEmpty }.joined(separator: " · "))
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                 if searchMetadata {
                                     Text([song.album, song.duration > 0 ? String(format: "%d:%02d", song.duration / 60, song.duration % 60) : "", searchPlaybackStatus(song)].filter { !$0.isEmpty }.joined(separator: " · "))
@@ -330,6 +330,9 @@ struct SongDetailScreen: View {
     @State private var loadGeneration = UUID()
     @State private var enteredAt = Date()
     @State private var firstRowReported = false
+    @State private var importSheet = false
+    @State private var addSheet = false
+    private var editable: Bool { kind == "collection" && (client.collections.first { $0.id == id }?.kind ?? "manual") != "imported" }
     private var requestKey: String { source + "\n" + kind + "\n" + id }
     var body: some View {
         ScrollView {
@@ -338,6 +341,14 @@ struct SongDetailScreen: View {
                 VStack(spacing: 8) {
                     Text(title).font(.title2.bold()).multilineTextAlignment(.center)
                     Text("\(source.uppercased()) · \(songs.count) 首歌曲").font(.subheadline).foregroundStyle(.secondary)
+                }
+                if editable {
+                    VStack(spacing: 10) {
+                        Button { addSheet = true } label: { Label("添加其他歌曲", systemImage: "music.note.badge.plus").frame(maxWidth: .infinity).padding(.vertical, 7) }
+                            .accessibilityIdentifier("playlist-add-songs")
+                        Button { importSheet = true } label: { Label("导入其他软件的歌单", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity).padding(.vertical, 7) }
+                            .accessibilityIdentifier("playlist-import")
+                    }.buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 16))
                 }
                 if !songs.isEmpty {
                     HStack(spacing: 14) {
@@ -363,6 +374,22 @@ struct SongDetailScreen: View {
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { model.perform { try await client.enqueueDownload(songs); model.notify("已加入下载任务") } } label: { Image(systemName: "arrow.down.circle") }.disabled(songs.isEmpty).accessibilityLabel("下载全部") } }
             .task(id: requestKey + "\n\(attempt)") { await load() }
             .refreshable { await load(force: true) }
+            .sheet(isPresented: $addSheet) {
+                NavigationStack {
+                    SongSelectionScreen(existing: Set(songs.map { $0.source + ":" + $0.id })) { selected in
+                        let result = try await client.addSongsToCollection(id: id, songs: selected)
+                        attempt += 1
+                        do { try await client.loadLibrary() } catch { model.notify("歌曲已保存，歌单数量将在刷新后更新") }
+                        model.notify("已添加 \(result.added) 首，跳过重复 \(result.duplicates) 首")
+                    }.toolbar { ToolbarItem(placement: .cancellationAction) { Button("关闭") { addSheet = false } } }
+                }
+            }
+            .sheet(isPresented: $importSheet, onDismiss: { attempt += 1 }) {
+                NavigationStack {
+                    PlaylistImportView(collectionID: id, onChange: { attempt += 1 })
+                        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("关闭") { importSheet = false } } }
+                }
+            }
     }
     private func load(force: Bool = false) async {
         let token = UUID(); loadGeneration = token

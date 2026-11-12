@@ -176,6 +176,14 @@ func NativeClientRequest(raw string) (output string, err error) {
 		data = nativeSourceCatalog()
 	case "search":
 		data, err = nativeSearch(request.Params)
+	case "playlist_import.parse":
+		data, err = parseImportText(nativeString(request.Params, "text"), nativeString(request.Params, "format"))
+	case "playlist_import.page":
+		data, err = readImportPlaylistPage(request.Params)
+	case "playlist_import.local":
+		data, err = importLocalCandidates(nativeString(request.Params, "path"))
+	case "collections.add_batch":
+		data, err = commitImportSongs(request.Params)
 	case "switch_source.candidates":
 		data, err = nativeSwitchCandidates(request.Params)
 	case "switch_source.validate":

@@ -44,6 +44,32 @@ final class NativeBridgeIntegrationTests: XCTestCase {
         XCTAssertEqual(Set(cold.songs.map(\.key)), Set(warm.songs.map(\.key)))
         print("[search-real-api] first_ms=\(firstMS ?? -1) cold_ms=\(coldMS) warm_ms=\(warmMS) songs=\(cold.songs.count) cached_sources=\(warm.cachedSources)")
 
+        // Actual search results are added in one SQLite transaction through the
+        // production batch boundary. Includes a retry and a local file parse.
+        let destination = try await client.createCollection(name: "Real search import acceptance")
+        let selected = Array(cold.songs.prefix(2))
+        XCTAssertEqual(selected.count, 2)
+        let added = try await client.addSongsToCollection(id: destination.id, songs: selected)
+        XCTAssertEqual(added.added, 2)
+        let repeated = try await client.addSongsToCollection(id: destination.id, songs: selected)
+        XCTAssertEqual(repeated.duplicates, 2)
+        let imported = try await client.detail(kind: "collection", id: destination.id)
+        XCTAssertEqual(imported.map(\.id), selected.map(\.id))
+        XCTAssertEqual(imported.map(\.album), selected.map(\.album))
+        let reloadedClient = NativeClient()
+        let reloadedSongs = try await reloadedClient.detail(kind: "collection", id: destination.id)
+        XCTAssertEqual(reloadedSongs.count, 2)
+        let file = root.appendingPathComponent("playlist.csv")
+        try Data("title,artist,album\n晴天,周杰伦,叶惠美\n".utf8).write(to: file)
+        let parsed = try await client.request("playlist_import.parse", params: ["format": .string("csv"), "text": .string(try PlaylistImportView.fileText(file))]).decoded([ImportTrack].self)
+        XCTAssertEqual(parsed.first?.title, "晴天")
+        let textParsed = try await client.request("playlist_import.parse", params: ["format": .string("text"), "text": .string("周杰伦 - 晴天\n林俊杰 - 江南")]).decoded([ImportTrack].self)
+        XCTAssertEqual(textParsed.count, 2)
+        try await client.removeFromCollection(id: destination.id, song: selected[0])
+        let afterBatchRemoval = try await client.detail(kind: "collection", id: destination.id)
+        XCTAssertEqual(afterBatchRemoval.count, 1)
+        try await client.deleteCollection(id: destination.id)
+
         let engine = AudioEngine()
         let connection = NativeAIConnection(baseURL: baseURL, audio: engine)
         defer { connection.stop(); engine.shutdown() }

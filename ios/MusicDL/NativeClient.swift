@@ -173,7 +173,7 @@ struct NativeCategory: Decodable, Identifiable, Hashable {
     var key: String { source + ":" + id }
 }
 
-private struct NativeSongPayload: Decodable {
+struct NativeSongPayload: Decodable {
     let song: Song
     private enum CodingKeys: String, CodingKey { case id, songID = "song_id", source, name, artist, album, cover, duration, extra, link; case albumID = "album_id", isVIP = "is_vip" }
     init(from decoder: Decoder) throws {
@@ -598,6 +598,7 @@ final class NativeClient: ObservableObject {
     }
     func removeFromCollection(id: String, song: Song) async throws {
         _ = try await request("collections.remove", params: ["id": .string(id), "song": try .encoded(song)])
+        try await loadLibrary()
     }
     func importCollection(_ playlist: NativeCollection, kind: String = "playlist") async throws {
         var params = try JSONValue.encoded(playlist).objectValue

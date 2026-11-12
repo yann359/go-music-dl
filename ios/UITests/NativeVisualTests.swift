@@ -1,6 +1,43 @@
 import XCTest
 
 final class NativeVisualTests: XCTestCase {
+    func testRealPlaylistTextImportAndRelaunchPersistence() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-native-startup", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 35))
+        app.tabBars.buttons["音乐库"].tap()
+        app.buttons["创建歌单"].tap()
+        let name = "Import UI " + String(UUID().uuidString.prefix(6))
+        let field = app.alerts["新建歌单"].textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText(name)
+        app.alerts["新建歌单"].buttons["创建"].tap()
+        XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 10)); app.staticTexts[name].tap()
+        XCTAssertTrue(app.buttons["playlist-add-songs"].waitForExistence(timeout: 8))
+        app.buttons["playlist-add-songs"].tap()
+        XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 5))
+        app.buttons["关闭"].tap()
+        app.buttons["playlist-import"].tap()
+        app.buttons["粘贴歌曲列表"].tap()
+        let editor = app.textViews["playlist-import-text"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5)); editor.tap()
+        editor.typeText("MusicDL Test Artist - Import Verification Track")
+        app.buttons["读取并预览"].tap()
+        XCTAssertTrue(app.buttons["playlist-import-confirm"].waitForExistence(timeout: 10))
+        capture("playlist-import-native-preview")
+        app.buttons["playlist-import-confirm"].tap()
+        app.buttons["确认导入"].tap()
+        XCTAssertTrue(app.navigationBars["导入结果"].waitForExistence(timeout: 10))
+        capture("playlist-import-native-result")
+        app.terminate(); app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 35)); app.tabBars.buttons["音乐库"].tap()
+        XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 8)); app.staticTexts[name].tap()
+        XCTAssertTrue(app.staticTexts["Import Verification Track"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "暂不可播放")).firstMatch.exists)
+        capture("playlist-import-native-persisted")
+        app.terminate()
+    }
+
     func testRealNativeStartupAndRestoredSourcesWithoutPreview() {
         let app = XCUIApplication()
         // Runs the real C ABI startup/SQLite/bootstrap path; no UI fixtures.

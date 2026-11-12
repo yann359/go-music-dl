@@ -374,6 +374,7 @@ func loadSavedSongs(collectionID uint) ([]model.Song, error) {
 	}
 
 	songs := make([]model.Song, 0, len(savedSongs))
+	sortImportedSongs(savedSongs)
 	for _, ss := range savedSongs {
 		extra := decodeSongExtraMap(ss.Extra)
 		songs = append(songs, model.Song{
@@ -600,6 +601,7 @@ func collectionSongsJSON(collection *Collection) ([]gin.H, error) {
 	}
 
 	resp := make([]gin.H, 0, len(savedSongs))
+	sortImportedSongs(savedSongs)
 	for _, s := range savedSongs {
 		extraMap := decodeSongExtraMap(s.Extra)
 		resp = append(resp, gin.H{
