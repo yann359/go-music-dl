@@ -1,0 +1,31 @@
+name: Apple Music relay protocol
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'codex/apple-music-browser']
+    paths: ['internal/applemusicrelay/**', 'cmd/apple-music-relay/**', 'go.mod', 'go.sum', '.github/workflows/apple-music-relay.yml']
+  pull_request:
+    paths: ['internal/applemusicrelay/**', 'cmd/apple-music-relay/**', 'go.mod', 'go.sum', '.github/workflows/apple-music-relay.yml']
+permissions:
+  contents: read
+jobs:
+  protocol:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test isolated relay protocol and concurrency
+        env:
+          CGO_ENABLED: '1'
+        run: |
+          go test -race -count=1 ./internal/applemusicrelay ./cmd/apple-music-relay
+          go vet ./internal/applemusicrelay ./cmd/apple-music-relay
+          node --test internal/applemusicrelay/web/app.test.cjs
+      - name: Build standalone companion
+        run: go build -o "$RUNNER_TEMP/apple-music-relay" ./cmd/apple-music-relay
