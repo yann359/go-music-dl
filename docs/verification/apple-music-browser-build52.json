@@ -1,0 +1,352 @@
+{
+  "build": 52,
+  "run_id": 43545576995,
+  "run_url": "https://github.com/yann359/go-music-dl/actions/runs/43545576995",
+  "run_attempt": 2,
+  "run_conclusion": "success",
+  "job_id": 132305398760,
+  "code_commit": "8e9bb4b24d0ddd45c9a29180e5c2b7f6997e7676",
+  "branch": "codex/apple-music-browser",
+  "ipa": {
+    "sha256": "dfc00e5e63d6b2803cf9734d865ed462e59537457170b8974fe9070a1681c561",
+    "size_bytes": 14760113,
+    "bundle_id": "com.guohuiyuan.musicdl.nativedesign",
+    "build": "52",
+    "version": "1.0.0",
+    "minimum_ios": "18.0",
+    "background_modes": [
+      "audio"
+    ],
+    "signed": false,
+    "executable": {
+      "architecture": "arm64",
+      "file_type": 2,
+      "libraries": [
+        "/usr/lib/libresolv.9.dylib",
+        "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+        "/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer",
+        "/System/Library/Frameworks/Security.framework/Security",
+        "/System/Library/Frameworks/MusicKit.framework/MusicKit",
+        "/System/Library/Frameworks/AuthenticationServices.framework/AuthenticationServices",
+        "/System/Library/Frameworks/Network.framework/Network",
+        "/System/Library/Frameworks/Foundation.framework/Foundation",
+        "/usr/lib/libobjc.A.dylib",
+        "/usr/lib/libSystem.B.dylib",
+        "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+        "/System/Library/Frameworks/AVKit.framework/AVKit",
+        "/System/Library/Frameworks/Combine.framework/Combine",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+        "/System/Library/Frameworks/CoreImage.framework/CoreImage",
+        "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+        "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+        "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+        "/System/Library/Frameworks/UIKit.framework/UIKit",
+        "/usr/lib/swift/libswiftAVFoundation.dylib",
+        "/usr/lib/swift/libswiftCore.dylib",
+        "/usr/lib/swift/libswiftCoreAudio.dylib",
+        "/usr/lib/swift/libswiftCoreFoundation.dylib",
+        "/usr/lib/swift/libswiftCoreImage.dylib",
+        "/usr/lib/swift/libswiftCoreMIDI.dylib",
+        "/usr/lib/swift/libswiftCoreMedia.dylib",
+        "/usr/lib/swift/libswiftDispatch.dylib",
+        "/usr/lib/swift/libswiftMetal.dylib",
+        "/usr/lib/swift/libswiftOSLog.dylib",
+        "/usr/lib/swift/libswiftObjectiveC.dylib",
+        "/usr/lib/swift/libswiftQuartzCore.dylib",
+        "/usr/lib/swift/libswiftSpatial.dylib",
+        "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+        "/usr/lib/swift/libswiftXPC.dylib",
+        "/usr/lib/swift/libswift_Builtin_float.dylib",
+        "/usr/lib/swift/libswift_Concurrency.dylib",
+        "/usr/lib/swift/libswiftos.dylib",
+        "/usr/lib/swift/libswiftsimd.dylib"
+      ],
+      "encrypted": false,
+      "signature_bytes": 0,
+      "platform": 2,
+      "minimum_ios": "18.0.0",
+      "sdk": "26.5.0"
+    },
+    "framework_files": [],
+    "resources_verified": [
+      "Assets.car",
+      "LICENSE",
+      "NOTICE.md",
+      "ThirdPartyNotices.txt"
+    ],
+    "device_installation_tested": false,
+    "archive": {
+      "zip_crc_verified": true,
+      "standard_zip": true,
+      "unique_paths": true,
+      "no_encrypted_entries": true,
+      "compatible_compression": true,
+      "entry_count": 12,
+      "payload_app": "Payload/MusicDL.app"
+    }
+  },
+  "local_ipa": "../outputs/ios-release-build/build52/MusicDL-Build52.ipa",
+  "ipa_artifact_url": "https://github.com/yann359/go-music-dl/actions/runs/43545576995/artifacts/14096875586",
+  "artifacts": [
+    {
+      "id": 14096875586,
+      "name": "music-dl-ios-native-unsigned",
+      "size_in_bytes": 19871160,
+      "digest": "sha256:72b2648bdfe2623c5407acdaee4e3a47c8351bced8e77069d4958945e13d158a",
+      "expires_at": "2026-12-14T03:20:06Z",
+      "local_digest_verified": true,
+      "zip_crc_verified": true
+    },
+    {
+      "id": 14096166076,
+      "name": "ios-native-test-report",
+      "size_in_bytes": 156314781,
+      "digest": "sha256:dc11f9313146c9200336b39bfc668ebd5788ef45d4a57d4b2a6103d4c5f357ce",
+      "expires_at": "2027-02-12T02:51:11Z",
+      "local_digest_verified": true,
+      "zip_crc_verified": true
+    }
+  ],
+  "ipa_ci_local_verification_equal": true,
+  "ipa_sidecar_hash_verified": true,
+  "source_zip_crc_verified": true,
+  "source_files_verified": [
+    ".github/workflows/apple-music-relay.yml",
+    "PROJECT_STATUS.md",
+    "cmd/apple-music-relay/main.go",
+    "docs/ios-apple-music-browser-2026-11-14.md",
+    "internal/applemusicrelay/server.go",
+    "internal/applemusicrelay/server_test.go",
+    "internal/applemusicrelay/token.go",
+    "internal/applemusicrelay/web/app.css",
+    "internal/applemusicrelay/web/app.js",
+    "internal/applemusicrelay/web/app.test.cjs",
+    "internal/applemusicrelay/web/index.html",
+    "ios/MusicDL/AccountViews.swift",
+    "ios/MusicDL/AppleMusicBrowser.swift",
+    "ios/MusicDL/AppleMusicLibraryScreen.swift",
+    "ios/MusicDL/ApplePlaylistImport.swift",
+    "ios/MusicDL/Info.plist",
+    "ios/MusicDL/MusicAccounts.swift",
+    "ios/MusicDL/NativeRoot.swift",
+    "ios/Tests/AppleMusicBrowserTests.swift",
+    "ios/UITests/NativeVisualTests.swift"
+  ],
+  "callback_schemes_verified": [
+    "com.guohuiyuan.musicdl.spotify-login",
+    "com.guohuiyuan.musicdl.apple-login"
+  ],
+  "packaged_apple_relay_origin": "",
+  "baseline": "345818e",
+  "unchanged_files_verified": [
+    "ios/MusicDL/AudioEngine.swift",
+    "ios/MusicDL/PlayerViews.swift",
+    "ios/MusicDL/NativeAppModel.swift",
+    "ios/project.yml",
+    ".github/workflows/ios-native.yml",
+    "internal/web/collection.go",
+    "internal/web/native_client.go"
+  ],
+  "tests": {
+    "swift_passed": 102,
+    "swift_failed": 0,
+    "apple_browser_protocol_fixture_tests": 16,
+    "ui_passed": 13,
+    "ui_skipped": 2,
+    "ui_failed": 0,
+    "skip_reason": "System media island tap/long-press elements unavailable; not counted as verified.",
+    "real_native_missing_configuration_ui_seconds": 19.121,
+    "cold_player_dark_seconds": 56.645,
+    "cold_player_light_seconds": 52.055,
+    "playlist_real_search_multiselect_text_confirm_relaunch_seconds": 90.527,
+    "go_original_packages_passed": 4,
+    "node_native_bridge_passed": 6,
+    "ipa_format_tests_passed": 7,
+    "real_search_sample": {
+      "first_ms": 779,
+      "all_ms": 1840,
+      "cached_ms": 0,
+      "songs": 34,
+      "cached_sources": 3,
+      "device_performance_claim": false
+    }
+  },
+  "first_attempt": {
+    "job_id": 132296516470,
+    "conclusion": "failure",
+    "swift_passed": 102,
+    "ui_passed": 12,
+    "ui_skipped": 2,
+    "ui_failed": 1,
+    "failure": "Existing dark mini-player pause assertion remained playing after visible coordinate touch; line180. Same commit and assertions rerun without app/test changes.",
+    "artifact_id": 14095375814,
+    "artifact_sha256": "3f224f46fcbaa8f509dcfb5ce0c68310354a6e161fad07c400373c786071d73f",
+    "artifact_size": 194222410,
+    "artifact_digest_and_crc_verified": true,
+    "video_ax_and_screenshot_reviewed": true,
+    "log_sha256": "9d55ad9804d2988528180f51e64854ce9c167fd7fd20530a0165df8865a62250"
+  },
+  "relay_ci": {
+    "run_id": 43545288229,
+    "run_url": "https://github.com/yann359/go-music-dl/actions/runs/43545288229",
+    "conclusion": "success",
+    "commit": "50eee53872547fc841f270e06072b3d9ac6afc92",
+    "job_id": 132295071700,
+    "go_race_passed": true,
+    "go_vet_passed": true,
+    "standalone_build_passed": true,
+    "node_protocol_passed": 6,
+    "real_apple_authorization_tested": false,
+    "server_files_identical_to_ipa_source": [
+      "internal/applemusicrelay/server.go",
+      "internal/applemusicrelay/token.go",
+      "internal/applemusicrelay/server_test.go",
+      "internal/applemusicrelay/web/index.html",
+      "internal/applemusicrelay/web/app.js",
+      "internal/applemusicrelay/web/app.css",
+      "internal/applemusicrelay/web/app.test.cjs",
+      "cmd/apple-music-relay/main.go"
+    ],
+    "log_sha256": "f59a53728924e4083d208a65388fc57d55a9e1da26971aed3c55f769d8d79815"
+  },
+  "missing_service_startup": {
+    "configuration_provided": false,
+    "exit_code": 1,
+    "refused_to_start": true,
+    "network_service_started": false,
+    "message": "2026/11/14 10:40:10 Apple relay unavailable: configure readable server-only APPLE_MEDIA_KEY_FILE"
+  },
+  "test_environment": {
+    "xcode": "26.6",
+    "sdk": "26.5",
+    "simulator": "iPhone 17 Pro Max / iOS 26.5",
+    "local_host": "Windows"
+  },
+  "screenshots": [
+    {
+      "test": "NativeVisualTests/testAllAccountsAndOfficialAuthorizationEntrypoints()",
+      "file": "official-accounts-spotify-pending.png",
+      "artifact_entry": "screenshots/C4CE2A36-F579-498D-928B-24B5A3294340.png",
+      "sha256": "7f18c82e52d24c10cfe2335dfbc561818791c9eef540d479b5164bc03035d3eb",
+      "visually_reviewed": false
+    },
+    {
+      "test": "NativeVisualTests/testAllAccountsAndOfficialAuthorizationEntrypoints()",
+      "file": "official-apple-browser-system-separate-unconfigured.png",
+      "artifact_entry": "screenshots/F3F0E428-27D6-4D1E-A943-A7A3A66DB246.png",
+      "sha256": "9a37ee76024cf516abe16193f0bf849b73a71759a317935ce07b1e1db5dd4a6a",
+      "visually_reviewed": true
+    },
+    {
+      "test": "NativeVisualTests/testAppleBrowserMissingServiceShowsRealConfigurationFailure()",
+      "file": "apple-browser-real-service-unconfigured.png",
+      "artifact_entry": "screenshots/2C6B7FF7-F690-4DE7-869B-FB47161C3751.png",
+      "sha256": "fcff75ed9fc301b0d249b9d6c1eb8d27594b359261fbb385dc08bd934385fdb3",
+      "visually_reviewed": true
+    },
+    {
+      "test": "NativeVisualTests/testColdEmptyPlayerNavigationAndPlaybackLifecycleDark()",
+      "file": "cleared-player-dark.png",
+      "artifact_entry": "screenshots/189BDCD4-A9CC-4936-9790-8BD81986197C.png",
+      "sha256": "0159dfac0b6ae04ff12adf0e28f39af4f58e5d893355ec54ec3a0cef9c6ac0ed",
+      "visually_reviewed": true
+    },
+    {
+      "test": "NativeVisualTests/testColdEmptyPlayerNavigationAndPlaybackLifecycleDark()",
+      "file": "accessory-before-reopen-dark.png",
+      "artifact_entry": "screenshots/5DDFB5A8-A434-4421-8FFE-DDF06E68E276.png",
+      "sha256": "1ec89610687581cfd0f29b8a99af9eecf0497e1ed72894e98e05472064a7e087",
+      "visually_reviewed": true
+    },
+    {
+      "test": "NativeVisualTests/testColdEmptyPlayerNavigationAndPlaybackLifecycleDark()",
+      "file": "empty-discover-dark.png",
+      "artifact_entry": "screenshots/4CBFBC5B-6CBA-4D69-9702-4546AF8461BF.png",
+      "sha256": "f1831ea9947cb4c91a7544710fa8d490053ece3f5c1f7fc0f658e2452e300418",
+      "visually_reviewed": false
+    },
+    {
+      "test": "NativeVisualTests/testColdEmptyPlayerNavigationAndPlaybackLifecycleLight()",
+      "file": "cleared-player-light.png",
+      "artifact_entry": "screenshots/56E67C89-4207-4E10-8DBD-EE3188B63D60.png",
+      "sha256": "dec65c0f8d0fa2c6fe1463fdfef7d9462116393949be00a9f029c0fa86211760",
+      "visually_reviewed": true
+    },
+    {
+      "test": "NativeVisualTests/testColdEmptyPlayerNavigationAndPlaybackLifecycleLight()",
+      "file": "accessory-before-reopen-light.png",
+      "artifact_entry": "screenshots/FDFD0C58-DE72-4B5C-A44A-B0DCBAA16E8A.png",
+      "sha256": "e06919ad1993f4da4077053ca711679e63bf5054e88ecc1066eafee499c38bbb",
+      "visually_reviewed": true
+    },
+    {
+      "test": "NativeVisualTests/testColdEmptyPlayerNavigationAndPlaybackLifecycleLight()",
+      "file": "empty-discover-light.png",
+      "artifact_entry": "screenshots/2CE400D4-6798-4553-AD1C-DB770902D628.png",
+      "sha256": "673853015f5e30e09639fe192a57a17c7cb750aefcae2c955da959daad582233",
+      "visually_reviewed": false
+    },
+    {
+      "test": "NativeVisualTests/testRealPlaylistTextImportAndRelaunchPersistence()",
+      "file": "playlist-import-native-persisted.png",
+      "artifact_entry": "screenshots/E8D430D5-A08A-4F56-9E44-5A05581F4181.png",
+      "sha256": "dedb11130c0d5d55579f966ac982275117aae96164f52ac348afac7f829b02a9",
+      "visually_reviewed": true
+    },
+    {
+      "test": "NativeVisualTests/testRealPlaylistTextImportAndRelaunchPersistence()",
+      "file": "playlist-import-native-result.png",
+      "artifact_entry": "screenshots/34263B33-F326-4B70-B2A7-831F59EB5F80.png",
+      "sha256": "cf8329fb5a77972775fe453445a2b1919ecb065f539c8333a30512513fe2950d",
+      "visually_reviewed": true
+    },
+    {
+      "test": "NativeVisualTests/testRealPlaylistTextImportAndRelaunchPersistence()",
+      "file": "playlist-import-native-preview.png",
+      "artifact_entry": "screenshots/43749661-14FE-41CE-9099-4D8819787C92.png",
+      "sha256": "9dd388ffecded747cd356c9ad74d302ece7ffe5394a35d9860e5f4e9aabe354d",
+      "visually_reviewed": true
+    },
+    {
+      "test": "NativeVisualTests/testRealPlaylistTextImportAndRelaunchPersistence()",
+      "file": "playlist-native-real-search-multiple-added.png",
+      "artifact_entry": "screenshots/F66BB442-876F-4A43-B394-602771581AAC.png",
+      "sha256": "fc3468d44faed1ce7442126195cdd08fde76a0094d6ffb166913d3a30a687ce5",
+      "visually_reviewed": true
+    }
+  ],
+  "build_log_sha256": "56f492e7a8e7495ef682d89cd23a0ff85b7600107d580d0d69fa6b91cf24d036",
+  "data_compatibility": {
+    "sqlite_schema_migration": false,
+    "existing_playlists_rewritten": false,
+    "new_keychain_service": "com.guohuiyuan.musicdl.apple.browser",
+    "developer_private_key_in_app": false,
+    "apple_mut_in_native_app": false
+  },
+  "user_configuration_confirmed": {
+    "apple_developer_program_available": false,
+    "https_relay_available": false,
+    "deployment_requested": false
+  },
+  "real_apple_authorization_success_verified": false,
+  "safari_roundtrip_verified": false,
+  "native_musickit_authorization_success_verified": false,
+  "not_verified": [
+    "Real Apple login/password/2FA/consent",
+    "Real browser MUT access to Apple API",
+    "Real Apple library/search/import using browser session",
+    "Safari/app callbacks on iPhone",
+    "Universal Links AASA and signed Associated Domains",
+    "iPhone installation and native MusicKit service qualification",
+    "iPhone playback/background/lock-screen/Control Center/media island",
+    "Deployed service CSP domains, rate limits and network-failure cleanup"
+  ],
+  "known_limitations": [
+    "Browser uses the system default external browser; cannot guarantee Safari or gesture-free return.",
+    "Native and browser MusicKit authorization are separately verified.",
+    "Relay is single-instance in-memory and expires sessions after 24 hours or restart.",
+    "First dark pause UI attempt failed and is retained; same-commit retry passed, device follow-up still required."
+  ],
+  "documentation_note": "Delivery documentation is updated after build; no app/test code changes after code_commit."
+}

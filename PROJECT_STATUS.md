@@ -1,15 +1,17 @@
-## 当前阶段：Apple Music 浏览器连接（2026-11-14，开发/验证中）
+## 当前阶段：Apple Music 浏览器连接代码与Build52验证完成（2026-11-14，真实授权待配置）
 
-- 用户确认暂时没有 Apple Developer Program、HTTPS 域名/服务器；本轮先完成代码与配置检测，不部署服务、不索取私钥/密码/Token、不伪造授权成功。基线345818e（已验证Build48）；分支codex/apple-music-browser。已读当前源码、Git历史与本文。
-- 官方证据：MusicKit JS v3需signed Developer Token，MusicKit.configure后由用户点击调用music.authorize()；这是音乐资料授权，不是Sign in with Apple。开发者需Developer Program、Media ID/Media Services key，ES256与origin限制。原生MusicKit App Service与网页登录分开，网页授权不能自动授予原生整曲播放资格。具体来源与部署说明见[本轮报告](docs/ios-apple-music-browser-2026-11-14.md)。
-- 已实现：Apple账号页优先“通过浏览器连接 Apple Music”，独立“系统授权”备用；浏览器未连接/正在授权/连接成功/连接失败/服务配置不可用、重新授权、取消、验证、断开；公开HTTPS服务地址配置；只读分页歌单/歌曲、目录搜索与资料刷新；现有Apple歌单导入复用选定的浏览器/原生资料通道。
-- 安全通道：单独Go中转服务cmd/apple-music-relay，不随App/本地服务启动；MusicKit JS仅从Apple官方CDN载入，Apple页面处理敏感登录。MUT只在服务端加密内存保存；App Keychain只存随机服务会话、待处理state/PKCE，URL无MUT/Developer Token。一次性code+state+S256、十分钟待授权/两分钟兑换、24小时服务会话、HTTPS同源/安全cookie/CSRF/禁跳转、固定只读Apple API、限流与响应上限。断开停止本机访问并删除服务会话；Apple网站授权另由网页music.unauthorize撤销，系统权限独立。
-- 返回机制：默认注册独立自定义scheme，PKCE抵御code拦截使用；同时处理配置域名的Universal Link，但只有正确的AASA+Associated Domains签名后才可用。未擅改签名、Bundle ID、Actions或加入未经配置的entitlement。UIApplication打开系统默认外部浏览器，公开API不保证强制Safari；Safari可能需要点击网页“返回MusicDL”，不保证无手势自动跳回。
-- 数据兼容：SQLite、旧歌单、搜索后端和音源不变；只新增独立Keychain条目和公开配置/选择模式键。AudioEngine、PlayerViews、NativeAppModel、后台/锁屏/控制中心/媒体岛生产逻辑未改；NativeRoot仅接入返回URL，不调整播放器呈现。
-- 新文件：ios/MusicDL/{AppleMusicBrowser,AppleMusicLibraryScreen}.swift、ios/Tests/AppleMusicBrowserTests.swift、internal/applemusicrelay/{token,server,server_test}.go与web资源、cmd/apple-music-relay/main.go。调整MusicAccounts、AccountViews、ApplePlaylistImport、Info.plist、NativeRoot和UITests。待完成本地测试、原流程macOS编译/UI/IPA核验后补具体结果。
-- 本地已通过：Go relay九个顶层用例（另六个上游状态子用例）、go vet；授权网页Node6/6、原桥接Node6/6、IPA格式7/7、原Go四包。已修正网页取消返回为state绑定的error回调、原始SDK错误脱敏、过期/断开状态及服务资源仅嵌入生产文件。Build49/e4c1ab8在后续安全补丁取代后取消，未交付；Build50/b6ea206启动后继续补充失效回调仍可取消、重新授权重建流程、晚到验证不能改写断开状态及TLS/超时细分。更新提交将使用原工作流重新构建；中间轮次不作为完成。
-- 云端验证：最终应用源码ec8172a，Build51运行43545154563（https://github.com/yann359/go-music-dl/actions/runs/43545154563），等待完整原生编译与UI。Build49/50为被复查补丁替代的中间轮次；未作为交付成功。Windows本机-race因CGO/GCC不可用未运行，新增独立apple-music-relay.yml在Linux运行race/vet/web协议测试，不修改原iOS构建/签名工作流，不需要任何Apple秘密或真实账号。
-- 验证边界：协议单元测试只用明确标注的虚构响应，不能当作Apple授权成功。当前真正可用的是无配置检测、独立系统备用入口及现有其他音乐功能；网页真实Apple账号/2FA/授权/歌单/搜索、Safari往返、Universal Links、服务部署、原生签名服务资格都未实测成功。下一步先通过代码测试与构建，再按报告配置真实开发者服务后验收成功/取消/失败/重复/断开及返回。
+- 用户明确确认没有 Apple Developer Program 和 HTTPS 域名/服务器，本轮先完成代码与配置检测。没有部署或伪造Apple授权，未索取私钥/密码/Token。基线345818e/Build48；分支codex/apple-music-browser；先读源码、Git历史与本文。[研究、配置、失败记录与验收矩阵](docs/ios-apple-music-browser-2026-11-14.md)。
+- Apple账号页已优先显示“通过浏览器连接 Apple Music”，保留独立“系统授权”备用；状态、重新授权、取消、验证、断开、公开HTTPS服务地址配置及只读资料页面已接入。歌单/歌曲分页、官方目录搜索和既有Apple歌单导入已编写正式请求路径，但真实账号成功读取未验证。当前无配置时真实显示“服务配置不可用”，不会跳普通Apple登录后假装音乐已连接。
+- 官方MusicKit JS v3、music.authorize、Developer Token/Media ID/Media Services key/origin已研究；不是Sign in with Apple。新增单独Go服务cmd/apple-music-relay，Apple页面处理敏感登录；原生App Keychain只保存服务会话及state/PKCE，Apple MUT在服务加密内存，不进App/URL/日志。一次性code、S256、同源/CSRF、安全cookie、固定只读API、禁跳转和限流。网页music.unauthorize、原生系统权限和本机断开含义分别说明。
+- 返回采用独立custom scheme及严格state/目标/参数/有效期校验；可选Universal Link需要真实AASA和Associated Domains签名，当前未配置。使用系统默认外部浏览器，不能保证一定是Safari或无需手势自动返回。待授权十分钟、code两分钟、服务会话24小时；服务重启需重新授权。断网时远端清理可能延迟至到期，真实部署前应验证。
+- 数据兼容：无SQLite迁移、无旧歌单重写。AudioEngine/PlayerViews/NativeAppModel、搜索后端与来源、原iOS签名/Bundle ID/project.yml/ios-native.yml保持；NativeRoot只加返回URL处理。新增独立relay测试workflow，不部署、不改变原IPA流程。
+- 新文件：ios/MusicDL/{AppleMusicBrowser,AppleMusicLibraryScreen}.swift、ios/Tests/AppleMusicBrowserTests.swift、internal/applemusicrelay的Go/网页/测试、cmd/apple-music-relay/main.go、.github/workflows/apple-music-relay.yml；调整MusicAccounts、AccountViews、ApplePlaylistImport、Info.plist、NativeRoot、UITests。完整20份应用构建改动与受测源码已核验，详见交付JSON。
+- [Build52 attempt2完整成功](https://github.com/yann359/go-music-dl/actions/runs/43545576995)，源码8e9bb4b24d0ddd45c9a29180e5c2b7f6997e7676，job132305398760。设备Release/模拟器编译、Swift102/102（新增Apple协议16项）、UI13通过/2跳过/0失败；无配置真实UI19.121秒，深/浅播放器56.645/52.055秒，原歌单双选/文本/终止重启90.527秒。两项跳过是模拟器系统媒体岛无法定位，不算真机通过。
+- 首次attempt1：Swift102/102、UI12通过/2跳过/1失败，深色附件暂停点击后仍为正在播放（line180）；新Apple无配置UI及歌单流程均通过。报告14095375814已下载验digest/CRC，实际查看录屏30秒帧、AX和截图。应用与测试源码完全未改，原流程同提交重跑后全部通过；失败证据保留，不能据此承诺真机无问题。Build49–51被复查补丁取代取消，均未交付。
+- Linux独立服务[CI43545288229](https://github.com/yann359/go-music-dl/actions/runs/43545288229)通过Go race/vet、网页Node6/6和独立编译（服务8份源码与IPA提交相同）。Windows原Go四包、桥接Node6/6、IPA格式7/7通过；本机race因CGO/GCC不可用未运行，不能与Linux结果混淆。实际启动无配置服务明确退出，未启动监听。所有授权成功测试使用标记清楚的协议fixture，不代表Apple成功。
+- IPA：../outputs/ios-release-build/build52/MusicDL-Build52.ipa，14,760,113字节，SHA256 dfc00e5e63d6b2803cf9734d865ed462e59537457170b8974fe9070a1681c561；[IPA、匹配源码与许可](https://github.com/yann359/go-music-dl/actions/runs/43545576995/artifacts/14096875586)。原Bundle ID/MusicDL、1.0.0/Build52、arm64 iPhoneOS/iOS18+、后台audio、未签名；需原SideStore身份或有效签名覆盖安装，不需先卸载，未操作手机。
+- 交付校验：两份artifact digest/CRC、IPA hash/标准ZIP/结构/资源/CI与本地结果、源码ZIP CRC及20份改动文件逐字匹配8e9bb4b；实际查看最终Apple主入口/系统备用、浅深暂停/清空、歌单双选/导入/重启截图。[交付证据JSON](docs/verification/apple-music-browser-build52.json)。本次最后只补文档，不改受测App代码。
+- 未完成：真实开发者资格和服务部署、Apple登录/2FA/同意权限、浏览器MUT上游请求、真实歌单/歌曲/搜索/导入、Safari返回、Universal Links、原生签名服务资格、新包iPhone后台/锁屏/控制中心/媒体岛验收。下一轮先读本文/报告/git log，按部署步骤配置服务，再逐项实际验收；不能把配置检测/协议测试当作真实Apple连接成功。
 
 ## 当前阶段：跨平台歌单导入已构建交付（2026-11-12，Build48自动化通过，真机待验）
 
