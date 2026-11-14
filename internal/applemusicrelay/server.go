@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-//go:embed web/*
+//go:embed web/index.html web/app.js web/app.css
 var assets embed.FS
 
 type flow struct {
@@ -357,18 +357,25 @@ func (s *Server) browserCancel(w http.ResponseWriter, r *http.Request) {
 	}
 	cookie, err := r.Cookie("__Host-musicdl-apple")
 	if err != nil {
-		w.WriteHeader(204)
+		fail(w, 401, "expired_flow")
 		return
 	}
 	p := strings.Split(cookie.Value, ".")
-	if len(p) == 2 {
-		s.mu.Lock()
-		if f := s.flows[p[0]]; f != nil && same(f.Cookie, p[1]) {
-			delete(s.flows, p[0])
-		}
-		s.mu.Unlock()
+	if len(p) != 2 {
+		fail(w, 401, "expired_flow")
+		return
 	}
-	w.WriteHeader(204)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	f := s.flows[p[0]]
+	if f == nil || !same(f.Cookie, p[1]) || !s.now().Before(f.Expires) {
+		fail(w, 401, "expired_flow")
+		return
+	}
+	u, _ := url.Parse(s.config.Callback)
+	u.RawQuery = url.Values{"id": {p[0]}, "state": {f.State}, "error": {"cancelled"}}.Encode()
+	delete(s.flows, p[0])
+	reply(w, 200, map[string]string{"callback": u.String()})
 }
 func (s *Server) credential(r *http.Request) (string, string, bool) {
 	id := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")

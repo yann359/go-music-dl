@@ -7,6 +7,21 @@ const back = document.getElementById("return");
 const revoke = location.pathname === "/disconnect";
 const fragment = location.hash.slice(1).split(".");
 history.replaceState(null, "", location.pathname);
+class ConnectionError extends Error {}
+function errorText(error) {
+  if (error instanceof ConnectionError) return error.message;
+  if (error && error.name === "AbortError") return "浏览器已取消此次授权，请返回 App 重新连接。";
+  if (error && error.name === "NotAllowedError") return "浏览器未允许打开授权窗口，请允许此站点弹窗后重试。";
+  return "Apple MusicKit 未能完成授权或返回可验证的音乐访问令牌。请返回 App 重试；若重复失败，请联系维护者检查网络、账号与 MusicKit 配置。";
+}
+function showReturn(value) {
+  const callback = new URL(value.callback);
+  const custom = callback.protocol === "com.guohuiyuan.musicdl.apple-login:" && callback.hostname === "callback" && callback.pathname === "";
+  const universal = callback.origin === location.origin && callback.pathname === "/apple-music/return";
+  if (!custom && !universal) throw new ConnectionError("返回地址不符合安全配置，请返回 App 重新连接。");
+  back.href = callback.href; back.hidden = false;
+  return {callback,custom};
+}
 let music;
 let cancelled = false;
 const messages = {
@@ -20,7 +35,7 @@ async function json(path, body) {
   const response = await fetch(path, {method: body ? "POST" : "GET", credentials: "same-origin", cache: "no-store",
     headers: body ? {"Content-Type":"application/json"} : {}, body: body ? JSON.stringify(body) : undefined});
   const value = await response.json();
-  if (!response.ok) throw new Error(messages[value.error] || "服务请求失败，请返回 App 重新连接。");
+  if (!response.ok) throw new ConnectionError(messages[value.error] || "服务请求失败，请返回 App 重新连接。");
   return value;
 }
 const loaded = new Promise(resolve => {
@@ -33,11 +48,11 @@ async function start() {
     return;
   }
   if (!revoke) {
-    if (fragment.length !== 2 || !fragment.every(v => /^[A-Za-z0-9_-]{43}$/.test(v))) throw new Error(messages.expired_flow);
+    if (fragment.length !== 2 || !fragment.every(v => /^[A-Za-z0-9_-]{43}$/.test(v))) throw new ConnectionError(messages.expired_flow);
     await json("/v1/browser/start", {id:fragment[0],secret:fragment[1]});
   }
   const config = await json("/v1/web-config");
-  await Promise.race([loaded, new Promise((_,reject) => setTimeout(() => reject(new Error("Apple MusicKit 加载超时。请检查网络后从 App 重试。")),20000))]);
+  await Promise.race([loaded, new Promise((_,reject) => setTimeout(() => reject(new ConnectionError("Apple MusicKit 加载超时。请检查网络后从 App 重试。")),20000))]);
   await MusicKit.configure({developerToken:config.developerToken, app:{name:"MusicDL",build:"1"}});
   music = MusicKit.getInstance();
   status.textContent = revoke ? "此操作在当前浏览器撤销此网站的 Apple Music 授权，不会退出 Apple 账号。" : "请点击下方按钮，在 Apple 官方页面登录并同意音乐资料访问。";
@@ -57,30 +72,27 @@ connect.addEventListener("click", async () => {
     // Invoked directly from the user gesture: authorize may open a popup.
     const token = await music.authorize();
     if (cancelled) return;
-    if (typeof token !== "string" || !token) throw new Error("Apple 没有返回音乐访问授权，请重试。");
+    if (typeof token !== "string" || !token) throw new ConnectionError("Apple 没有返回音乐访问授权，请重试。");
     status.textContent = "正在验证实际资料库访问能力…";
     const value = await json("/v1/browser/complete", {token});
     if (cancelled) return;
-    const callback = new URL(value.callback);
-    const custom = callback.protocol === "com.guohuiyuan.musicdl.apple-login:" && callback.hostname === "callback" && callback.pathname === "";
-    const universal = callback.origin === location.origin && callback.pathname === "/apple-music/return";
-    if (!custom && !universal) throw new Error("返回地址不符合安全配置，请返回 App 重新连接。");
-    back.href = callback.href; back.hidden = false;
+    const {callback,custom} = showReturn(value);
     cancel.disabled = true;
     status.textContent = "Apple 接口已验证。请返回 App 完成安全校验；若未自动返回，请点击下方按钮。";
     // Safari may require the visible link to be tapped. Never promise auto-return.
     if (custom) location.assign(callback.href);
   } catch (error) {
     // Never show raw Apple errors: they can contain credentials/request URLs.
-    status.textContent = error instanceof Error && Object.values(messages).includes(error.message) ? error.message : "授权未完成，可能已取消或 Apple 拒绝访问。请返回 App 重试；若反复失败，请检查网络和开发者服务配置。";
+    status.textContent = errorText(error);
     connect.disabled = cancelled;
   }
 });
 cancel.addEventListener("click", async () => {
   cancelled = true; connect.disabled = true; cancel.disabled = true;
   try {
-    await fetch("/v1/browser/cancel", {method:"POST",credentials:"same-origin"});
-    status.textContent = "本页已取消连接。请返回 MusicDL 点击取消授权。";
+    const value = await json("/v1/browser/cancel", {});
+    showReturn(value);
+    status.textContent = "本次连接已取消。请点击返回 MusicDL，完成本机待处理状态清理。";
   } catch { status.textContent = "本页已停止连接。请返回 MusicDL 点击取消授权；未完成请求会自动到期。"; }
 });
-start().catch(error => { status.textContent = error.message; });
+start().catch(error => { status.textContent = error instanceof TypeError ? "无法加载授权服务，请检查网络和 HTTPS 服务配置，然后从 App 重试。" : errorText(error); });

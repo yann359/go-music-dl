@@ -202,7 +202,7 @@ func TestBrowserCancelAndCSRFProtection(t *testing.T) {
 			t.Fatal("CSRF accepted")
 		}
 	}
-	if call(s, "POST", "/v1/browser/cancel", nil, s.config.Origin, f.cookie, "").Code != 204 {
+	if call(s, "POST", "/v1/browser/cancel", nil, s.config.Origin, f.cookie, "").Code != 200 {
 		t.Fatal("browser cancel failed")
 	}
 	if s.flows[f.id] != nil {

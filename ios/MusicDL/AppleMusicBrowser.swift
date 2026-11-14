@@ -222,10 +222,14 @@ final class AppleMusicBrowser: ObservableObject {
             guard let expectedURL = URLComponents(string: pending.callback) else { throw AppleBrowserError.callback }
             guard c.scheme == expectedURL.scheme, c.host == expectedURL.host, c.path == expectedURL.path,
                   c.user == nil, c.password == nil, c.port == nil, c.fragment == nil, let items = c.queryItems, items.count == 3,
-                  Set(items.map(\.name)) == Set(["id", "state", "code"]),
+                  (Set(items.map(\.name)) == Set(["id", "state", "code"]) || Set(items.map(\.name)) == Set(["id", "state", "error"])),
                   items.first(where: { $0.name == "id" })?.value == pending.id,
-                  items.first(where: { $0.name == "state" })?.value == pending.state,
-                  let code = items.first(where: { $0.name == "code" })?.value, Self.opaque(code) else { throw AppleBrowserError.callback }
+                  items.first(where: { $0.name == "state" })?.value == pending.state else { throw AppleBrowserError.callback }
+            if let error = items.first(where: { $0.name == "error" })?.value {
+                guard error == "cancelled" else { throw AppleBrowserError.callback }
+                await cancel(); return true
+            }
+            guard let code = items.first(where: { $0.name == "code" })?.value, Self.opaque(code) else { throw AppleBrowserError.callback }
             checking = true; defer { checking = false }; let expected = generation
             let issued = try await client.request(origin: origin, route: "/v1/exchange", body: ["id":pending.id,"code":code,"verifier":pending.verifier])
             let capability = issued["session"].stringValue, expires = Date(timeIntervalSince1970: issued["expires"].numberValue)
@@ -262,18 +266,20 @@ final class AppleMusicBrowser: ObservableObject {
         let library = try await read("/v1/me/library/playlists?limit=1")
         guard case .array = library["data"] else { throw AppleBrowserError.response }
         guard expected == generation else { throw CancellationError() }
-        summary = MusicAccountSummary(connection: .connected, detail: "浏览器授权与音乐资料库读取已验证，地区：\(first["id"].stringValue.uppercased())。可读取歌单、歌曲资料并导入；原生 MusicKit 授权和完整歌曲播放资格仍需独立验证。")
+        summary = MusicAccountSummary(connection: .connected, detail: "浏览器授权与音乐资料库读取已验证，地区：\(first["id"].stringValue.uppercased())。可继续同步歌单、搜索与导入，具体能力依实际接口返回结果；原生 MusicKit 授权和完整歌曲播放资格仍需独立验证。")
     }
     func read(_ path: String) async throws -> JSONValue {
+        guard Self.validOrigin(origin) else { failed(AppleBrowserError.configuration); throw AppleBrowserError.configuration }
         try load()
-        guard let session = record?.session, session.expires > Date(), !defaults.bool(forKey: "account.apple.browser.disabled") else { throw AppleBrowserError.expired }
+        guard let session = record?.session, session.expires > Date(), !defaults.bool(forKey: "account.apple.browser.disabled") else { failed(AppleBrowserError.expired); throw AppleBrowserError.expired }
         let expected = generation
         do {
             let value = try await client.request(origin: origin, route: "/v1/read", body: ["path":path], capability: session.capability)
             guard generation == expected else { throw CancellationError() }; return value
         } catch {
             guard generation == expected else { throw CancellationError() }
-            if let failure = error as? AppleBrowserError, failure == .expired || failure == .denied { record?.session = nil; try? persist(); failed(failure) }
+            if let failure = error as? AppleBrowserError, failure == .expired || failure == .denied { record?.session = nil; try? persist() }
+            if !(error is CancellationError) { failed(error) }
             throw error
         }
     }

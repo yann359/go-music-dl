@@ -193,4 +193,32 @@ final class AppleMusicBrowserTests: XCTestCase {
         XCTAssertFalse(defaults.bool(forKey:"account.apple.enabled"))
         await accounts.disconnectApple()
     }
+    func testStateBoundSafariCancellationClearsPendingWithoutExchanging() async throws {
+        let (defaults,client)=environment();let storage=AppleMemoryStorage()
+        AppleProtocol.handler={ request in
+            XCTAssertNotEqual(request.url?.path,"/v1/exchange")
+            return try self.handler(request)
+        }
+        let browser=AppleMusicBrowser(storage:storage,client:client,defaults:defaults,openBrowser:{_ in true})
+        await browser.connect();let pending=try XCTUnwrap(storage.record?.pending)
+        let url=URL(string:callback(pending).absoluteString.replacingOccurrences(of:"code="+code,with:"error=cancelled"))!
+        _ = await browser.handleCallback(url)
+        XCTAssertNil(storage.record?.pending);XCTAssertNil(storage.record?.session)
+        XCTAssertEqual(browser.summary.connection,.disconnected)
+    }
+    func testBrowserLaunchFailureCancelsPendingAndShowsActualReason() async {
+        let (defaults,client)=environment();let storage=AppleMemoryStorage();AppleProtocol.handler=handler
+        let browser=AppleMusicBrowser(storage:storage,client:client,defaults:defaults,openBrowser:{_ in false})
+        await browser.connect();XCTAssertNil(storage.record?.pending)
+        XCTAssertEqual(browser.summary.connection,.failed);XCTAssertTrue(browser.summary.detail.contains("未能打开浏览器"))
+    }
+    func testExpiredPendingRequiresFreshAuthorizationAndRejectsOldCallback() async {
+        let (defaults,client)=environment();let storage=AppleMemoryStorage();AppleProtocol.handler=handler
+        let pending=AppleWebPending(id:flow,state:String(repeating:"t",count:43),verifier:String(repeating:"v",count:43),callback:AppleMusicBrowser.customCallback,expires:.distantPast)
+        storage.record=AppleWebRecord(origin:origin,pending:pending)
+        let browser=AppleMusicBrowser(storage:storage,client:client,defaults:defaults,openBrowser:{_ in true})
+        await browser.restore();XCTAssertEqual(browser.summary.connection,.failed)
+        XCTAssertNil(storage.record?.pending)
+        _ = await browser.handleCallback(callback(pending));XCTAssertNotEqual(browser.summary.connection,.connected)
+    }
 }

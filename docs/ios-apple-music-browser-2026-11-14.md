@@ -26,7 +26,7 @@
 2. App生成32字节随机state/verifier，仅把S256 challenge与state发服务。服务返回短时flow与bootstrap fragment，App先安全写Keychain再打开浏览器。
 3. 网页以fragment建立Secure/HttpOnly/SameSite=Strict cookie，清除地址栏fragment，不收集Apple密码。仅加载Apple官方MusicKit JS；点击后调用music.authorize。
 4. MUT通过同源HTTPS POST发送服务，服务用实际Apple storefront与library/playlists验证。验证成功才生成两分钟一次性code。不存在假成功兜底。
-5. 返回链接只有id/state/code，无Apple令牌。App严格核对scheme/host/path、重复参数、state、有效期，携verifier兑换。服务原子消费code，抵御重复兑换与自定义scheme被其他App截取后的使用。
+5. 成功返回链接只有id/state/code，取消返回id/state/error=cancelled，无Apple令牌。App严格核对scheme/host/path、重复参数、state、有效期，携verifier兑换。服务原子消费code，抵御重复兑换与自定义scheme被其他App截取后的使用。
 6. 原生Keychain只保存24小时随机服务会话，不保存Apple私钥/Developer Token/MUT。服务MUT用启动时随机AES-GCM密钥加密内存存储，不落磁盘；重启即失效。App再次读取storefront和一项资料库列表成功后才显示“连接成功”。
 7. 只读资料页支持当前账号歌单、歌曲分页、地区目录歌曲搜索、下拉同步。只保存本页内存结果，不自动改SQLite。已有“自建歌单→导入其他软件的歌单→Apple Music”继续分页预览、匹配、确认后持久化；元数据导入不等于音频迁移。
 8. 原生MusicKit备用独立保存enabled/verified与状态，单独验证，不使用网页会话。两种模式按用户最近选择读取，登录原生不暗中切换到网页，网页成功不更改原生播放资格。
@@ -68,3 +68,10 @@
 构建和实际测试结果将在验证后追加。明确未验：付费服务配置、真实Apple授权/密码/2FA、浏览器MUT上游可用性、Safari/Universal Links往返、个人歌单与目录真实请求、本轮iPhone媒体回归。首次部署还需校准Apple授权涉及的域名/CSP要求并观察真实状态，不宣称静态安全策略已覆盖未来Apple变更。
 
 回退以revert本轮提交为主，不删用户库、不卸载App；新Keychain条目在回退前可通过断开清理。服务停机将使其短时会话失效，App显示需重连，已有导入数据仍在SQLite。下一轮先读PROJECT_STATUS.md、本报告与git log。
+
+
+### 本地验证记录
+
+2026-11-14：relay Go九个顶层用例及六个上游状态子用例通过；go vet通过。网页Node6/6（显式手势、令牌不进URL、上游错误脱敏、原始SDK错误不显示、取消返回、官方unauthorize、无效fragment），原桥接Node6/6，IPA格式7/7；原Go四包通过。Swift新增16项协议/状态测试待macOS执行，成功fixture不代表Apple成功。Info.plist已解析验证，原Spotify scheme、Bundle占位、后台audio保留，Apple公开服务地址为空。
+
+Build49/e4c1ab8启动原签名/Actions流程用于编译检查；随后补充网页取消后的state回调、错误脱敏、过期/断开保护和额外Swift测试。中间构建不交付，最终受测提交与结果后续记录。
