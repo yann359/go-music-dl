@@ -56,6 +56,11 @@ final class MusicAccounts: ObservableObject {
         defaults.set("browser", forKey: "account.apple.mode"); objectWillChange.send()
         await appleBrowser.connect()
     }
+    func reauthorizeAppleBrowser() async {
+        defaults.set("browser", forKey: "account.apple.mode"); objectWillChange.send()
+        await appleBrowser.cancel()
+        await appleBrowser.connect()
+    }
     func configureAppleBrowser(_ origin: String) async { await appleBrowser.configure(origin); objectWillChange.send() }
     func handleAppleCallback(_ url: URL) async { _ = await appleBrowser.handleCallback(url) }
     func readApple(_ path: String) async throws -> JSONValue {

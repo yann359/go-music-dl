@@ -75,3 +75,6 @@
 2026-11-14：relay Go九个顶层用例及六个上游状态子用例通过；go vet通过。网页Node6/6（显式手势、令牌不进URL、上游错误脱敏、原始SDK错误不显示、取消返回、官方unauthorize、无效fragment），原桥接Node6/6，IPA格式7/7；原Go四包通过。Swift新增16项协议/状态测试待macOS执行，成功fixture不代表Apple成功。Info.plist已解析验证，原Spotify scheme、Bundle占位、后台audio保留，Apple公开服务地址为空。
 
 Build49/e4c1ab8启动原签名/Actions流程用于编译检查；随后补充网页取消后的state回调、错误脱敏、过期/断开保护和额外Swift测试。中间构建不交付，最终受测提交与结果后续记录。
+
+
+后续复查修正：失败回调保留待处理请求时仍展示取消；“重新授权”明确取消旧flow后创建新flow；迟到的服务验证不会覆盖已断开状态；HTTPS证书失败与请求超时提供具体建议。Build49在安全补丁取代后被原并发策略取消；Build50/b6ea206为上述复查前中间版本，最终以更新提交构建为准，不能将任一未完成轮次算通过。

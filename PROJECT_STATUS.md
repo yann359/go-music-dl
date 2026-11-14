@@ -7,7 +7,7 @@
 - 返回机制：默认注册独立自定义scheme，PKCE抵御code拦截使用；同时处理配置域名的Universal Link，但只有正确的AASA+Associated Domains签名后才可用。未擅改签名、Bundle ID、Actions或加入未经配置的entitlement。UIApplication打开系统默认外部浏览器，公开API不保证强制Safari；Safari可能需要点击网页“返回MusicDL”，不保证无手势自动跳回。
 - 数据兼容：SQLite、旧歌单、搜索后端和音源不变；只新增独立Keychain条目和公开配置/选择模式键。AudioEngine、PlayerViews、NativeAppModel、后台/锁屏/控制中心/媒体岛生产逻辑未改；NativeRoot仅接入返回URL，不调整播放器呈现。
 - 新文件：ios/MusicDL/{AppleMusicBrowser,AppleMusicLibraryScreen}.swift、ios/Tests/AppleMusicBrowserTests.swift、internal/applemusicrelay/{token,server,server_test}.go与web资源、cmd/apple-music-relay/main.go。调整MusicAccounts、AccountViews、ApplePlaylistImport、Info.plist、NativeRoot和UITests。待完成本地测试、原流程macOS编译/UI/IPA核验后补具体结果。
-- 本地已通过：Go relay九个顶层用例（另六个上游状态子用例）、go vet；授权网页Node6/6、原桥接Node6/6、IPA格式7/7、原Go四包。已修正网页取消返回为state绑定的error回调、原始SDK错误脱敏、过期/断开状态及服务资源仅嵌入生产文件。Build49/e4c1ab8已启动原流程；后续安全补丁及额外Swift用例将由更新构建验证，未交付中间包。
+- 本地已通过：Go relay九个顶层用例（另六个上游状态子用例）、go vet；授权网页Node6/6、原桥接Node6/6、IPA格式7/7、原Go四包。已修正网页取消返回为state绑定的error回调、原始SDK错误脱敏、过期/断开状态及服务资源仅嵌入生产文件。Build49/e4c1ab8在后续安全补丁取代后取消，未交付；Build50/b6ea206启动后继续补充失效回调仍可取消、重新授权重建流程、晚到验证不能改写断开状态及TLS/超时细分。更新提交将使用原工作流重新构建；中间轮次不作为完成。
 - 验证边界：协议单元测试只用明确标注的虚构响应，不能当作Apple授权成功。当前真正可用的是无配置检测、独立系统备用入口及现有其他音乐功能；网页真实Apple账号/2FA/授权/歌单/搜索、Safari往返、Universal Links、服务部署、原生签名服务资格都未实测成功。下一步先通过代码测试与构建，再按报告配置真实开发者服务后验收成功/取消/失败/重复/断开及返回。
 
 ## 当前阶段：跨平台歌单导入已构建交付（2026-11-12，Build48自动化通过，真机待验）

@@ -77,12 +77,12 @@ struct AccountDetailScreen: View {
                     .accessibilityIdentifier("apple-browser-state")
                 if !accounts.usesAppleBrowser { Text(accounts.appleBrowser.summary.detail).font(.caption).foregroundStyle(.secondary) }
                 Button("通过浏览器连接 Apple Music") { Task { await accounts.connectAppleBrowser() } }
-                    .disabled(client.isOfflinePreview || accounts.appleBrowser.summary.connection == .authorizing)
+                    .disabled(client.isOfflinePreview || accounts.appleBrowser.summary.connection == .authorizing || accounts.appleBrowser.hasPending)
                     .accessibilityIdentifier("apple-browser-connect")
-                if accounts.appleBrowser.summary.connection == .authorizing {
+                if accounts.appleBrowser.hasPending {
                     Button("取消授权") { Task { await accounts.appleBrowser.cancel() } }.disabled(client.isOfflinePreview)
                 } else {
-                    Button("重新授权") { Task { await accounts.connectAppleBrowser() } }.disabled(client.isOfflinePreview)
+                    Button("重新授权") { Task { await accounts.reauthorizeAppleBrowser() } }.disabled(client.isOfflinePreview)
                     Button("验证已有浏览器连接") { Task { await accounts.appleBrowser.restore() } }.disabled(client.isOfflinePreview)
                 }
                 Text("打开系统浏览器后，请在网页点击继续，由 Apple 官方页面处理账号、密码和双重认证。授权后返回 App 校验；若浏览器未自动返回，请点击网页的返回按钮。网页授权不等于原生完整歌曲播放权限。")

@@ -107,8 +107,8 @@ final class AppleMusicBrowserTests: XCTestCase {
             XCTAssertNotEqual(browser.summary.connection,.connected)
         }
         XCTAssertEqual(exchanged,0)
-        XCTAssertNotNil(storage.record?.pending)
-        await browser.cancel()
+        XCTAssertNotNil(storage.record?.pending); XCTAssertTrue(browser.hasPending)
+        await browser.cancel(); XCTAssertFalse(browser.hasPending)
     }
     func testSuccessfulFixtureExchangeVerifiesBothAppleDataReadsBeforeConnected() async throws {
         let (defaults, client) = environment(); let storage = AppleMemoryStorage(); var reads: [String] = []
@@ -167,6 +167,10 @@ final class AppleMusicBrowserTests: XCTestCase {
         await browser.connect();XCTAssertEqual(browser.summary.connection,.failed);XCTAssertTrue(browser.summary.detail.contains("网络"))
         AppleProtocol.handler={_ in (429,self.data(["error":"apple_rate_limited"]))}
         await browser.connect();XCTAssertTrue(browser.summary.detail.contains("稍后重试"))
+        AppleProtocol.handler={_ in throw URLError(.serverCertificateUntrusted)}
+        await browser.connect();XCTAssertTrue(browser.summary.detail.contains("证书"))
+        AppleProtocol.handler={_ in throw URLError(.timedOut)}
+        await browser.connect();XCTAssertTrue(browser.summary.detail.contains("超时"))
     }
     func testStorageFailurePreventsOpeningBrowser() async {
         let (defaults,client)=environment();let storage=AppleMemoryStorage();storage.fails=true

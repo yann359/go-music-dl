@@ -5,7 +5,7 @@ import Security
 import UIKit
 
 enum AppleBrowserError: String, LocalizedError {
-    case configuration, serviceConfiguration, callback, expired, cancelled, network, rateLimited, denied, missing, response, storage, browser
+    case configuration, serviceConfiguration, callback, expired, cancelled, network, certificate, timeout, rateLimited, denied, missing, response, storage, browser
     var errorDescription: String? {
         switch self {
         case .configuration: return "服务配置不可用：需要 Apple Developer Program、启用 MusicKit 的 Media ID 和已部署的 HTTPS 授权服务。请先配置自己的服务地址；无需填写密码或 Token。"
@@ -14,6 +14,8 @@ enum AppleBrowserError: String, LocalizedError {
         case .expired: return "连接已到期或服务已重启。请重新授权 Apple Music。"
         case .cancelled: return "已取消本次授权，可以重新连接。"
         case .network: return "无法连接授权服务或 Apple。请检查网络和 HTTPS 服务状态后重试；已保存的本地歌单不受影响。"
+        case .certificate: return "HTTPS 证书或安全连接验证失败。请让服务维护者配置有效证书和 TLS；不要关闭证书校验。"
+        case .timeout: return "授权服务请求超时，请检查服务器和网络后重试。"
         case .rateLimited: return "Apple 或授权服务请求过多，请稍后重试，已读取的内容会保留。"
         case .denied: return "Apple 未允许访问音乐资料。请重新授权，并检查 Apple Music 账号、音乐资料库和订阅资格；服务维护者还需核对 MusicKit 配置。"
         case .missing: return "资料不存在或当前账号无权访问，可能已删除或属于其他账号。请检查歌单链接或重新同步。"
@@ -25,6 +27,10 @@ enum AppleBrowserError: String, LocalizedError {
     static func from(_ error: Error) -> AppleBrowserError {
         if let error = error as? AppleBrowserError { return error }
         if error is CancellationError || (error as? URLError)?.code == .cancelled { return .cancelled }
+        if let error = error as? URLError {
+            if error.code == .timedOut { return .timeout }
+            if [.secureConnectionFailed, .serverCertificateHasBadDate, .serverCertificateUntrusted, .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid, .clientCertificateRejected, .clientCertificateRequired].contains(error.code) { return .certificate }
+        }
         return .network
     }
 }
@@ -100,6 +106,8 @@ struct AppleRelayClient {
             case "apple_not_found": throw AppleBrowserError.missing
             case "apple_rate_limited", "rate_limited": throw AppleBrowserError.rateLimited
             default:
+                if (300..<400).contains(response.statusCode) || response.statusCode == 404 || value["error"].stringValue == "invalid_origin" { throw AppleBrowserError.serviceConfiguration }
+                if response.statusCode == 400 { throw AppleBrowserError.response }
                 if response.statusCode == 401 { throw AppleBrowserError.expired }
                 if response.statusCode == 429 { throw AppleBrowserError.rateLimited }
                 throw AppleBrowserError.network
@@ -120,6 +128,7 @@ final class AppleMusicBrowser: ObservableObject {
     private let client: AppleRelayClient
     private let defaults: UserDefaults
     private let openBrowser: (URL) async -> Bool
+    var hasPending: Bool { record?.pending != nil }
     private var record: AppleWebRecord?
     private var generation = 0
     private var checking = false
@@ -198,7 +207,7 @@ final class AppleMusicBrowser: ObservableObject {
             guard generation == expected else { return }
             let pending = record?.pending; record?.pending = nil; try? persist()
             if let pending { await cancelRemote(pending) }
-            failed(error)
+            if generation == expected { failed(error) }
         }
     }
     private func armDeadline() {
@@ -218,7 +227,8 @@ final class AppleMusicBrowser: ObservableObject {
         if checking || disconnecting { return true }
         do {
             try load()
-            guard let pending = record?.pending, pending.expires > Date() else { throw AppleBrowserError.callback }
+            guard let pending = record?.pending else { return true }
+            guard pending.expires > Date() else { throw AppleBrowserError.expired }
             guard let expectedURL = URLComponents(string: pending.callback) else { throw AppleBrowserError.callback }
             guard c.scheme == expectedURL.scheme, c.host == expectedURL.host, c.path == expectedURL.path,
                   c.user == nil, c.password == nil, c.port == nil, c.fragment == nil, let items = c.queryItems, items.count == 3,
@@ -261,8 +271,10 @@ final class AppleMusicBrowser: ObservableObject {
         } catch { if restoreGeneration == generation { failed(error) } }
     }
     private func verify(expected: Int) async throws {
+        guard expected == generation else { throw CancellationError() }
         let region = try await read("/v1/me/storefront")
         guard let first = region["data"].arrayValue.first, first["type"].stringValue == "storefronts", !first["id"].stringValue.isEmpty else { throw AppleBrowserError.response }
+        guard expected == generation else { throw CancellationError() }
         let library = try await read("/v1/me/library/playlists?limit=1")
         guard case .array = library["data"] else { throw AppleBrowserError.response }
         guard expected == generation else { throw CancellationError() }
