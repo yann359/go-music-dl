@@ -217,7 +217,12 @@ final class AppleMusicBrowser: ObservableObject {
             let seconds = max(0, pending.expires.timeIntervalSinceNow)
             do { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) } catch { return }
             guard let self, self.record?.pending?.id == pending.id else { return }
-            await self.cancel(); self.failed(AppleBrowserError.expired)
+            // Do not cancel this deadline task while it sends the remote cancel.
+            self.deadline = nil
+            let expiredGeneration = self.generation + 1
+            await self.cancel()
+            guard self.generation == expiredGeneration else { return }
+            self.failed(AppleBrowserError.expired)
         }
     }
     func handleCallback(_ url: URL) async -> Bool {
@@ -261,7 +266,12 @@ final class AppleMusicBrowser: ObservableObject {
         do {
             try load()
             if let pending = record?.pending {
-                if pending.expires <= Date() { await cancel(); failed(AppleBrowserError.expired) }
+                if pending.expires <= Date() {
+                    let expiredGeneration = generation + 1
+                    await cancel()
+                    guard generation == expiredGeneration else { return }
+                    failed(AppleBrowserError.expired)
+                }
                 else { summary = MusicAccountSummary(connection: .authorizing, detail: "正在等待浏览器返回。若已关闭网页，请取消后重试。"); armDeadline() }
                 return
             }
