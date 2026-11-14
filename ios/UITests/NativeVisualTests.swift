@@ -329,13 +329,32 @@ final class NativeVisualTests: XCTestCase {
         for id in ids { XCTAssertTrue(app.buttons["account-source-" + id].exists) }
 
         app.buttons["account-source-apple"].tap()
-        XCTAssertTrue(app.buttons["连接 Apple Music"].exists)
+        XCTAssertTrue(app.buttons["apple-browser-connect"].exists)
+        for _ in 0..<4 { if app.buttons["apple-system-authorize"].isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(app.buttons["apple-system-authorize"].exists)
+        capture("official-apple-browser-system-separate-unconfigured")
         XCTAssertEqual(app.secureTextFields.count, 0)
         app.navigationBars.buttons["音源账号"].tap()
         app.buttons["account-source-spotify"].tap()
         XCTAssertTrue(app.textFields["spotify-client-id"].exists)
         XCTAssertEqual(app.secureTextFields.count, 0)
         capture("official-accounts-spotify-pending")
+    }
+
+    func testAppleBrowserMissingServiceShowsRealConfigurationFailure() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-native-startup", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["我的"].waitForExistence(timeout: 30))
+        app.tabBars.buttons["我的"].tap()
+        app.buttons["音源账号"].tap()
+        app.buttons["account-source-apple"].tap()
+        let connect = app.buttons["apple-browser-connect"]
+        XCTAssertTrue(connect.waitForExistence(timeout: 8))
+        connect.tap()
+        XCTAssertTrue(app.staticTexts["服务配置不可用"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.secureTextFields.count, 0)
+        capture("apple-browser-real-service-unconfigured")
     }
 
     func testThemeColorsAcrossLightDarkAndSystemModes() {

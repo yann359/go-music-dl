@@ -1,3 +1,14 @@
+## 当前阶段：Apple Music 浏览器连接（2026-11-14，开发/验证中）
+
+- 用户确认暂时没有 Apple Developer Program、HTTPS 域名/服务器；本轮先完成代码与配置检测，不部署服务、不索取私钥/密码/Token、不伪造授权成功。基线345818e（已验证Build48）；分支codex/apple-music-browser。已读当前源码、Git历史与本文。
+- 官方证据：MusicKit JS v3需signed Developer Token，MusicKit.configure后由用户点击调用music.authorize()；这是音乐资料授权，不是Sign in with Apple。开发者需Developer Program、Media ID/Media Services key，ES256与origin限制。原生MusicKit App Service与网页登录分开，网页授权不能自动授予原生整曲播放资格。具体来源与部署说明见[本轮报告](docs/ios-apple-music-browser-2026-11-14.md)。
+- 已实现：Apple账号页优先“通过浏览器连接 Apple Music”，独立“系统授权”备用；浏览器未连接/正在授权/连接成功/连接失败/服务配置不可用、重新授权、取消、验证、断开；公开HTTPS服务地址配置；只读分页歌单/歌曲、目录搜索与资料刷新；现有Apple歌单导入复用选定的浏览器/原生资料通道。
+- 安全通道：单独Go中转服务cmd/apple-music-relay，不随App/本地服务启动；MusicKit JS仅从Apple官方CDN载入，Apple页面处理敏感登录。MUT只在服务端加密内存保存；App Keychain只存随机服务会话、待处理state/PKCE，URL无MUT/Developer Token。一次性code+state+S256、十分钟待授权/两分钟兑换、24小时服务会话、HTTPS同源/安全cookie/CSRF/禁跳转、固定只读Apple API、限流与响应上限。断开停止本机访问并删除服务会话；Apple网站授权另由网页music.unauthorize撤销，系统权限独立。
+- 返回机制：默认注册独立自定义scheme，PKCE抵御code拦截使用；同时处理配置域名的Universal Link，但只有正确的AASA+Associated Domains签名后才可用。未擅改签名、Bundle ID、Actions或加入未经配置的entitlement。UIApplication打开系统默认外部浏览器，公开API不保证强制Safari；Safari可能需要点击网页“返回MusicDL”，不保证无手势自动跳回。
+- 数据兼容：SQLite、旧歌单、搜索后端和音源不变；只新增独立Keychain条目和公开配置/选择模式键。AudioEngine、PlayerViews、NativeAppModel、后台/锁屏/控制中心/媒体岛生产逻辑未改；NativeRoot仅接入返回URL，不调整播放器呈现。
+- 新文件：ios/MusicDL/{AppleMusicBrowser,AppleMusicLibraryScreen}.swift、ios/Tests/AppleMusicBrowserTests.swift、internal/applemusicrelay/{token,server,server_test}.go与web资源、cmd/apple-music-relay/main.go。调整MusicAccounts、AccountViews、ApplePlaylistImport、Info.plist、NativeRoot和UITests。待完成本地测试、原流程macOS编译/UI/IPA核验后补具体结果。
+- 验证边界：协议单元测试只用明确标注的虚构响应，不能当作Apple授权成功。当前真正可用的是无配置检测、独立系统备用入口及现有其他音乐功能；网页真实Apple账号/2FA/授权/歌单/搜索、Safari往返、Universal Links、服务部署、原生签名服务资格都未实测成功。下一步先通过代码测试与构建，再按报告配置真实开发者服务后验收成功/取消/失败/重复/断开及返回。
+
 ## 当前阶段：跨平台歌单导入已构建交付（2026-11-12，Build48自动化通过，真机待验）
 
 - 基线 `cf62e57`；备份分支 `backup/pre-playlist-import-20261112`；开发分支 `codex/playlist-import`。已先读取本文件、原生/Go 源码与提交历史。原有界面、音源、搜索后端、AudioEngine、后台/锁屏/控制中心/系统媒体岛、签名与 Actions 配置保留。

@@ -1,15 +1,11 @@
 import Foundation
 import MusicKit
 
-/// Official MusicKit requests only. MusicKit supplies the app/user tokens.
-/// SideStore builds without the entitlement may fail; report the actual error.
+/// Browser relay and native MusicKit are separate access modes.
+/// Reuses the same playlist metadata/pagination/import pipeline.
 enum ApplePlaylistImport {
     private static func read(_ path: String) async throws -> JSONValue {
-        guard MusicAuthorization.currentStatus == .authorized else { throw NativeError.message("请先在账号设置中授权 Apple Music；访问仍取决于当前签名、MusicKit 权限和账号") }
-        guard path.hasPrefix("/v1/"), !path.contains("://"), let url = URL(string: "https://api.music.apple.com" + path) else { throw NativeError.message("无效的 Apple Music 请求") }
-        let response = try await MusicDataRequest(urlRequest: URLRequest(url: url, timeoutInterval: 20)).response()
-        guard response.data.count <= 8 * 1024 * 1024 else { throw NativeError.message("Apple Music 响应过大") }
-        return try JSONDecoder().decode(JSONValue.self, from: response.data)
+        return try await MusicAccounts.shared.readApple(path)
     }
     private static func ref(_ link: String) throws -> (store: String, id: String, library: Bool) {
         guard link.count <= 2048, let u = URLComponents(string: link), u.scheme == "https", u.host?.lowercased() == "music.apple.com", u.user == nil, u.password == nil, u.port == nil else { throw NativeError.message("请使用 music.apple.com 的完整歌单链接") }

@@ -3,7 +3,7 @@ import Combine
 import MusicKit
 
 enum AccountConnection: String {
-    case disconnected = "未连接", authorizing = "正在授权", connected = "已连接", expired = "授权失效", unavailable = "当前环境不可用"
+    case disconnected = "未连接", authorizing = "正在授权", connected = "已连接", expired = "授权失效", unavailable = "当前环境不可用", failed = "连接失败", configurationUnavailable = "服务配置不可用"
 }
 struct MusicAccountSummary: Equatable {
     var connection: AccountConnection = .disconnected
@@ -26,23 +26,48 @@ final class MusicAccounts: ObservableObject {
     private var generation = 0
     private var restoring = false
     private var disconnecting = false
+    let appleBrowser: AppleMusicBrowser
+    private var appleSubscription: AnyCancellable?
     private var appleChecking = false
     private var appleGeneration = 0
     private let installSession: (String, Date) async throws -> Void
 
     init(storage: AccountTokenStorage = KeychainAccountStorage(), oauth: SpotifyOAuthClient = SpotifyOAuthClient(), defaults: UserDefaults = .standard,
-         authenticate: ((URL) async throws -> URL)? = nil,
+         authenticate: ((URL) async throws -> URL)? = nil, appleBrowser: AppleMusicBrowser? = nil,
          installSession: @escaping (String, Date) async throws -> Void = GoBridge.installSpotifySession) {
         let browser = WebAuthentication()
         self.browser = browser
         self.authenticate = authenticate ?? { url in try await browser.open(url) }
         self.storage = storage; self.oauth = oauth; self.defaults = defaults; self.installSession = installSession
+        self.appleBrowser = appleBrowser ?? .shared
         spotifyClientID = defaults.string(forKey: "account.spotify.clientID") ?? (Bundle.main.object(forInfoDictionaryKey: "SpotifyClientID") as? String ?? "")
+        appleSubscription = self.appleBrowser.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         if !SpotifyConfiguration(clientID: spotifyClientID).isValid {
             summaries["spotify"] = MusicAccountSummary(connection: .unavailable, detail: "待配置：需要自己的公开 Client ID。Spotify 开发模式对应用所有者有 Premium 要求；未配置不会影响其他音乐来源。")
         }
     }
-    func summary(_ source: String) -> MusicAccountSummary { summaries[source] ?? MusicAccountSummary() }
+    var usesAppleBrowser: Bool { defaults.string(forKey: "account.apple.mode") != "system" }
+    var appleSystemSummary: MusicAccountSummary { summaries["apple-system"] ?? MusicAccountSummary() }
+    func summary(_ source: String) -> MusicAccountSummary {
+        if source == "apple" { return usesAppleBrowser ? appleBrowser.summary : appleSystemSummary }
+        return summaries[source] ?? MusicAccountSummary()
+    }
+    func connectAppleBrowser() async {
+        defaults.set("browser", forKey: "account.apple.mode"); objectWillChange.send()
+        await appleBrowser.connect()
+    }
+    func configureAppleBrowser(_ origin: String) async { await appleBrowser.configure(origin); objectWillChange.send() }
+    func handleAppleCallback(_ url: URL) async { _ = await appleBrowser.handleCallback(url) }
+    func readApple(_ path: String) async throws -> JSONValue {
+        if usesAppleBrowser { return try await appleBrowser.read(path) }
+        guard defaults.bool(forKey: "account.apple.enabled"), MusicAuthorization.currentStatus == .authorized else {
+            throw NativeError.message("请先连接 Apple Music，或选择系统授权并验证 MusicKit 服务。")
+        }
+        guard path.hasPrefix("/v1/"), !path.contains("://"), !path.contains(".."), let url = URL(string: "https://api.music.apple.com" + path) else { throw AppleBrowserError.response }
+        let response = try await MusicDataRequest(urlRequest: URLRequest(url: url, timeoutInterval: 20)).response()
+        guard response.data.count <= 8 * 1024 * 1024 else { throw AppleBrowserError.response }
+        return try JSONDecoder().decode(JSONValue.self, from: response.data)
+    }
     var spotifyConfigured: Bool { SpotifyConfiguration(clientID: spotifyClientID).isValid }
 
     func restore() async {
@@ -167,51 +192,57 @@ final class MusicAccounts: ObservableObject {
         summaries["spotify"] = MusicAccountSummary(connection: failure == .expired ? .expired : failure == .cancelled || failure == .denied ? .disconnected : .unavailable, detail: failure.localizedDescription)
     }
 
+    /// Explicit native fallback, independently verified. Browser MUT is never installed into MusicKit.
     func connectApple() async {
-        guard !appleChecking, summary("apple").connection != .authorizing else { return }
+        guard !appleChecking, appleSystemSummary.connection != .authorizing else { return }
+        if appleBrowser.summary.connection == .authorizing { await appleBrowser.cancel() }
+        defaults.set("system", forKey: "account.apple.mode"); objectWillChange.send()
         defaults.set(true, forKey: "account.apple.enabled")
-        appleGeneration += 1
-        summaries["apple"] = MusicAccountSummary(connection: .authorizing, detail: "请在系统弹窗中允许访问 Apple Music。")
+        appleGeneration += 1; let expected = appleGeneration
+        summaries["apple-system"] = MusicAccountSummary(connection: .authorizing, detail: "请在系统弹窗中允许访问 Apple Music。此项与浏览器授权分别验证。")
         _ = await MusicAuthorization.request()
-        await refreshApple()
+        guard expected == appleGeneration else { return }
+        await refreshAppleSystem()
     }
     func refreshApple() async {
+        if usesAppleBrowser { await appleBrowser.restore() }
+        else { await refreshAppleSystem() }
+    }
+    func refreshAppleSystem() async {
         guard defaults.bool(forKey: "account.apple.enabled"), !appleChecking else { return }
         appleChecking = true; let expected = appleGeneration
         defer { appleChecking = false }
         guard MusicAuthorization.currentStatus == .authorized else {
-            let denied = MusicAuthorization.currentStatus == .denied
-            summaries["apple"] = MusicAccountSummary(connection: denied ? (defaults.bool(forKey: "account.apple.verified") ? .expired : .disconnected) : .unavailable,
-                detail: "尚未取得系统音乐权限。若曾拒绝，请在系统设置中允许访问；受限设备需先解除系统限制。")
+            summaries["apple-system"] = MusicAccountSummary(connection: .failed,
+                detail: MusicAuthorization.currentStatus == .denied ? "系统音乐访问已拒绝。请打开系统设置，允许 MusicDL 访问媒体与 Apple Music，然后重新验证。" : "系统音乐权限尚未允许或受到设备限制。请重新申请；受限设备需由设备管理者解除限制。")
             return
         }
         do {
-            // MusicKit supplies its own developer/user tokens. Success here,
-            // not merely the permission dialog, verifies the App Service setup.
             let request = MusicDataRequest(urlRequest: URLRequest(url: URL(string: "https://api.music.apple.com/v1/me/storefront")!, timeoutInterval: 15))
             let response = try await request.response()
-            guard let object = try JSONSerialization.jsonObject(with: response.data) as? [String: Any],
-                  let storefronts = object["data"] as? [[String: Any]],
-                  let storefront = storefronts.first, storefront["type"] as? String == "storefronts",
-                  let region = storefront["id"] as? String, !region.isEmpty else { throw MusicAccountError.service }
+            let value = try JSONDecoder().decode(JSONValue.self, from: response.data)
+            guard let storefront = value["data"].arrayValue.first, storefront["type"].stringValue == "storefronts", !storefront["id"].stringValue.isEmpty else { throw AppleBrowserError.response }
+            guard expected == appleGeneration else { return }
             let subscription = try await MusicSubscription.current
             guard expected == appleGeneration else { return }
             defaults.set(true, forKey: "account.apple.verified")
-            summaries["apple"] = MusicAccountSummary(connection: .connected,
-                detail: "MusicKit 权限和用户服务已验证，音乐地区：\(region.uppercased())。" + (subscription.canPlayCatalogContent ? "当前订阅具备目录播放资格。" : "当前订阅不具备完整目录播放资格。") + "现有播放器仍使用已接入的可用音频；系统授权不会自动解锁 DRM 下载。")
+            summaries["apple-system"] = MusicAccountSummary(connection: .connected,
+                detail: "原生 MusicKit 用户服务已独立验证，地区：\(storefront["id"].stringValue.uppercased())。" + (subscription.canPlayCatalogContent ? "当前账号具备目录播放资格。" : "当前账号不具备完整目录播放资格。") + "现有播放器与 DRM 访问方式保持原样；浏览器连接不授予原生完整播放权限。")
         } catch {
             guard expected == appleGeneration else { return }
-            #if DEBUG
-            let failure = error as NSError
-            print("[music-account] apple service probe failed domain=\(failure.domain) code=\(failure.code)")
-            #endif
-            summaries["apple"] = MusicAccountSummary(connection: .unavailable,
-                detail: "系统权限已允许，但 MusicKit 服务验证未成功。请检查网络、Apple 账号及此签名 Bundle ID 的 MusicKit App Service；个人签名无法假定具备该服务。")
+            let ns = error as NSError
+            if let error = error as? URLError {
+                summaries["apple-system"] = MusicAccountSummary(connection: .failed, detail: error.code == .timedOut ? "原生 MusicKit 服务验证超时，请检查网络后重试。" : "原生 MusicKit 网络请求失败，请恢复网络后重试。")
+            } else {
+                summaries["apple-system"] = MusicAccountSummary(connection: .configurationUnavailable,
+                    detail: "系统权限已允许，但原生 MusicKit 服务未通过验证（错误码 \(ns.code)）。请核对此签名 Bundle ID 在 Apple Developer 中的 MusicKit App Service、账号与网络。免费个人重签不能假定拥有该服务。")
+            }
         }
     }
-    func disconnectApple() {
+    func disconnectApple() async {
         appleGeneration += 1; defaults.set(false, forKey: "account.apple.enabled")
-        summaries["apple"] = MusicAccountSummary(detail: "已停止本 App 的 MusicKit 访问。系统音乐权限需在设置中手动撤销；不会退出设备的 Apple 账号。")
+        summaries["apple-system"] = MusicAccountSummary(detail: "已停止本 App 的原生 MusicKit 访问。系统权限需在设置中撤销，不会退出设备 Apple 账号。")
+        await appleBrowser.disconnect(); objectWillChange.send()
     }
 
     func expireSpotify() async { await spotifyFailure(MusicAccountError.expired) }

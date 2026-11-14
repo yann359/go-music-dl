@@ -17,6 +17,7 @@ struct AccountDetailScreen: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var phase
     @State private var clientID = ""
+    @State private var appleOrigin = ""
     @State private var disconnect = false
     private var summary: MusicAccountSummary { accounts.summary(source.id) }
     private var canDisconnect: Bool {
@@ -48,6 +49,7 @@ struct AccountDetailScreen: View {
         }.navigationTitle(source.name).navigationBarTitleDisplayMode(.inline)
             .task {
                 clientID = accounts.spotifyClientID
+                appleOrigin = accounts.appleBrowser.origin
                 guard !client.isOfflinePreview else { return }
                 if source.id == "apple" { await accounts.refreshApple() }
                 else if source.id == "spotify", accounts.spotifyConfigured { await accounts.restore() }
@@ -61,7 +63,7 @@ struct AccountDetailScreen: View {
             }
             .confirmationDialog("断开\(source.name)？本地歌单与播放记录会保留。", isPresented: $disconnect, titleVisibility: .visible) {
                 Button("断开连接", role: .destructive) {
-                    if source.id == "apple" { accounts.disconnectApple() }
+                    if source.id == "apple" { Task { await accounts.disconnectApple() } }
                     else if source.id == "spotify" { Task { await accounts.disconnectSpotify() } }
                     else { model.perform { try await client.saveCookies([source.id: ""]) } }
                 }
@@ -69,14 +71,52 @@ struct AccountDetailScreen: View {
     }
 
     private var appleControls: some View {
-        Section("官方 MusicKit") {
-            Button(summary.connection == .connected ? "重新验证 Apple Music" : "连接 Apple Music") { Task { await accounts.connectApple() } }
-                .disabled(client.isOfflinePreview || summary.connection == .authorizing)
-            Button("打开系统设置") {
-                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+        Group {
+            Section("浏览器连接 · 优先") {
+                LabeledContent("授权状态", value: accounts.appleBrowser.summary.connection == .connected ? "连接成功" : accounts.appleBrowser.summary.connection.rawValue)
+                    .accessibilityIdentifier("apple-browser-state")
+                if !accounts.usesAppleBrowser { Text(accounts.appleBrowser.summary.detail).font(.caption).foregroundStyle(.secondary) }
+                Button("通过浏览器连接 Apple Music") { Task { await accounts.connectAppleBrowser() } }
+                    .disabled(client.isOfflinePreview || accounts.appleBrowser.summary.connection == .authorizing)
+                    .accessibilityIdentifier("apple-browser-connect")
+                if accounts.appleBrowser.summary.connection == .authorizing {
+                    Button("取消授权") { Task { await accounts.appleBrowser.cancel() } }.disabled(client.isOfflinePreview)
+                } else {
+                    Button("重新授权") { Task { await accounts.connectAppleBrowser() } }.disabled(client.isOfflinePreview)
+                    Button("验证已有浏览器连接") { Task { await accounts.appleBrowser.restore() } }.disabled(client.isOfflinePreview)
+                }
+                Text("打开系统浏览器后，请在网页点击继续，由 Apple 官方页面处理账号、密码和双重认证。授权后返回 App 校验；若浏览器未自动返回，请点击网页的返回按钮。网页授权不等于原生完整歌曲播放权限。")
+                    .font(.caption).foregroundStyle(.secondary)
+                if AppleMusicBrowser.validOrigin(accounts.appleBrowser.origin), let url = URL(string: accounts.appleBrowser.origin + "/disconnect") {
+                    Link("在浏览器撤销此网站的音乐授权", destination: url)
+                }
             }
-            Text("由系统申请音乐访问权限，无需 Apple ID 密码或 Cookie。签名使用的 Bundle ID 还须在 Apple Developer 中开通 MusicKit App Service；仅允许系统权限不代表服务已开通。")
-                .font(.caption).foregroundStyle(.secondary)
+            Section("音乐资料") {
+                NavigationLink("同步资料、查看歌单与搜索歌曲") { AppleMusicLibraryScreen() }
+                    .disabled(client.isOfflinePreview || summary.connection != .connected)
+                Text("仅在实际授权范围内读取资料。歌单导入仍在“音乐库 → 自建歌单 → 导入其他软件的歌单 → Apple Music”中确认，不会直接覆盖原有歌单。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("系统授权 · 备用") {
+                LabeledContent("独立授权状态", value: accounts.appleSystemSummary.connection.rawValue)
+                Text(accounts.appleSystemSummary.detail).font(.caption).foregroundStyle(.secondary)
+                Button("系统授权") { Task { await accounts.connectApple() } }
+                    .disabled(client.isOfflinePreview || accounts.appleSystemSummary.connection == .authorizing)
+                    .accessibilityIdentifier("apple-system-authorize")
+                Button("打开系统设置") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                Text("由 iOS 申请音乐权限，使用当前签名 Bundle ID 对应的 MusicKit App Service。免费个人重签不能假定具备服务资格；此项不会使用浏览器音乐令牌。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("开发者服务配置（公开地址）") {
+                TextField("HTTPS 授权服务地址", text: $appleOrigin).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+                    .accessibilityIdentifier("apple-relay-origin")
+                Button("保存服务地址") { Task { await accounts.configureAppleBrowser(appleOrigin) } }
+                    .disabled(client.isOfflinePreview || summary.connection == .authorizing)
+                Text("仅填写你自己部署或信任的服务域名，例如 https://music.example.com。该服务将处理音乐访问令牌；不要使用陌生地址。需要 Apple Developer Program、Media ID 和服务器端密钥；密钥、密码和 Token 均不应填在此处。未配置时会明确显示服务不可用。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
     private var spotifyControls: some View {

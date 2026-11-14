@@ -12,6 +12,10 @@ struct MusicDLApp: App {
                 .environment(\.musicAccent, appearance.theme.color)
                 .tint(appearance.theme.color)
                 .task { await model.start() }
+                .onOpenURL { url in Task { await model.accounts.handleAppleCallback(url) } }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    if let url = activity.webpageURL { Task { await model.accounts.handleAppleCallback(url) } }
+                }
         }
     }
 }
