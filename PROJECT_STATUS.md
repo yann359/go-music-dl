@@ -19,6 +19,14 @@
 | soda | 0 | 10 | 5 |
 | spotify | 0 | 0 | 15 |
 
+### Build 54 验证与安装
+
+- Xcode 26.6 / iPhone 17 Pro Max 模拟器，Swift 原生测试 103/103 通过；受控测试完成连续 100 次查询、20 次换源。UI 13 通过、2 跳过、0 失败。跳过项是系统灵动岛的点按和长按，模拟器没有暴露可定位区域。深浅色播放器回归通过。[完整测试报告](https://github.com/yann359/go-music-dl/actions/runs/44848908207/artifacts/14685890634)
+- 本轮源码 dc444423a11f961437545c168a56d7a28e32760d，上一进度提交 74cbe00。1.0.0 / Build 54，包名 MusicDL，Bundle ID com.guohuiyuan.musicdl.nativedesign。保留已有 iOS 18.0 部署下限；本轮重点适配 iOS 26+，iOS 27 真机未测试。
+- 本机复核 Actions artifact digest、ZIP CRC、匹配源码 SHA、IPA SHA256、Info.plist、arm64 和后台 audio，校验结果与 CI 相同。IPA 共 14758741 字节，SHA256 `9711d0b20aab21ba17ba484b591fd9ba3db45336e746e3903fde6cb8eec5efc6`。Build 52 原包哈希已复核。
+- 本地 `../outputs/ios-release-build/build54-vnext-p0/MusicDL-Build54-P0.ipa`，亦可从[构建附件](https://github.com/yann359/go-music-dl/actions/runs/44848908207/artifacts/14684719510)解压 IPA。将 IPA 放入 iPhone 的“文件”，在 SideStore 的 My Apps 点 + 导入，使用原有签名身份完成签名并打开。真实安装和资料保留需在设备核对。
+- 恢复点：使用上述 Build 54 在 iOS 27 设备执行下表，保留时间、曲目和异常。若复现播放或搜索问题，先关联设备操作时间与诊断，然后修改对应实现。P1 及以后阶段待继续。
+
 ### P0 验收记录
 
 本轮受测源码 `dc444423a11f961437545c168a56d7a28e32760d`，[Build 54](https://github.com/yann359/go-music-dl/actions/runs/44848908207)。Windows 扩展回归 `go test ./...` 通过。保留 Build 52 的安装包。
@@ -44,7 +52,7 @@
 - NativeClient 过滤重复搜索来源 ID（包括本地来源），防止构造名称字典时触发 Swift 运行时错误。SearchSession 区分全部来源失败和部分来源失败；授权错误保留操作提示。SearchSessionTests 增加重复来源、授权及 100 次查询 / 20 次换源的受控测试。
 - Go ABI、缓存与单一 MPNowPlayingSession 继续复用。现有设置用于诊断；当前使用的公开 API 没有桌面专属显示开关。保留从后台返回时恢复播放页的既有策略，通过图标返回也会恢复。来源审计、Swift 测试、真机结果分别记录。
 - Windows Go 四包通过（含缓存），桥接 Node 6/6、IPA 校验器 7/7。14 个来源分别执行一次真实查询，详见 docs/verification/vnext-p0-sources.json；7 个在线来源返回歌曲，3 个在线来源及空本地库返回零条，Spotify 缺少授权，Apple 超时，汽水响应解析失败。外部探测使用隔离库，未使用个人凭据。
-- iOS 工作流已启用当前分支推送。模拟器与包核验待最终 Actions 结果。真机未测试：前后台/锁屏 30 分钟、三首真实曲目、实际媒体岛打开、耳机/来电、弱网恢复、SideStore 安装。下一步核对最终构建与测试，并在设备执行上述验收；P0 未签收。
+- iOS 工作流已启用当前分支推送。Build 54 模拟器及包核验通过，详细结果见下。真机未测试：前后台/锁屏 30 分钟、三首真实曲目、实际媒体岛打开、耳机/来电、弱网恢复、SideStore 安装。下一步核对最终构建与测试，并在设备执行上述验收；P0 未签收。
 
 - 用户明确确认没有 Apple Developer Program 和 HTTPS 域名/服务器，本轮先完成代码与配置检测。没有部署或伪造Apple授权，未索取私钥/密码/Token。基线345818e/Build48；分支codex/apple-music-browser；先读源码、Git历史与本文。[研究、配置、失败记录与验收矩阵](docs/ios-apple-music-browser-2026-11-14.md)。
 - Apple账号页已优先显示“通过浏览器连接 Apple Music”，保留独立“系统授权”备用；状态、重新授权、取消、验证、断开、公开HTTPS服务地址配置及只读资料页面已接入。歌单/歌曲分页、官方目录搜索和既有Apple歌单导入已编写正式请求路径，但真实账号成功读取未验证。当前无配置时真实显示“服务配置不可用”，不会跳普通Apple登录后假装音乐已连接。
