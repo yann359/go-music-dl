@@ -25,10 +25,10 @@ struct MiniPlayer: View {
                     .accessibilityLabel("展开播放器")
                     .accessibilityHint("\(song.name)，\(song.artist)")
                     .accessibilityIdentifier("open-player")
-                Button { audio.isPlaying || audio.waiting ? audio.pause() : audio.play() } label: {
-                    Image(systemName: audio.isPlaying || audio.waiting ? "pause.fill" : "play.fill").font(.title3).frame(width: 44, height: 44)
+                Button { audio.togglePlayback() } label: {
+                    Image(systemName: audio.showsPauseControl ? "pause.fill" : "play.fill").font(.title3).frame(width: 44, height: 44)
                         .contentShape(Rectangle())
-                }.buttonStyle(.plain).foregroundStyle(accent).accessibilityLabel(audio.isPlaying || audio.waiting ? "暂停" : "播放")
+                }.buttonStyle(.plain).foregroundStyle(accent).accessibilityLabel(audio.showsPauseControl ? "暂停" : "播放")
                     .accessibilityValue(audio.isPlaying ? "正在播放" : audio.waiting ? "正在准备" : "已暂停")
                     .accessibilityIdentifier("mini-player-play-pause")
                 Button { audio.skip(1) } label: { Image(systemName: "forward.end.fill").font(.title3).frame(width: 40, height: 44) }
@@ -108,11 +108,11 @@ struct FullPlayer: View {
                         }
                         HStack(spacing: 42) {
                             Button { audio.skip(-1) } label: { Image(systemName: "backward.end.fill").font(.system(size: 26)).frame(width: 48, height: 60) }.accessibilityLabel("上一首")
-                            Button { audio.isPlaying || audio.waiting ? audio.pause() : audio.play() } label: {
-                                Image(systemName: audio.isPlaying || audio.waiting ? "pause.fill" : "play.fill")
+                            Button { audio.togglePlayback() } label: {
+                                Image(systemName: audio.showsPauseControl ? "pause.fill" : "play.fill")
                                     .font(.system(size: 36, weight: .medium)).frame(width: 78, height: 78)
                                     .contentShape(Rectangle())
-                            }.foregroundStyle(accent).accessibilityLabel(audio.isPlaying || audio.waiting ? "暂停" : "播放")
+                            }.foregroundStyle(accent).accessibilityLabel(audio.showsPauseControl ? "暂停" : "播放")
                                 .accessibilityValue(audio.isPlaying ? "正在播放" : audio.waiting ? "正在准备" : "已暂停")
                                 .accessibilityIdentifier("full-player-play-pause")
                             Button { audio.skip(1) } label: { Image(systemName: "forward.end.fill").font(.system(size: 26)).frame(width: 48, height: 60) }.accessibilityLabel("下一首")

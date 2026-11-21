@@ -22,6 +22,25 @@ final class SearchSessionTests: XCTestCase {
         XCTFail("Search state did not settle")
     }
 
+    func testHundredQueriesAcrossTwentySourceChanges() async throws {
+        let client = client { request in
+            let params = request["params"]
+            let source = params["sources"].arrayValue.first?.stringValue ?? ""
+            let query = params["q"].stringValue
+            return Data("{\"data\":{\"songs\":[{\"id\":\"\(query)\",\"source\":\"\(source)\"}],\"playlists\":[],\"errors\":[]}}".utf8)
+        }
+        try await client.loadBootstrap()
+        let session = SearchSession()
+        for index in 0..<100 {
+            let source = ((index + 1) / 5).isMultiple(of: 2) ? "qq" : "netease"
+            let query = "query-\(index)"
+            session.start(client: client, query: query, kind: "song", sources: [source])
+            try await waitFor { session.phase == .complete }
+            XCTAssertEqual(session.result?.songs.first?.id, query)
+            XCTAssertEqual(session.result?.songs.first?.source, source)
+        }
+    }
+
     func testPartialResultsSurviveAnotherSourceFailure() async throws {
         let client = client { request in
             if request["params"]["sources"].arrayValue == [.string("qq")] {

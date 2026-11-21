@@ -1,0 +1,130 @@
+{
+  "at": "2026-11-21T01:11:49.5771765Z",
+  "credentials": "isolated test database; no personal account credentials loaded",
+  "first_result_ms": 364,
+  "parallel": 3,
+  "rows": [
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "qq",
+      "milliseconds": 278,
+      "songs": 0,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "netease",
+      "milliseconds": 363,
+      "songs": 1,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "soda",
+      "milliseconds": 6823,
+      "songs": 0,
+      "collections": 0,
+      "errors": [
+        "汽水音乐：soda search json parse error: unexpected end of JSON input"
+      ]
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "spotify",
+      "milliseconds": 0,
+      "songs": 0,
+      "collections": 0,
+      "errors": [
+        "Spotify：Spotify requires authorized access_token or client_id/client_secret configuration"
+      ]
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "kugou",
+      "milliseconds": 6762,
+      "songs": 10,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "kuwo",
+      "milliseconds": 160,
+      "songs": 8,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "migu",
+      "milliseconds": 519,
+      "songs": 20,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "apple",
+      "milliseconds": 8039,
+      "songs": 0,
+      "collections": 0,
+      "errors": [
+        "Apple Music：context deadline exceeded"
+      ]
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "jamendo",
+      "milliseconds": 2263,
+      "songs": 0,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "fivesing",
+      "milliseconds": 2847,
+      "songs": 10,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "joox",
+      "milliseconds": 3572,
+      "songs": 17,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "local",
+      "milliseconds": 1,
+      "songs": 0,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "bilibili",
+      "milliseconds": 1505,
+      "songs": 17,
+      "collections": 0
+    },
+    {
+      "query": "周杰伦",
+      "kind": "song",
+      "source": "qianqian",
+      "milliseconds": 2341,
+      "songs": 0,
+      "collections": 0
+    }
+  ],
+  "total_ms": 12252
+}

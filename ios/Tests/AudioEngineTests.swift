@@ -64,7 +64,15 @@ final class AudioEngineTests: XCTestCase {
             try await Task.sleep(nanoseconds: 50_000_000)
         }
         XCTAssertTrue(engine.isPlaying); XCTAssertEqual(engine.playbackState, .playing)
-        engine.pause(); engine.play(); engine.pause()
+        NotificationCenter.default.post(name: AVAudioSession.interruptionNotification, object: nil,
+            userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.ended.rawValue])
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertTrue(engine.showsPauseControl, "Late interruption end must preserve explicit play")
+        engine.togglePlayback()
+        XCTAssertFalse(engine.showsPauseControl)
+        engine.togglePlayback()
+        XCTAssertTrue(engine.showsPauseControl)
+        engine.togglePlayback()
         XCTAssertFalse(engine.isPlaying); XCTAssertEqual(engine.player.rate, 0)
     }
 

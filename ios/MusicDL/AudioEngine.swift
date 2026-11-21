@@ -199,6 +199,12 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         objectWillChange.send()
     }
 
+    var showsPauseControl: Bool { wantsPlayback && !interrupted }
+
+    func togglePlayback() {
+        if showsPauseControl { pause() } else { play() }
+    }
+
     func play() {
         guard !songs.isEmpty else { return }
         // Explicit intent supersedes an unmatched old interruption. Actual
@@ -335,6 +341,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         if direction < 0 && player.currentTime().seconds > 3 { seek(0); return }
         if direction > 0, player.items().count > 1 {
             player.advanceToNextItem()
+            publish()
             return
         }
         if direction > 0, order == "random", songs.count > 1 {
@@ -499,6 +506,8 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
             activationEvidence = "已收到系统音频中断，未主动重新激活"
             recordMediaEvent("interruption-began")
         } else {
+            // An explicit play may already have superseded this interruption.
+            guard interrupted else { return }
             interrupted = false
             activationEvidence = "系统音频中断已结束，等待正常播放流程"
             let raw = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
@@ -693,7 +702,7 @@ final class AudioEngine: NSObject, ObservableObject, MPNowPlayingSessionDelegate
         bind(center.playCommand, name: "play") { [weak self] in self?.play() }
         bind(center.pauseCommand, name: "pause") { [weak self] in self?.pause() }
         bind(center.togglePlayPauseCommand, name: "toggle") { [weak self] in
-            guard let self else { return }; self.wantsPlayback ? self.pause() : self.play()
+            self?.togglePlayback()
         }
         bind(center.nextTrackCommand, name: "next") { [weak self] in self?.skip(1) }
         bind(center.previousTrackCommand, name: "previous") { [weak self] in self?.skip(-1) }

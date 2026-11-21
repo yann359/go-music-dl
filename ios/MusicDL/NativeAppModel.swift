@@ -195,7 +195,7 @@ final class NativeAIConnection {
             let song = Song(id: item["id"] as? String ?? "", source: item["source"] as? String ?? "", name: item["name"] as? String ?? "", artist: item["artist"] as? String ?? "", album: item["album"] as? String ?? "", cover: "", duration: item["duration"] as? Int ?? 0, extra: String(decoding: extra, as: UTF8.self))
             guard !song.id.isEmpty && !song.source.isEmpty else { return }
             audio.playSongs([song])
-        } else if action == "toggle" { audio.isPlaying || audio.waiting ? audio.pause() : audio.play() }
+        } else if action == "toggle" { audio.togglePlayback() }
         else {
             let value = object["position"] as? Double ?? object["volume"] as? Double ?? object["rate"] as? Double
             audio.handle(PlaybackRequest(action: action, value: value))

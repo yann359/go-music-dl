@@ -2,7 +2,7 @@ name: iOS native Liquid Glass
 on:
   workflow_dispatch:
   push:
-    branches: [main, 'codex/ios-native-background-audio', 'codex/ios-native-redesign']
+    branches: [main, 'codex/ios-native-background-audio', 'codex/ios-native-redesign', 'codex/native-experience-vnext']
     paths: ['ios/**', 'internal/**', 'core/**', 'go.mod', 'go.sum', '.github/workflows/ios-native.yml']
   pull_request:
     paths: ['ios/**', 'internal/**', 'core/**', 'go.mod', 'go.sum', '.github/workflows/ios-native.yml']
