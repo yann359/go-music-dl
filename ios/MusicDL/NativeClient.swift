@@ -451,7 +451,9 @@ final class NativeClient: ObservableObject {
 
     /// All real capabilities, with local music kept outside online account settings.
     var searchSources: [NativeSource] {
-        sources.filter { $0.search } + [NativeSource(id: "local", name: "本地音乐", album: false)]
+        var seen: Set<String> = ["local"]
+        let online = sources.filter { $0.search && !$0.id.isEmpty && seen.insert($0.id).inserted }
+        return online + [NativeSource(id: "local", name: "本地音乐", album: false)]
     }
     private struct SearchCacheEntry {
         let saved: Date
@@ -532,7 +534,10 @@ final class NativeClient: ObservableObject {
         if detail.contains("无法识别") || detail.contains("可识别") || detail.contains("不完整") || error is DecodingError { return "搜索响应解析错误，请重试并检查诊断日志。" }
         if detail.contains("音乐服务暂时不可用") || detail.contains("未返回结果") { return "应用内音乐服务不可用，请重新进入或重启 App。" }
         if detail.contains("内部异常") { return "此音源发生内部异常，其他音源仍可继续搜索。" }
-        return "暂时无法搜索，请重试或检查此音源的账号权限。"
+        if ["授权", "authorized access_token", "unauthorized", "http 401"].contains(where: { detail.contains($0) }) {
+            return "此音源需要有效授权，请在账号设置中检查连接。"
+        }
+        return "此音源的搜索服务暂时不可用，请稍后重试。"
     }
     func recommendations(sources: [String]) async throws -> NativeSearchResult {
         if isOfflinePreview { return NativeSearchResult(songs: previewSongs, playlists: collections) }

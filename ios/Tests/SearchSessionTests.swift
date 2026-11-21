@@ -9,7 +9,7 @@ final class SearchSessionTests: XCTestCase {
         NativeClient { data in
             let request = try JSONDecoder().decode(JSONValue.self, from: data)
             switch request["action"].stringValue {
-            case "sources": return Data(#"{"data":{"sources":[{"id":"qq","search":true,"album":true,"playlist":true},{"id":"netease","search":true,"album":true,"playlist":true}],"defaults":[]}}"#.utf8)
+            case "sources": return Data(#"{"data":{"sources":[{"id":"local","search":true},{"id":"qq","search":true,"album":true,"playlist":true},{"id":"qq","search":true},{"id":"netease","search":true,"album":true,"playlist":true}],"defaults":[]}}"#.utf8)
             case "collections.list": return Data(#"{"data":[]}"#.utf8)
             case "local.songs": return Data(#"{"data":{"songs":[]}}"#.utf8)
             case "settings.get": return Data(#"{"data":{}}"#.utf8)
@@ -112,6 +112,7 @@ final class SearchSessionTests: XCTestCase {
         fail = true
         session.start(client: client, query: "断网", kind: "song", sources: ["qq"])
         try await waitFor { session.phase == .failed }
+        XCTAssertTrue(session.problem?.contains("所选来源均搜索失败") == true)
         fail = false
         session.start(client: client, query: "恢复", kind: "song", sources: ["qq"], refresh: true)
         try await waitFor { session.phase == .empty }
@@ -169,6 +170,7 @@ final class SearchSessionTests: XCTestCase {
         let cases: [(Data?, Error?, String)] = [
             (nil, URLError(.notConnectedToInternet), "网络连接中断"),
             (nil, NativeError.message("bridge stopped"), "应用内音乐服务不可用"),
+            (Data(#"{"data":{"songs":[],"playlists":[],"errors":["requires authorized access_token"]}}"#.utf8), nil, "需要有效授权"),
             (Data("invalid JSON".utf8), nil, "响应解析错误"),
             (Data(#"{"data":{"songs":[],"playlists":[],"errors":["音乐服务内部异常"]}}"#.utf8), nil, "内部异常")
         ]

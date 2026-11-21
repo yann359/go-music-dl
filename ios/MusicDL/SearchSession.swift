@@ -56,7 +56,11 @@ final class SearchSession: ObservableObject {
                 let value = result ?? NativeSearchResult()
                 result = value
                 if !value.songs.isEmpty || !value.playlists.isEmpty { phase = .complete }
-                else if !value.errors.isEmpty { phase = .failed; problem = "部分来源搜索失败，其余来源未找到结果。\n" + value.errors.joined(separator: "\n") }
+                else if !value.errors.isEmpty {
+                    phase = .failed
+                    let summary = value.successfulSources == 0 ? "所选来源均搜索失败。" : "部分来源搜索失败，其余来源未找到结果。"
+                    problem = summary + "\n" + value.errors.joined(separator: "\n")
+                }
                 else { phase = .empty }
                 completed(term)
                 diagnostics.info("event=search-complete generation=\(token) songs=\(value.songs.count) collections=\(value.playlists.count) failures=\(value.errors.count) success=\(value.successfulSources)")

@@ -1,5 +1,14 @@
 ## 当前阶段：Apple Music 浏览器连接代码与Build52验证完成（2026-11-14，真实授权待配置）
 
+## vNext · P0 进行中（2026-11-21）
+
+- 1.0.0，分支 `codex/native-experience-vnext`。按用户确认从 Build 52 / 71877c4 继续。首个实现提交 e543ca86bf4a8b063d59b065a26e8dd555e04757；Build 53 为中间版本。
+- AudioEngine、NativeAppModel、PlayerViews 共用播放切换意图；迟到的中断结束通知不再暂停已经手动恢复的歌曲。预载队列手动前进后立即同步曲目索引。AudioEngineTests 增加迟到通知和快速切换断言。
+- NativeClient 过滤重复搜索来源 ID（包括本地来源），防止构造名称字典时触发 Swift 运行时错误。SearchSession 区分全部来源失败和部分来源失败；授权错误保留操作提示。SearchSessionTests 增加重复来源、授权及 100 次查询 / 20 次换源的受控测试。
+- Go ABI、缓存与单一 MPNowPlayingSession 继续复用。现有设置用于诊断；当前使用的公开 API 没有桌面专属显示开关。保留从后台返回时恢复播放页的既有策略，通过图标返回也会恢复。来源审计、Swift 测试、真机结果分别记录。
+- Windows Go 四包通过（含缓存），桥接 Node 6/6、IPA 校验器 7/7。14 个来源分别执行一次真实查询，详见 docs/verification/vnext-p0-sources.json；7 个在线来源返回歌曲，3 个在线来源及空本地库返回零条，Spotify 缺少授权，Apple 超时，汽水响应解析失败。外部探测使用隔离库，未使用个人凭据。
+- iOS 工作流已启用当前分支推送。模拟器与包核验待最终 Actions 结果。真机未测试：前后台/锁屏 30 分钟、三首真实曲目、实际媒体岛打开、耳机/来电、弱网恢复、SideStore 安装。下一步核对最终构建与测试，并在设备执行上述验收；P0 未签收。
+
 - 用户明确确认没有 Apple Developer Program 和 HTTPS 域名/服务器，本轮先完成代码与配置检测。没有部署或伪造Apple授权，未索取私钥/密码/Token。基线345818e/Build48；分支codex/apple-music-browser；先读源码、Git历史与本文。[研究、配置、失败记录与验收矩阵](docs/ios-apple-music-browser-2026-11-14.md)。
 - Apple账号页已优先显示“通过浏览器连接 Apple Music”，保留独立“系统授权”备用；状态、重新授权、取消、验证、断开、公开HTTPS服务地址配置及只读资料页面已接入。歌单/歌曲分页、官方目录搜索和既有Apple歌单导入已编写正式请求路径，但真实账号成功读取未验证。当前无配置时真实显示“服务配置不可用”，不会跳普通Apple登录后假装音乐已连接。
 - 官方MusicKit JS v3、music.authorize、Developer Token/Media ID/Media Services key/origin已研究；不是Sign in with Apple。新增单独Go服务cmd/apple-music-relay，Apple页面处理敏感登录；原生App Keychain只保存服务会话及state/PKCE，Apple MUT在服务加密内存，不进App/URL/日志。一次性code、S256、同源/CSRF、安全cookie、固定只读API、禁跳转和限流。网页music.unauthorize、原生系统权限和本机断开含义分别说明。
