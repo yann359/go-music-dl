@@ -41,16 +41,19 @@ func nativeValidateLegacyAccount(params map[string]json.RawMessage) interface{} 
 	}
 	fn := nativeAccountPlaylists(source)
 	if fn == nil {
-		return map[string]string{"status": "unavailable"}
+		return map[string]string{"status": "unsupported"}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
-	_, err := nativeSourcePool(source).run(ctx, nativeProviderKey("account", source), func() (interface{}, error) { return fn(1, 1) })
-	status := "connected"
+	count, err := nativeSourcePool(source).run(ctx, nativeProviderKey("account", source), func() (interface{}, error) { rows, err := fn(1, 1); return len(rows), err })
+	status := "unverified"
+	if n, ok := count.(int); err == nil && ok && n > 0 {
+		status = "playlists_readable"
+	}
 	if err != nil {
 		status = "unavailable"
 		text := strings.ToLower(err.Error())
-		for _, marker := range []string{"cookie", "login", "unauthorized", "expired", "401", "403", "301", "未登录", "登录过期"} {
+		for _, marker := range []string{"unauthorized", "expired", "401", "未登录", "登录过期"} {
 			if strings.Contains(text, marker) {
 				status = "expired"
 				break

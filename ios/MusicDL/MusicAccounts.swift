@@ -3,12 +3,13 @@ import Combine
 import MusicKit
 
 enum AccountConnection: String {
-    case disconnected = "未连接", authorizing = "正在授权", connected = "已连接", expired = "授权失效", unavailable = "当前环境不可用", failed = "连接失败", configurationUnavailable = "服务配置不可用"
+    case unverified = "已授权，待验证", disconnected = "未连接", authorizing = "正在授权", connected = "已连接", expired = "授权失效", unavailable = "当前环境不可用", failed = "连接失败", configurationUnavailable = "服务配置不可用"
 }
 struct MusicAccountSummary: Equatable {
     var connection: AccountConnection = .disconnected
     var detail: String = "连接后将验证实际可访问能力。"
     var account: String? = nil
+    var avatar: URL? = nil
 }
 
 @MainActor
@@ -46,7 +47,7 @@ final class MusicAccounts: ObservableObject {
             summaries["spotify"] = MusicAccountSummary(connection: .unavailable, detail: "待配置：需要自己的公开 Client ID。Spotify 开发模式对应用所有者有 Premium 要求；未配置不会影响其他音乐来源。")
         }
     }
-    var usesAppleBrowser: Bool { defaults.string(forKey: "account.apple.mode") != "system" }
+    var usesAppleBrowser: Bool { defaults.string(forKey: "account.apple.mode") == "browser" }
     var appleSystemSummary: MusicAccountSummary { summaries["apple-system"] ?? MusicAccountSummary() }
     func summary(_ source: String) -> MusicAccountSummary {
         if source == "apple" { return usesAppleBrowser ? appleBrowser.summary : appleSystemSummary }
@@ -76,9 +77,13 @@ final class MusicAccounts: ObservableObject {
     var spotifyConfigured: Bool { SpotifyConfiguration(clientID: spotifyClientID).isValid }
 
     func restore() async {
+        await refreshApple()
+        await restoreSpotify()
+    }
+
+    func restoreSpotify() async {
         guard !restoring, !disconnecting else { return }; restoring = true
         defer { restoring = false }
-        await refreshApple()
         guard summary("spotify").connection != .authorizing else { return }
         let expected = generation
         do {
@@ -186,7 +191,8 @@ final class MusicAccounts: ObservableObject {
         let privatePlaylists = tokens.scopes.split(separator: " ").contains("playlist-read-private")
         return MusicAccountSummary(connection: .connected,
             detail: "官方账号接口已验证。" + (privatePlaylists ? "已获得私有歌单读取授权。" : "未获得私有歌单读取授权。") + "实际 API 能力仍受应用模式及账号资格限制；授权不提供整曲下载权限。",
-            account: profile.displayName?.isEmpty == false ? profile.displayName : profile.id)
+            account: profile.displayName?.isEmpty == false ? profile.displayName : profile.id,
+            avatar: profile.images?.first?.url.flatMap { $0.scheme == "https" ? $0 : nil })
     }
     private func spotifyFailure(_ error: Error) async {
         let failure = error as? MusicAccountError ?? (error is CancellationError ? .cancelled : .service)
@@ -228,18 +234,20 @@ final class MusicAccounts: ObservableObject {
             let value = try JSONDecoder().decode(JSONValue.self, from: response.data)
             guard let storefront = value["data"].arrayValue.first, storefront["type"].stringValue == "storefronts", !storefront["id"].stringValue.isEmpty else { throw AppleBrowserError.response }
             guard expected == appleGeneration else { return }
-            let subscription = try await MusicSubscription.current
+            let library = try await readApple("/v1/me/library/playlists?limit=1")
+            guard case .array = library["data"] else { throw AppleBrowserError.response }
+            let subscription = try? await MusicSubscription.current
             guard expected == appleGeneration else { return }
             defaults.set(true, forKey: "account.apple.verified")
             summaries["apple-system"] = MusicAccountSummary(connection: .connected,
-                detail: "原生 MusicKit 用户服务已独立验证，地区：\(storefront["id"].stringValue.uppercased())。" + (subscription.canPlayCatalogContent ? "当前账号具备目录播放资格。" : "当前账号不具备完整目录播放资格。") + "现有播放器与 DRM 访问方式保持原样；浏览器连接不授予原生完整播放权限。")
+                detail: "原生 MusicKit 用户服务已独立验证，地区：\(storefront["id"].stringValue.uppercased())。" + "个人歌单接口已验证。" + (subscription.map { $0.canPlayCatalogContent ? "可播放订阅目录。" : "当前无完整目录播放资格。" } ?? "订阅状态暂时无法确认。") + "现有播放器与 DRM 访问方式保持原样；浏览器连接不授予原生完整播放权限。")
         } catch {
             guard expected == appleGeneration else { return }
             let ns = error as NSError
             if let error = error as? URLError {
                 summaries["apple-system"] = MusicAccountSummary(connection: .failed, detail: error.code == .timedOut ? "原生 MusicKit 服务验证超时，请检查网络后重试。" : "原生 MusicKit 网络请求失败，请恢复网络后重试。")
             } else {
-                summaries["apple-system"] = MusicAccountSummary(connection: .configurationUnavailable,
+                summaries["apple-system"] = MusicAccountSummary(connection: .failed,
                     detail: "系统权限已允许，但原生 MusicKit 服务未通过验证（错误码 \(ns.code)）。请核对此签名 Bundle ID 在 Apple Developer 中的 MusicKit App Service、账号与网络。免费个人重签不能假定拥有该服务。")
             }
         }
@@ -258,7 +266,7 @@ final class MusicAccounts: ObservableObject {
             let value = values[source] ?? ""
             if legacyCredentials[source] != value {
                 legacyCredentials[source] = value
-                summaries[source] = MusicAccountSummary(connection: value.isEmpty ? .disconnected : .unavailable,
+                summaries[source] = MusicAccountSummary(connection: value.isEmpty ? .disconnected : .unverified,
                     detail: value.isEmpty ? "未连接账号，公开搜索等能力仍可独立使用。" : "凭证已保存但尚未验证，请验证连接；保存凭证不等于登录成功。")
             }
         }
@@ -272,7 +280,9 @@ final class MusicAccounts: ObservableObject {
             let result = try await client.request("accounts.legacy.validate", params: ["source": .string(source)])
             guard legacyCredentials[source] == credential else { return }
             switch result["status"].stringValue {
-            case "connected": summaries[source] = MusicAccountSummary(connection: .connected, detail: "已验证账号歌单接口可访问。该入口沿用原项目适配器，不属于已获第三方开放资格的官方 OAuth。")
+            case "playlists_readable": summaries[source] = MusicAccountSummary(connection: .unverified, detail: "歌单接口已返回资料。平台未提供独立账号身份验证，可继续查看歌单。")
+            case "unverified": summaries[source] = MusicAccountSummary(connection: .unverified, detail: "接口未返回歌单，凭证和账号身份尚未验证。")
+            case "unsupported": summaries[source] = MusicAccountSummary(connection: .unavailable, detail: "当前平台没有可用的账号验证或个人歌单接口。")
             case "expired": summaries[source] = MusicAccountSummary(connection: .expired, detail: "已有凭证未通过验证，请重新连接。")
             case "disconnected": summaries[source] = MusicAccountSummary(detail: "尚未保存可用凭证。")
             default: summaries[source] = MusicAccountSummary(connection: .unavailable, detail: "当前无法验证，可能是网络或平台限制；请稍后重试。")

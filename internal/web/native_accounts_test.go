@@ -22,8 +22,8 @@ func TestLegacyCredentialsNeedActualValidation(t *testing.T) {
 		t.Fatal("missing credentials triggered account API")
 	}
 	core.CM.SetAll(map[string]string{"qq": "fixture"})
-	if got := nativeValidateLegacyAccount(params).(map[string]string)["status"]; got != "connected" || !called {
-		t.Fatal("successful validation not recognized")
+	if got := nativeValidateLegacyAccount(params).(map[string]string)["status"]; got != "unverified" || !called {
+		t.Fatal("empty library must not authenticate the account")
 	}
 	nativeAccountPlaylists = func(string) core.UserPlaylistsFunc {
 		return func(int, int) ([]model.Playlist, error) { return nil, errors.New("login expired") }

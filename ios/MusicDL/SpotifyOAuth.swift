@@ -77,8 +77,10 @@ struct SpotifyTokens: Codable, Equatable {
 
 struct SpotifyProfile: Decodable, Equatable {
     let id: String
+    struct Image: Decodable, Equatable { let url: URL? }
+    var images: [Image]? = nil
     let displayName: String?
-    private enum CodingKeys: String, CodingKey { case id; case displayName = "display_name" }
+    private enum CodingKeys: String, CodingKey { case id, images; case displayName = "display_name" }
 }
 
 struct SpotifyOAuthClient {
