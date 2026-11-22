@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -550,7 +551,14 @@ func StartWithOptions(port string, opts StartOptions) {
 	// points it at a large shared-storage directory.
 
 	gin.SetMode(gin.ReleaseMode)
-	r := gin.Default()
+	r := gin.New()
+	// Polling URLs contain short-lived QR session keys. Log the path
+	// only, including on recovery; neither headers nor query strings belong here.
+	r.Use(gin.LoggerWithFormatter(func(p gin.LogFormatterParams) string {
+		return fmt.Sprintf("[http] %s %s %d %s\n", p.Method, p.Request.URL.EscapedPath(), p.StatusCode, p.Latency)
+	}), gin.CustomRecoveryWithWriter(io.Discard, func(c *gin.Context, _ interface{}) {
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}))
 	r.Use(corsMiddleware(), gzipMiddleware())
 
 	tmpl := template.Must(template.New("").Funcs(template.FuncMap{

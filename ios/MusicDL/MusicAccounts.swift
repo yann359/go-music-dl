@@ -3,7 +3,7 @@ import Combine
 import MusicKit
 
 enum AccountConnection: String {
-    case unverified = "已授权，待验证", disconnected = "未连接", authorizing = "正在授权", connected = "已连接", expired = "授权失效", unavailable = "当前环境不可用", failed = "连接失败", configurationUnavailable = "服务配置不可用"
+    case credentialSaved = "凭证待验证", unverified = "已授权，待验证", disconnected = "未连接", authorizing = "正在授权", connected = "已连接", expired = "授权失效", unavailable = "当前环境不可用", failed = "连接失败", configurationUnavailable = "服务配置不可用"
 }
 struct MusicAccountSummary: Equatable {
     var connection: AccountConnection = .disconnected
@@ -244,6 +244,7 @@ final class MusicAccounts: ObservableObject {
                 detail: nativeApple.status() == .denied ? "系统音乐访问已拒绝。请打开系统设置，允许 MusicDL 访问媒体与 Apple Music，然后重新验证。" : "系统音乐权限尚未允许或受到设备限制。请重新申请；受限设备需由设备管理者解除限制。")
             return
         }
+        summaries["apple-system"] = MusicAccountSummary(connection: .unverified, detail: "已获得系统权限，正在验证个人音乐资料库…")
         do {
             let value = try await readNativeApple("/v1/me/storefront")
             guard let storefront = value["data"].arrayValue.first, storefront["type"].stringValue == "storefronts", !storefront["id"].stringValue.isEmpty else { throw AppleBrowserError.response }
@@ -291,7 +292,7 @@ final class MusicAccounts: ObservableObject {
             let value = values[source] ?? ""
             if legacyCredentials[source] != value {
                 legacyCredentials[source] = value
-                summaries[source] = MusicAccountSummary(connection: value.isEmpty ? .disconnected : .unverified,
+                summaries[source] = MusicAccountSummary(connection: value.isEmpty ? .disconnected : .credentialSaved,
                     detail: value.isEmpty ? "未连接账号，公开搜索等能力仍可独立使用。" : "凭证已保存但尚未验证，请验证连接；保存凭证不等于登录成功。")
             }
         }
@@ -305,8 +306,8 @@ final class MusicAccounts: ObservableObject {
             let result = try await client.request("accounts.legacy.validate", params: ["source": .string(source)])
             guard legacyCredentials[source] == credential else { return }
             switch result["status"].stringValue {
-            case "playlists_readable": summaries[source] = MusicAccountSummary(connection: .unverified, detail: "歌单接口已返回资料。平台未提供独立账号身份验证，可继续查看歌单。")
-            case "unverified": summaries[source] = MusicAccountSummary(connection: .unverified, detail: "接口未返回歌单，凭证和账号身份尚未验证。")
+            case "playlists_readable": summaries[source] = MusicAccountSummary(connection: .credentialSaved, detail: "歌单接口已返回资料。平台未提供独立账号身份验证，可继续查看歌单。")
+            case "unverified": summaries[source] = MusicAccountSummary(connection: .credentialSaved, detail: "接口未返回歌单，凭证和账号身份尚未验证。")
             case "unsupported": summaries[source] = MusicAccountSummary(connection: .unavailable, detail: "当前平台没有可用的账号验证或个人歌单接口。")
             case "expired": summaries[source] = MusicAccountSummary(connection: .expired, detail: "已有凭证未通过验证，请重新连接。")
             case "disconnected": summaries[source] = MusicAccountSummary(detail: "尚未保存可用凭证。")

@@ -90,7 +90,7 @@ struct AccountDetailScreen: View {
                 Button("打开系统设置") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                 }
-                Text("由 iOS 申请音乐权限，使用当前签名 Bundle ID 对应的 MusicKit App Service。免费个人重签不能假定具备服务资格；此项不会使用浏览器音乐令牌。")
+                Text("使用这台 iPhone 的音乐账号。首次连接时，请允许澄音访问媒体与 Apple Music。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("音乐资料") {
@@ -126,6 +126,7 @@ struct AccountDetailScreen: View {
                     Link("在浏览器撤销此网站的音乐授权", destination: url)
                 }
 
+                LabeledContent("当前构建", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知")
                 TextField("HTTPS 授权服务地址", text: $appleOrigin).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
                     .accessibilityIdentifier("apple-relay-origin")
                 Button("保存服务地址") { Task { await accounts.configureAppleBrowser(appleOrigin) } }
@@ -143,7 +144,14 @@ struct AccountDetailScreen: View {
                 else {
                     Button(summary.connection == .connected ? "重新授权 Spotify" : "连接 Spotify") { if accounts.spotifyConfigured { Task { await accounts.connectSpotify() } } else { configuringSpotify = true } }
                         .disabled(client.isOfflinePreview)
-                    if accounts.spotifyConfigured { Button("恢复并验证连接") { Task { await accounts.restoreSpotify() } }.disabled(client.isOfflinePreview) }
+                    if accounts.spotifyConfigured { Button(checking ? "正在验证…" : "验证连接") {
+                        checking = true
+                        Task {
+                            defer { checking = false }
+                            await accounts.restoreSpotify()
+                            model.notify(accounts.summary("spotify").connection == .disconnected ? "请先连接 Spotify，再验证账号。" : accounts.summary("spotify").detail)
+                        }
+                    }.disabled(client.isOfflinePreview || checking) }
                 }
                 if !accounts.spotifyConfigured {
                     Text("待配置。可先使用其他音乐来源；Spotify 开发模式对应用所有者有 Premium 资格要求，暂不配置不会影响其他功能。")
