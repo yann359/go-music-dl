@@ -43,14 +43,19 @@ struct AccountsScreen: View {
     @EnvironmentObject private var accounts: MusicAccounts
     var body: some View {
         List {
-            Section { Text("官方授权与兼容连接分开说明。未连接的账号不会阻塞其他来源；歌单与播放记录始终保留。")
-                .font(.subheadline).foregroundStyle(.secondary) }
-            ForEach(client.sources, id: \.id) { source in
-                NavigationLink { AccountDetailScreen(source: source) } label: {
-                    HStack { Text(source.name); Spacer(); AccountStatusLabel(summary: accounts.summary(source.id), pendingConfiguration: source.id == "spotify" && !accounts.spotifyConfigured) }
-                }.accessibilityIdentifier("account-source-" + source.id)
+            let priority = ["apple", "qq", "spotify", "netease", "soda", "kuwo"]
+            Section("我的音乐账号") {
+                ForEach(priority.compactMap { id in client.sources.first { $0.id == id } }) { source in accountRow(source) }
+            }
+            Section("更多音乐平台") {
+                ForEach(client.sources.filter { !priority.contains($0.id) }) { source in accountRow(source) }
             }
         }.navigationTitle("音源账号").task { try? await client.loadCookies() }
+    }
+    private func accountRow(_ source: NativeSource) -> some View {
+                NavigationLink { AccountDetailScreen(source: source) } label: {
+                    HStack { VStack(alignment: .leading) { Text(source.name); if let name = accounts.summary(source.id).account { Text(name).font(.caption).foregroundStyle(.secondary) } }; Spacer(); AccountStatusLabel(summary: accounts.summary(source.id), pendingConfiguration: source.id == "spotify" && !accounts.spotifyConfigured) }
+                }.accessibilityIdentifier("account-source-" + source.id)
     }
 }
 
@@ -81,7 +86,7 @@ struct CookieScreen: View {
         saving = true
         Task {
             defer { saving = false }
-            do { var values = client.cookies; values[source.id] = text; try await client.saveCookies(values); value = text; model.notify("已保存账号配置") }
+            do { try await client.saveCookies([source.id: text]); value = text; model.notify("已保存账号配置") }
             catch { model.notify(error.localizedDescription) }
         }
     }
@@ -122,8 +127,9 @@ struct QRLoginScreen: View {
                             model.notify("账号凭证已更新，连接结果请查看账号详情")
                             return
                         }
-                        if ["expired", "failed", "error", "cancelled"].contains(result.status) { return }
+                        if ["expired", "failed", "error", "cancelled"].contains(result.status) { session = nil; return }
                     }
+                    session = nil
                     message = "二维码已过期，请重新获取"
                 } catch is CancellationError { } catch { message = "暂时无法完成兼容扫码，请检查网络或稍后重试。" }
             }
