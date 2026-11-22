@@ -5,6 +5,7 @@
 - MusicAccounts/SpotifyOAuth：系统 MusicKit 优先；请求 storefront 与个人歌单后记录连接，订阅独立。浏览器路径沿用已有明确选择；Spotify 独立恢复和验证真实昵称、头像。兼容凭证与身份验证分开。
 - AccountViews/ProfileViews：六个常用平台优先；配置折叠，Spotify 缺配置可通过主入口展开；二维码过期清除，手动凭证只更新对应平台。复用原生 Form/List 和系统底部 accessory，键盘和真机遮挡待实测。
 - internal/web/native_accounts.go 及测试：歌单返回空数组不足以验证身份；适配器不存在返回 unsupported。SourceViews/AppleMusicLibraryScreen：平台选择器联动原生苹果资料库、分页和导入读取器。播放器、原有来源和 SQLite 结构沿用。
+- 深入核对依赖后确认 QQ 两种扫码使用预置第三方应用标识，已在原生能力表和桥接入口限制；其余搜索和有权使用的凭证/歌单功能保留。新增原生 MusicKit 授权动作、配置失败与无目录播放资格的受控测试，六平台导航测试及显式浏览器验证反馈。
 - 已补原生页面回归，构建与测试结果待回填。无 Apple 签名资格、Spotify 已登记应用、QQ 合作资质或六个真实账号的验证证据。恢复点为本分支账号升级提交；先完成云端构建，再用真实签名和官方账号按矩阵验收。
 
 ### 14 来源扩展探测

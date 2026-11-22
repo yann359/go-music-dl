@@ -259,7 +259,7 @@ final class AppleMusicBrowser: ObservableObject {
         } catch { if callbackGeneration == generation { failed(error) } }
         return true
     }
-    func restore() async {
+    func restore(explicit: Bool = false) async {
         guard !checking, !disconnecting else { return }
         guard Self.validOrigin(origin) else { failed(AppleBrowserError.configuration); return }
         let restoreGeneration = generation
@@ -275,7 +275,9 @@ final class AppleMusicBrowser: ObservableObject {
                 else { summary = MusicAccountSummary(connection: .authorizing, detail: "正在等待浏览器返回。若已关闭网页，请取消后重试。"); armDeadline() }
                 return
             }
-            guard record?.session != nil else { return }
+            guard record?.session != nil else {
+                if explicit { summary = MusicAccountSummary(detail: "本机没有已保存的浏览器连接，请先完成授权。") }; return
+            }
             checking = true; defer { checking = false }; let expected = generation
             try await verify(expected: expected)
         } catch { if restoreGeneration == generation { failed(error) } }

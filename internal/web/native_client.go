@@ -133,12 +133,12 @@ func nativeSourceCatalog() map[string]interface{} {
 			"toplist":        source != "spotify" && nativeMembership(source, core.GetTopListSourceNames()),
 			"recommend":      source != "spotify" && nativeMembership(source, core.GetRecommendSourceNames()),
 			"category":       source != "spotify" && nativeMembership(source, core.GetPlaylistCategorySourceNames()),
-			"qr_login":       nativeMembership(source, core.GetQRLoginSourceNames()),
+			"qr_login":       nativeMembership(source, coreQRLoginSources()),
 			"user_playlists": nativeMembership(source, core.GetUserPlaylistSourceNames()),
 			"configured":     legacyAccountSource(source) && core.CM.Get(source) != "",
 		})
 	}
-	return map[string]interface{}{"sources": sources, "defaults": core.GetDefaultSourceNames(), "qr_sources": core.GetQRLoginSourceNames()}
+	return map[string]interface{}{"sources": sources, "defaults": core.GetDefaultSourceNames(), "qr_sources": coreQRLoginSources()}
 }
 
 // NativeClientRequest keeps credentials inside the trusted native/Go boundary.

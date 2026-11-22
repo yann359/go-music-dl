@@ -189,7 +189,17 @@ func nativeJSONRoute(action string, params map[string]json.RawMessage) (interfac
 	return nativePerformJSON(request)
 }
 
-func coreQRLoginSources() []string { return core.GetQRLoginSourceNames() }
+// The upstream QQ and WeChat adapters register under preassigned third-party
+// client IDs. Only advertise paths this native app can currently initiate.
+func coreQRLoginSources() []string {
+	var allowed []string
+	for _, id := range core.GetQRLoginSourceNames() {
+		if id != "qq" && id != "qq_wx" {
+			allowed = append(allowed, id)
+		}
+	}
+	return allowed
+}
 
 func nativeQuerySuffix(query url.Values) string {
 	if len(query) == 0 {

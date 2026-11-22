@@ -1,4 +1,5 @@
 import XCTest
+import MusicKit
 @testable import MusicDL
 
 // Isolated transport/storage fixtures only. Never presented as Apple account
@@ -79,6 +80,34 @@ final class AppleMusicBrowserTests: XCTestCase {
         XCTAssertEqual(browser.summary.connection, .configurationUnavailable)
         XCTAssertTrue(browser.summary.detail.contains("Apple Developer Program"))
     }
+    func testSystemConnectionRequestsPermissionThenRequiresPersonalLibraryAccess() async {
+        let (defaults, client) = environment(configured: false)
+        var granted = false
+        var paths: [String] = []
+        var rejectLibrary = true
+        let access = NativeAppleAccess(status: { granted ? .authorized : .notDetermined }, authorize: {
+            granted = true
+            return .authorized
+        }, data: { request in
+            let path = request.url!.path
+            paths.append(path)
+            if path == "/v1/me/storefront" { return Data(#"{"data":[{"type":"storefronts","id":"cn"}]}"#.utf8) }
+            if rejectLibrary { throw MusicTokenRequestError.developerTokenRequestFailed }
+            return Data(#"{"data":[]}"#.utf8)
+        }, catalogPlayback: { false })
+        let browser = AppleMusicBrowser(storage: AppleMemoryStorage(), client: client, defaults: defaults)
+        let accounts = MusicAccounts(defaults: defaults, nativeApple: access, appleBrowser: browser)
+        XCTAssertFalse(accounts.usesAppleBrowser)
+        await accounts.connectApple()
+        XCTAssertTrue(granted)
+        XCTAssertEqual(paths, ["/v1/me/storefront", "/v1/me/library/playlists"])
+        XCTAssertEqual(accounts.summary("apple").connection, .configurationUnavailable)
+        rejectLibrary = false
+        await accounts.refreshAppleSystem()
+        XCTAssertEqual(accounts.summary("apple").connection, .connected)
+        XCTAssertTrue(accounts.summary("apple").detail.contains("无完整目录播放资格"))
+    }
+
     func testOriginsAndPKCEValidation() {
         for value in ["http://relay.example.com","https://user:password@relay.example.com","https://relay.example.com/path","https://relay.example.com:443","https://127.0.0.1","https://localhost","https://relay.local","https://relay.example.com?token=x"] { XCTAssertFalse(AppleMusicBrowser.validOrigin(value), value) }
         XCTAssertTrue(AppleMusicBrowser.validOrigin(origin))

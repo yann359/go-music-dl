@@ -33,6 +33,17 @@ func TestLegacyCredentialsNeedActualValidation(t *testing.T) {
 	}
 }
 
+func TestNativeQQRequiresItsOwnApprovedLoginClient(t *testing.T) {
+	for _, id := range []string{"qq", "qq_wx"} {
+		if nativeMembership(id, coreQRLoginSources()) {
+			t.Fatal("unapproved QR client advertised")
+		}
+	}
+	if core.GetUserPlaylistsFunc("qq") == nil {
+		t.Fatal("QQ playlist adapter missing")
+	}
+}
+
 func TestRetiredSavedSongsAndImportedMetadataAreNotDeleted(t *testing.T) {
 	initCollectionDBForTest(t)
 	collection := Collection{Name: "Keep my history", Kind: collectionKindManual, Source: "local"}

@@ -104,14 +104,21 @@ struct AccountDetailScreen: View {
                 LabeledContent("授权状态", value: accounts.appleBrowser.summary.connection == .connected ? "连接成功" : accounts.appleBrowser.summary.connection.rawValue)
                     .accessibilityIdentifier("apple-browser-state")
                 if !accounts.usesAppleBrowser { Text(accounts.appleBrowser.summary.detail).font(.caption).foregroundStyle(.secondary) }
-                Button("通过浏览器连接 Apple Music") { Task { await accounts.connectAppleBrowser() } }
+                Button("通过浏览器连接 Apple Music") { Task { await accounts.connectAppleBrowser(); model.notify(accounts.appleBrowser.summary.detail) } }
                     .disabled(client.isOfflinePreview || accounts.appleBrowser.summary.connection == .authorizing || accounts.appleBrowser.hasPending)
                     .accessibilityIdentifier("apple-browser-connect")
                 if accounts.appleBrowser.hasPending {
                     Button("取消授权") { Task { await accounts.appleBrowser.cancel() } }.disabled(client.isOfflinePreview)
                 } else {
-                    Button("重新授权") { Task { await accounts.reauthorizeAppleBrowser() } }.disabled(client.isOfflinePreview)
-                    Button("验证已有浏览器连接") { Task { await accounts.appleBrowser.restore() } }.disabled(client.isOfflinePreview)
+                    Button("重新授权") { Task { await accounts.reauthorizeAppleBrowser(); model.notify(accounts.appleBrowser.summary.detail) } }.disabled(client.isOfflinePreview)
+                    Button("验证已有浏览器连接") {
+                        checking = true
+                        Task {
+                            defer { checking = false }
+                            await accounts.appleBrowser.restore(explicit: true)
+                            model.notify(accounts.appleBrowser.summary.detail)
+                        }
+                    }.disabled(client.isOfflinePreview || checking)
                 }
                 Text("打开系统浏览器后，请在网页点击继续，由 Apple 官方页面处理账号、密码和双重认证。授权后返回 App 校验；若浏览器未自动返回，请点击网页的返回按钮。网页授权不等于原生完整歌曲播放权限。")
                     .font(.caption).foregroundStyle(.secondary)
@@ -151,7 +158,7 @@ struct AccountDetailScreen: View {
                     .font(.caption).foregroundStyle(.secondary)
                 LabeledContent("回调地址") { Text(SpotifyConfiguration.redirect).font(.caption).textSelection(.enabled) }
                 Button("保存 Client ID") { Task { await accounts.configureSpotify(clientID: clientID) } }
-                    .disabled(client.isOfflinePreview || summary.connection == .authorizing)
+                    .disabled(client.isOfflinePreview || summary.connection == .authorizing || !SpotifyConfiguration(clientID: clientID.trimmingCharacters(in: .whitespacesAndNewlines)).isValid)
                 Link("Spotify Developer Dashboard", destination: URL(string: "https://developer.spotify.com/dashboard")!)
                 Text("在自己应用的 Dashboard 中登记此完整回调地址，并添加 Bundle ID 及获准测试用户。若后台不接受原生回调或账户不满足开发模式要求，请保持待配置；不要填写其他应用的 Client ID。")
                     .font(.caption).foregroundStyle(.secondary)
@@ -161,20 +168,20 @@ struct AccountDetailScreen: View {
     private var legacyControls: some View {
         Group {
             Section("现有账号连接") {
+                if source.id == "qq" {
+                    Text("澄音尚未取得 QQ 音乐合作应用标识，当前无法发起官方扫码授权。已有本人合法凭证时，可以验证歌单读取能力。")
+                }
                 Button("验证连接") { Task { await accounts.validateLegacy(source: source.id, client: client) } }
                     .disabled(summary.connection == .authorizing)
                 if client.qrSources.contains(source.id) {
                     NavigationLink("兼容扫码登录（原项目）") { QRLoginScreen(source: source.id, name: source.name) }
                 }
-                if source.id == "qq", client.qrSources.contains("qq_wx") {
-                    NavigationLink("微信扫码登录（原项目）") { QRLoginScreen(source: "qq_wx", name: "QQ 音乐") }
-                }
                 NavigationLink("手动配置（兼容旧版）") { CookieScreen(source: source) }
             }
-            Section {
+            if source.id != "qq" { Section {
                 Text(source.id == "soda" ? "尚未确认可供此应用使用的汽水官方第三方授权接口；原项目的扫码暂不可用。保留既有凭证能力与音乐功能，不将抖音登录当作汽水音乐授权。" : "当前扫码沿用开源项目接口。尚未确认面向此应用、已获接入资格的官方音乐 OAuth，不把兼容扫码标为官方开放授权；无需向本 App 提供平台密码。")
                     .font(.caption).foregroundStyle(.secondary)
-            }
+            } }
         }
     }
 }

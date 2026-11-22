@@ -329,6 +329,7 @@ final class NativeVisualTests: XCTestCase {
         for id in ids { XCTAssertTrue(app.buttons["account-source-" + id].exists) }
 
         app.buttons["account-source-apple"].tap()
+        XCTAssertTrue(app.buttons["apple-system-authorize"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["apple-system-authorize"].isHittable)
         expandAccountSection("浏览器连接与开发者配置", in: app)
         XCTAssertTrue(app.buttons["apple-browser-connect"].exists)
@@ -340,6 +341,12 @@ final class NativeVisualTests: XCTestCase {
         XCTAssertTrue(app.textFields["spotify-client-id"].exists)
         XCTAssertEqual(app.secureTextFields.count, 0)
         capture("official-accounts-spotify-pending")
+        app.navigationBars.buttons["音源账号"].tap()
+        for id in ["qq", "netease", "soda", "kuwo"] {
+            app.buttons["account-source-" + id].tap()
+            XCTAssertTrue(app.buttons["验证连接"].waitForExistence(timeout: 5))
+            app.navigationBars.buttons["音源账号"].tap()
+        }
     }
 
     private func expandAccountSection(_ title: String, in app: XCUIApplication) {
@@ -357,6 +364,7 @@ final class NativeVisualTests: XCTestCase {
         app.tabBars.buttons["我的"].tap()
         app.buttons["音源账号"].tap()
         app.buttons["account-source-apple"].tap()
+        XCTAssertTrue(app.buttons["apple-system-authorize"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["apple-system-authorize"].isHittable)
         expandAccountSection("浏览器连接与开发者配置", in: app)
         let connect = app.buttons["apple-browser-connect"]
