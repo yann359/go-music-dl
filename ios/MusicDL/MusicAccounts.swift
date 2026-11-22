@@ -217,7 +217,7 @@ final class MusicAccounts: ObservableObject {
     }
     func refreshApple() async {
         if usesAppleBrowser { await appleBrowser.restore() }
-        else { await refreshAppleSystem() }
+        else if appleSystemSummary.connection != .authorizing { await refreshAppleSystem() }
     }
     func refreshAppleSystem() async {
         guard defaults.bool(forKey: "account.apple.enabled"), !appleChecking else { return }

@@ -1,3 +1,12 @@
+## 音源账号升级（2026-11-22）
+
+分支 codex/native-experience-vnext；基线 dbf11ae / Build 54，手机实际安装版本待用户核对。审计 c241446，验证逻辑 d3e04ab，账号界面 b2310c1，歌单接入 be518c5。六个平台的接入资格、身份、资料范围、播放和真机记录见 [账号连接矩阵](docs/music-account-connection-matrix.md)。
+
+- MusicAccounts/SpotifyOAuth：系统 MusicKit 优先；请求 storefront 与个人歌单后记录连接，订阅独立。浏览器路径沿用已有明确选择；Spotify 独立恢复和验证真实昵称、头像。兼容凭证与身份验证分开。
+- AccountViews/ProfileViews：六个常用平台优先；配置折叠，Spotify 缺配置可通过主入口展开；二维码过期清除，手动凭证只更新对应平台。复用原生 Form/List 和系统底部 accessory，键盘和真机遮挡待实测。
+- internal/web/native_accounts.go 及测试：歌单返回空数组不足以验证身份；适配器不存在返回 unsupported。SourceViews/AppleMusicLibraryScreen：平台选择器联动原生苹果资料库、分页和导入读取器。播放器、原有来源和 SQLite 结构沿用。
+- 已补原生页面回归，构建与测试结果待回填。无 Apple 签名资格、Spotify 已登记应用、QQ 合作资质或六个真实账号的验证证据。恢复点为本分支账号升级提交；先完成云端构建，再用真实签名和官方账号按矩阵验收。
+
 ### 14 来源扩展探测
 
 以隔离库并发调用已有 Go 搜索入口，覆盖五个关键词和三类搜索，本地来源仅测歌曲和歌单。下表按每次请求的结果归类。原始记录位于工作区 `../outputs/vnext-p0-multisource.json`。

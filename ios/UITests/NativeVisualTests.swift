@@ -329,16 +329,24 @@ final class NativeVisualTests: XCTestCase {
         for id in ids { XCTAssertTrue(app.buttons["account-source-" + id].exists) }
 
         app.buttons["account-source-apple"].tap()
+        XCTAssertTrue(app.buttons["apple-system-authorize"].isHittable)
+        expandAccountSection("浏览器连接与开发者配置", in: app)
         XCTAssertTrue(app.buttons["apple-browser-connect"].exists)
-        for _ in 0..<4 { if app.buttons["apple-system-authorize"].isHittable { break }; app.swipeUp() }
-        XCTAssertTrue(app.buttons["apple-system-authorize"].exists)
         capture("official-apple-browser-system-separate-unconfigured")
         XCTAssertEqual(app.secureTextFields.count, 0)
         app.navigationBars.buttons["音源账号"].tap()
         app.buttons["account-source-spotify"].tap()
+        expandAccountSection("开发者配置", in: app)
         XCTAssertTrue(app.textFields["spotify-client-id"].exists)
         XCTAssertEqual(app.secureTextFields.count, 0)
         capture("official-accounts-spotify-pending")
+    }
+
+    private func expandAccountSection(_ title: String, in app: XCUIApplication) {
+        let control = app.buttons[title]
+        for _ in 0..<5 { if control.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(control.isHittable)
+        control.tap()
     }
 
     func testAppleBrowserMissingServiceShowsRealConfigurationFailure() {
@@ -349,8 +357,11 @@ final class NativeVisualTests: XCTestCase {
         app.tabBars.buttons["我的"].tap()
         app.buttons["音源账号"].tap()
         app.buttons["account-source-apple"].tap()
+        XCTAssertTrue(app.buttons["apple-system-authorize"].isHittable)
+        expandAccountSection("浏览器连接与开发者配置", in: app)
         let connect = app.buttons["apple-browser-connect"]
         XCTAssertTrue(connect.waitForExistence(timeout: 8))
+        for _ in 0..<4 { if connect.isHittable { break }; app.swipeUp() }
         connect.tap()
         XCTAssertTrue(app.staticTexts["服务配置不可用"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertEqual(app.secureTextFields.count, 0)
