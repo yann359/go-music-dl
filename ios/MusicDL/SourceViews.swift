@@ -32,7 +32,7 @@ struct PlatformScreen: View {
             Section { NavigationLink("账号与连接状态") { AccountDetailScreen(source: source) } }
             if loading { ProgressView("正在连接\(source.name)…") }
             if let problem { Section { Text(problem).font(.subheadline).foregroundStyle(.secondary); Button("重试") { Task { await load() } } } }
-            if source.userPlaylists { NavigationLink("我的平台歌单") { UserPlaylistsScreen(initialSource: source.id) } }
+            if source.userPlaylists || source.id == "apple" { NavigationLink("我的平台歌单") { UserPlaylistsScreen(initialSource: source.id) } }
             if !playlists.isEmpty { Section("推荐歌单") { ForEach(playlists, id: \.key) { item in NavigationLink(item.name) { CollectionDetailScreen(collection: item, kind: "playlist") } } } }
             if !charts.isEmpty { Section("排行榜") { ForEach(charts, id: \.key) { item in NavigationLink(item.name) { SongDetailScreen(title: item.name, kind: "toplist", id: item.id, source: source.id, cover: item.cover) } } } }
             if !categories.isEmpty { Section("歌单分类") { ForEach(categories, id: \.key) { item in NavigationLink(item.name) { CategoryPlaylistsScreen(source: source.id, category: item) } } } }
@@ -79,18 +79,37 @@ struct UserPlaylistsScreen: View {
     @State private var loading = false
     @State private var problem: String?
     @State private var loadGeneration = UUID()
+    @EnvironmentObject private var accounts: MusicAccounts
+    private var platforms: [NativeSource] { client.sources.filter { $0.userPlaylists || $0.id == "apple" } }
     var body: some View {
+        VStack(spacing: 0) {
+            Picker("音乐来源", selection: $source) {
+                ForEach(platforms) { Text($0.name).tag($0.id) }
+            }.pickerStyle(.menu)
+            if source == "apple", let apple = platforms.first(where: { $0.id == "apple" }) {
+                if accounts.summary("apple").connection == .connected {
+                    AppleMusicLibraryScreen()
+                } else {
+                    List {
+                        Text(accounts.summary("apple").detail)
+                        NavigationLink("连接 Apple Music") { AccountDetailScreen(source: apple) }
+                    }
+                }
+            } else {
+                legacyList
+            }
+        }.navigationTitle("平台歌单")
+            .task { if source.isEmpty { source = initialSource.isEmpty ? (platforms.first?.id ?? "") : initialSource } }
+            .task(id: source) { if source != "apple" { await load() } }
+    }
+    private var legacyList: some View {
         List {
-            Picker("音乐来源", selection: $source) { ForEach(client.sources.filter { $0.userPlaylists }, id: \.id) { Text($0.name).tag($0.id) } }
-
             if loading { ProgressView("正在读取账号歌单…") }
             if let problem { Text(problem).foregroundStyle(.secondary); NavigationLink("配置平台账号") { AccountsScreen() }; Button("重试") { Task { await load() } } }
             ForEach(values, id: \.key) { value in NavigationLink(value.name) { CollectionDetailScreen(collection: value, kind: "playlist") } }
             if !values.isEmpty { Button("加载更多") { Task { await load(more: true) } }.disabled(loading) }
             if values.isEmpty && !loading && problem == nil { NativeEmptyState(symbol: "person.crop.circle", title: "还没有读取到歌单", detail: "先配置对应平台的账号，或选择其他音乐来源。") }
-        }.navigationTitle("平台歌单")
-            .task { if source.isEmpty { source = initialSource.isEmpty ? (client.sources.first { $0.userPlaylists }?.id ?? "") : initialSource } }
-            .task(id: source) { await load() }
+        }
     }
     private func load(more: Bool = false) async {
         guard !source.isEmpty else { return }

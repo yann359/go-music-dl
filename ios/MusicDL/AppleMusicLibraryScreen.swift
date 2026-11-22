@@ -33,7 +33,11 @@ struct AppleMusicLibraryScreen: View {
                     Text(row["attributes"]["name"].stringValue.isEmpty ? "未提供名称" : row["attributes"]["name"].stringValue)
                     let detail = [row["attributes"]["artistName"].stringValue, row["attributes"]["albumName"].stringValue].filter { !$0.isEmpty }.joined(separator: " · ")
                     if !detail.isEmpty { Text(detail).font(.caption).foregroundStyle(.secondary) }
-                    if category == "playlists" { Text("可在自建歌单的 Apple Music 授权歌单列表中选择导入").font(.caption2).foregroundStyle(.secondary) }
+                    if category == "playlists" {
+                        NavigationLink("查看曲目") {
+                            AppleLibraryTracks(link: "https://music.apple.com/library/playlist/" + row["id"].stringValue)
+                        }
+                    }
                 }
             }
             if more { Button("加载更多") { Task { await load(reset: false) } }.disabled(busy) }
@@ -42,7 +46,7 @@ struct AppleMusicLibraryScreen: View {
             .task { await load(reset: true) }
             .onChange(of: category) { _, _ in revision += 1; busy = false; rows = []; offset = 0; more = false; problem = nil; synced = nil; if category != "search" { Task { await load(reset: true) } } }
             .refreshable { await load(reset: true) }
-            .onDisappear { revision += 1 }
+            .onDisappear { revision += 1; busy = false }
     }
     private func load(reset: Bool) async {
         guard !busy, category != "search" || !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -66,9 +70,44 @@ struct AppleMusicLibraryScreen: View {
             let hasNext = !value["next"].stringValue.isEmpty
             guard !hasNext || !data.isEmpty else { throw AppleBrowserError.response }
             if reset { rows = [] }
-            let known = Set(rows.map { $0["id"].stringValue })
-            rows += data.filter { !known.contains($0["id"].stringValue) }
+            var known = Set(rows.map { $0["id"].stringValue })
+            rows += data.filter { known.insert($0["id"].stringValue).inserted }
             offset = start + data.count; more = hasNext; synced = Date()
         } catch { if expected == revision { problem = error.localizedDescription } }
+    }
+}
+
+private struct AppleLibraryTracks: View {
+    let link: String
+    @State private var tracks: [ImportTrack] = []
+    @State private var offset = 0
+    @State private var more = true
+    @State private var busy = false
+    @State private var error: String?
+    var body: some View {
+        List {
+            ForEach(Array(tracks.enumerated()), id: \.offset) { _, track in
+                VStack(alignment: .leading) {
+                    Text(track.title)
+                    Text([track.artist, track.album].filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if let error { Text(error) }
+            if busy { ProgressView() }
+            else if more { Button(error == nil ? "读取曲目" : "重试") { Task { await load() } } }
+            else if tracks.isEmpty { Text("这个歌单暂无曲目") }
+        }.navigationTitle("歌单曲目")
+            .task { if tracks.isEmpty && more { await load() } }
+    }
+    private func load() async {
+        guard !busy else { return }
+        busy = true; error = nil
+        defer { busy = false }
+        do {
+            let page = try await ApplePlaylistImport.page(link: link, offset: offset)
+            try Task.checkCancellation()
+            tracks += page.tracks; offset = page.next; more = page.more
+        } catch is CancellationError { } catch { self.error = error.localizedDescription }
     }
 }
